@@ -7,6 +7,8 @@ class MaterialsCreator:
     def __init__(self):
         # Extras to be defined:
         self.texture_path = ""
+        self.shadersList = []
+        self.shadersNamesList = []
         # print(f"printing orig texture path... >{self.texture_path}")
 
     def MatNet_to_use(self):
@@ -38,8 +40,36 @@ class MaterialsCreator:
 
         self.matNet_orig_name = self.matNet_orig.name()
         self.matNet_to_use = self.matNet_orig  # matnet to use is the orig
-        self.shadersList = list(self.matNet_orig.children())  # get all shaders
-        print(f"self.matNet_to_use is {self.matNet_to_use}")
+
+
+
+        #check if they are principled shaders or material builders#
+        # print(f"shadersList 1:  {self.shadersList}")
+        for child in self.matNet_orig.children():
+            if child.type().name() == "principledshader::2.0":
+                self.shadersList.append(child)  # get all shaders
+
+
+                # print(f"shadersList 2:  {self.shadersList}")
+            else:
+                for childChild in child.children():
+                    if childChild.type().name() == "principledshader::2.0":
+                        self.shadersList.append(childChild)
+                        # print(f"shadersList 3:  {self.shadersList}")
+
+            ### get the shader name ###
+            self.shadersNamesList.append(child.name())
+
+            disallowed_characters = "!@#$%^&*()+="
+            for shaderName in self.shadersNamesList:
+                for character in disallowed_characters:
+                    shaderName = shaderName.replace(character, "")
+
+
+
+        # print(f"self.matNet_to_use is {self.matNet_to_use}")
+        # print(f"self.shadersNamesList is {self.shadersNamesList}")
+
 
 
 
@@ -60,14 +90,16 @@ class MaterialsCreator:
         print(f"printing self.shader_name_list = {self.shader_name_list}")
         print(f"printing self.shaderList = {self.shadersList}")
         print(f"printing type of self.shaderList = {type(self.shadersList)}")
+        print(f"printing self.shadersNamesList =  " + "".join(map(str, self.shadersNamesList)))
+
 
     def getTextureMapsUsed(self):
         for index, shader in enumerate(self.shadersList):
             if self.shader_type_list[index] == "principledshader::2.0":
-                self.baseClr_full_string = shader.evalParm("basecolor_texture")
-                self.roughness_full_string = shader.evalParm("rough_texture")
-                self.metallic_full_string = shader.evalParm("metallic_texture")
-                self.normal_full_string = shader.evalParm("baseNormal_texture")
+                self.baseClr_full_string = shader.parm("basecolor_texture").unexpandedString()
+                self.roughness_full_string = shader.parm("rough_texture").unexpandedString()
+                self.metallic_full_string = shader.parm("metallic_texture").unexpandedString()
+                self.normal_full_string = shader.parm("baseNormal_texture").unexpandedString()
 
                 self.texture_path = os.path.split(self.baseClr_full_string)[0]
 
@@ -75,17 +107,18 @@ class MaterialsCreator:
                 self.roughness = os.path.split(self.roughness_full_string)[1]
                 self.metallic = os.path.split(self.metallic_full_string)[1]
                 self.normal = os.path.split(self.normal_full_string)[1]
-                print(f"printing texture_path now set to {self.texture_path}")
-                print(
-                    f"printing list of shaders: {self.baseClr, self.roughness, self.metallic, self.normal}")
+                # print(f"printing texture_path now set to {self.texture_path}")
+                # print(
+                #     f"printing list of shaders: {self.baseClr, self.roughness, self.metallic, self.normal}")
 
     def createArnoldMaterials(self):
         print(f"printing self.matNet_to_use is of type : {self.matNet_to_use}")
 
         for index, shader in enumerate(self.shadersList):
+            ### I already made sure shader_type_list is only "principledshader::2.0" so maybe delete this "if statement" ###
             if self.shader_type_list[index] == "principledshader::2.0":
                 ArnoldVopNet = self.matNet_to_use.createNode(
-                    "arnold_materialbuilder", self.shader_name_list[index])
+                    "arnold_materialbuilder", f"{self.shadersNamesList[index]}_Arnold_Shader")
                 ArnoldMatOutput = ArnoldVopNet.children()[0]  # sel Output VOP
                 ArnoldMat = ArnoldVopNet.createNode(
                     "arnold::standard_surface")  # create Arnold VOPNet
@@ -127,8 +160,12 @@ class MaterialsCreator:
                     ArnoldNormalMap.setInput(0, ArnoldTexNormal)
                     ArnoldMat.setInput(39, ArnoldNormalMap)
 
-                self.matNet_to_use.layoutChildren()
+                # self.matNet_to_use.layoutChildren()
                 ArnoldVopNet.layoutChildren()
+                ArnoldVopNet.moveToGoodPosition()
+
+            ArnoldVopNet.setSelected("on")
+
 
 
 
