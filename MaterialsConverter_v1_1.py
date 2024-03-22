@@ -75,9 +75,7 @@ class MaterialsCreator:
 
     def createMatNet(self):
         # matNet_to_use is now the new one
-        self.matNet_to_use = self.matNet_orig.parent().createNode("matnet",
-                                                                    "materials")
-
+        self.matNet_to_use = self.matNet_orig.parent().createNode("matnet", "materials")
         self.matNet_to_use.moveToGoodPosition()
 
     def get_Shaders_type(self):
