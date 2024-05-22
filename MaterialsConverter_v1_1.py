@@ -94,10 +94,10 @@ class MaterialsCreator:
     def getTextureMapsUsed(self):
         for index, shader in enumerate(self.shadersList):
             if self.shader_type_list[index] == "principledshader::2.0":
-                self.baseClr_full_string = shader.parm("basecolor_texture").unexpandedString()
-                self.roughness_full_string = shader.parm("rough_texture").unexpandedString()
-                self.metallic_full_string = shader.parm("metallic_texture").unexpandedString()
-                self.normal_full_string = shader.parm("baseNormal_texture").unexpandedString()
+                self.baseClr_full_string    = shader.parm("basecolor_texture").unexpandedString()
+                self.roughness_full_string  = shader.parm("rough_texture").unexpandedString()
+                self.metallic_full_string   = shader.parm("metallic_texture").unexpandedString()
+                self.normal_full_string     = shader.parm("baseNormal_texture").unexpandedString()
 
                 self.texture_path = os.path.split(self.baseClr_full_string)[0]
 
