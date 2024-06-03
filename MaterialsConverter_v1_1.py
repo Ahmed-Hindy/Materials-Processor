@@ -197,9 +197,46 @@ class MaterialsCreator:
 
 
 
+"""
+# Example on how to use this legacy converter, simple copy the following lines in a shelf tool,
+# select a principledshader node and run it.
 
-# p1 = r"$HIP/folder1/folder2/baseColor.jpeg"
-# p2 = r"$HIP\folder1\folder2\baseColor.jpeg"
-#
-# print(os.path.split(p1)[-1])
-# print(os.path.split(p2)[-1])
+
+import os
+from legacy_code.MaterialsPackage import MaterialsConverter_v1_1 as MC
+from importlib import reload
+
+reload(MC)  # reloading the Module
+print("\n_____done reloading______")
+
+MatNet = MC.MaterialsCreator()
+
+# MatNet.createMatNet()  # create a MatNet
+# print("_____created a Material Network______")
+
+
+print("_____processing MatNet_to_use______")
+MatNet.MatNet_to_use()
+print("_____DONE MatNet_to_use()______\n")
+
+print("_____processing Shaders Types______")
+MatNet.get_Shaders_type()
+print("_____DONE get_Shaders_type()______\n")
+
+print("_____processing Texture Maps Used______")
+MatNet.getTextureMapsUsed()
+print("_____DONE getTextureMapsUsed______\n")
+
+print("_____processing Arnold Materials______")
+MatNet.createArnoldMaterials()  # create Arnold Material
+print("_____DONE createArnoldMaterials()______\n")
+
+
+
+print("\n")
+
+
+
+
+
+"""
