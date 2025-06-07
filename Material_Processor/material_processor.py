@@ -1,16 +1,13 @@
 """
 copyright Ahmed Hindy. Please mention the original author if you used any part of this code
 This module processes material nodes in Houdini, extracting and converting shader parameters and textures.
-
-
 """
+
 import json
 import logging
 from typing import Dict, List
-from pprint import pprint, pformat
+import pprint
 from importlib import reload
-
-import Material_Processor.PySide2_ui
 
 
 import Material_Processor.material_classes
@@ -209,6 +206,22 @@ OUTPUT_CONNECTIONS_INDEX_MAP = {
 
 ##########################################################################################
 
+def _convert_to_serializable(obj):
+    """
+    [TEMP FOR DEBUG ONLY] Convert non-serializable objects to a string for JSON dumping.
+    """
+    if not obj:
+        return 'None'
+    elif isinstance(obj, hou.VopNode):
+        return obj.path()
+    elif isinstance(obj, tuple):
+        return 'tuple'
+    elif isinstance(obj, hou.Parm):
+        return obj.name()
+    try:
+        return str(obj)
+    except:
+        return "None2"  # Handle cases where conversion fails
 
 
 
@@ -227,7 +240,7 @@ class NodeTraverser:
         self.material_type = material_type
         self.output_nodes = {}
 
-    def traverse_node_tree(self, node: hou.Node, path=None) -> Dict[str, Dict]:
+    def traverse_node_tree(self, node, path=None):
         """
         Recursively traverse the node tree and return a dictionary of node connections with additional metadata,
         separating the input index and input node path as key-value pairs.
@@ -246,7 +259,8 @@ class NodeTraverser:
         is_output_node = False
         output_type = None
         for output_name, output_data in self.output_nodes.items():
-            if output_data['node'] == node:
+            output_data_node = hou.node(output_data['node_path'])
+            if output_data_node == node:
                 is_output_node = True
                 output_type = output_name
                 break
@@ -256,6 +270,7 @@ class NodeTraverser:
             'node_name': node.name(),
             'node_path': node.path(),
             'node_type': node.type().name(),
+            'node_parms': self.convert_parms_to_dict(node.parms()),
             'is_output_node': is_output_node,
             'output_type': output_type,
             'children': []
@@ -288,73 +303,9 @@ class NodeTraverser:
 
         return {node.path(): node_dict}
 
-    def traverse_children_nodes(self, parent_node: hou.Node) -> Dict:
-        """
-        Traverse the children nodes of a parent node to extract the node tree and detect output nodes.
-
-        Args:
-            parent_node (hou.Node): The parent Houdini node.
-
-        Returns:
-            Dict: A dictionary representing the node tree of the children nodes.
-        """
-        # Detect output nodes before starting traversal
-        self.output_nodes = self.detect_output_nodes(parent_node, material_type=self.material_type)
-        print(f"Output nodes detected: {self.output_nodes}\n")
-
-        output_nodes = []
-        for child in parent_node.children():
-            is_output = True
-            for other_node in parent_node.children():
-                if child in other_node.inputs():
-                    is_output = False
-                    break
-            if is_output:
-                output_nodes.append(child)
-
-        all_branches = {}
-        for output_node in output_nodes:
-            branch_dict = self.traverse_node_tree(output_node, [])
-            all_branches.update(branch_dict)
-
-        print('traverse_children_nodes()-----all_branches:')
-        pprint(all_branches, indent=1, compact=True, width=10)
-        print(f'Done\n')
-        # print(f"{node_dict=}")
-
-        json_str = json.dumps(all_branches, default=convert_to_serializable, indent=4)
-        with open(r"C:/Users/Ahmed Hindy/AppData/Local/Temp/houdini_temp/json_dump.json", "w") as json_file:
-            json_file.write(json_str)
-
-        self.nested_nodes_dict = all_branches
-        return all_branches
 
     @staticmethod
-    def detect_output_nodes(parent_node: hou.Node, material_type: str) -> Dict:
-        """
-        Detect output nodes in the node tree based on the material type.
-
-        Args:
-            parent_node (hou.Node): The parent Houdini node.
-            material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
-
-        Returns:
-            Dict: A dictionary of detected output nodes.
-        """
-        print(f"detect_output_nodes START for {parent_node.path()}")
-        if material_type == 'arnold':
-            output_nodes = NodeTraverser._detect_arnold_output_nodes(parent_node)
-        elif material_type == 'mtlx':
-            output_nodes = NodeTraverser._detect_mtlx_output_nodes(parent_node)
-        elif material_type == 'principledshader':
-            output_nodes = NodeTraverser._detect_principled_output_nodes(parent_node)
-        else:
-            raise KeyError(f"Unsupported renderer: {material_type=}")
-
-        return output_nodes
-
-    @staticmethod
-    def _detect_arnold_output_nodes(parent_node: hou.Node) -> Dict:
+    def _detect_arnold_output_nodes(parent_node):
         """
         Detect Arnold output nodes in the node tree.
 
@@ -380,18 +331,20 @@ class NodeTraverser:
             connected_output_index = connection.inputIndex()
             if connected_output_index == 0:
                 output_nodes['surface'] = {
-                    'node': arnold_output,
+                    # 'node': arnold_output,
+                    'node_name': arnold_output.name(),
                     'node_path': arnold_output.path(),
-                    'connected_node': connected_input,
+                    'connected_node_name': connected_input.name(),
                     'connected_node_path': connected_input.path(),
                     'connected_node_index': connected_input_index,
                     'generic_type': 'GENERIC::output_surface'
                 }
             elif connected_output_index == 1:
                 output_nodes['displacement'] = {
-                    'node': arnold_output,
+                    # 'node': arnold_output,
+                    'node_name': arnold_output.name(),
                     'node_path': arnold_output.path(),
-                    'connected_node': connected_input,
+                    'connected_node_name': connected_input.name(),
                     'connected_node_path': connected_input.path(),
                     'connected_node_index': connected_input_index,
                     'generic_type': 'GENERIC::output_displacement'
@@ -399,7 +352,7 @@ class NodeTraverser:
         return output_nodes
 
     @staticmethod
-    def _detect_mtlx_output_nodes(parent_node: hou.Node) -> Dict:
+    def _detect_mtlx_output_nodes(parent_node):
         """
         Detect MaterialX output nodes in the node tree.
 
@@ -421,16 +374,17 @@ class NodeTraverser:
             parmname = output_node.parm('parmname').eval()
             if parmname in ['surface', 'displacement']:
                 output_nodes[parmname] = {
-                    'node': output_node,
+                    # 'node': arnold_output,
+                    'node_name': output_node.name(),
                     'node_path': output_node.path(),
-                    'connected_node': connected_input,
+                    'connected_node_name': connected_input.name(),
                     'connected_node_path': connected_input.path(),
                     'connected_node_index': connected_input_index
                 }
         return output_nodes
 
     @staticmethod
-    def _detect_principled_output_nodes(parent_node: hou.Node) -> Dict:
+    def _detect_principled_output_nodes(parent_node):
         """
         Detect Principled Shader output nodes in the node tree.
 
@@ -444,19 +398,43 @@ class NodeTraverser:
         for child in parent_node.children():
             if child.type().name() == 'principledshader::2.0':
                 output_nodes['surface'] = {
-                    'node': child,
+                    'node_name': child.name(),
                     'node_path': child.path(),
                     'generic_type': 'GENERIC::output_surface'
                 }
             elif child.type().name() == 'displacement':
                 output_nodes['displacement'] = {
-                    'node': child,
+                    'node_name': child.name(),
                     'node_path': child.path(),
                     'generic_type': 'GENERIC::output_displacement'
                 }
         return output_nodes
 
-    def traverse_principled_shader(self, node: hou.Node) -> Dict:
+    @staticmethod
+    def detect_output_nodes(parent_node, material_type: str):
+        """
+        Detect output nodes in the node tree based on the material type.
+
+        Args:
+            parent_node (hou.Node): The parent Houdini node.
+            material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
+
+        Returns:
+            Dict: A dictionary of detected output nodes.
+        """
+        print(f"detect_output_nodes START for {parent_node.path()}")
+        if material_type == 'arnold':
+            output_nodes = NodeTraverser._detect_arnold_output_nodes(parent_node)
+        elif material_type == 'mtlx':
+            output_nodes = NodeTraverser._detect_mtlx_output_nodes(parent_node)
+        elif material_type == 'principledshader':
+            output_nodes = NodeTraverser._detect_principled_output_nodes(parent_node)
+        else:
+            raise KeyError(f"Unsupported renderer: {material_type=}")
+
+        return output_nodes
+
+    def traverse_principled_shader(self, node):
         """
         Traverse the Principled Shader node to extract its parameters.
 
@@ -478,7 +456,7 @@ class NodeTraverser:
         return node_dict
 
     @staticmethod
-    def extract_principled_parameters(node: hou.Node) -> List[NodeParameter]:
+    def extract_principled_parameters(node):
         """
         Extract parameters from a Principled Shader node.
 
@@ -502,6 +480,60 @@ class NodeTraverser:
                            ]
         return node_parameters
 
+    @staticmethod
+    def convert_parms_to_dict(parms_list):
+        """
+        Convert a list of hou.Parm objects to a list of dictionaries with name and value.
+
+        Args:
+            parms_list (List[hou.Parm]): The list of hou.Parm objects.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries with parameter names and values.
+        """
+        return [{'name': p.name(), 'value': p.eval()} for p in parms_list]
+
+    def traverse_children_nodes(self, parent_node):
+        """
+        Traverse the children nodes of a parent node to extract the node tree and detect output nodes.
+
+        Args:
+            parent_node (hou.Node): The parent Houdini node.
+
+        Returns:
+            Dict: A dictionary representing the node tree of the children nodes.
+        """
+        # Detect output nodes before starting traversal
+        self.output_nodes = self.detect_output_nodes(parent_node, material_type=self.material_type)
+        print(f"Output nodes detected: {pprint.pformat(self.output_nodes)}\n")
+
+        output_nodes = []
+        for child in parent_node.children():
+            is_output = True
+            for other_node in parent_node.children():
+                if child in other_node.inputs():
+                    is_output = False
+                    break
+            if is_output:
+                output_nodes.append(child)
+
+        all_branches = {}
+        for output_node in output_nodes:
+            branch_dict = self.traverse_node_tree(output_node, [])
+            all_branches.update(branch_dict)
+
+        # print('traverse_children_nodes()-----all_branches:')
+        # pprint.pprint(all_branches, indent=1, compact=True, width=10)
+        # print(f'Done\n')
+
+        # temp: dump all of this into a temp json file
+        json_str = json.dumps(all_branches, default=_convert_to_serializable, indent=4)
+        import tempfile
+        with open(f"{tempfile.gettempdir()}/houdini_temp/json_dump.json", "w") as json_file:
+            json_file.write(json_str)
+
+        return all_branches
+
 
 
 class NodeStandardizer:
@@ -510,7 +542,7 @@ class NodeStandardizer:
     """
 
     def __init__(self, traverse_tree: Dict, output_nodes: Dict, material_type: str,
-                 input_material_builder_node: hou.Node):
+                 input_material_builder_node):
         """
         Initialize the NodeStandardizer with the traverse tree and output nodes.
 
@@ -531,7 +563,7 @@ class NodeStandardizer:
 
 
     @staticmethod
-    def convert_parms_to_dict(parms_list: List[hou.Parm]) -> List[Dict[str, str]]:
+    def convert_parms_to_dict(parms_list):
         """
         Convert a list of hou.Parm objects to a list of dictionaries with name and value.
 
@@ -549,8 +581,8 @@ class NodeStandardizer:
         for key, value in output_nodes_dict.items():
             standardized_key = f"GENERIC::output_{key}"
             standardized_output_nodes[standardized_key] = {
-                'node_path': value['node'].path(),
-                'connected_node': value['connected_node'],
+                'node_path': value['node_path'],
+                'connected_node_name': value['connected_node_name'],
                 'connected_node_path': value['connected_node_path'],
                 'connected_node_index': value['connected_node_index']
             }
@@ -608,7 +640,7 @@ class NodeStandardizer:
             output_type = node_info.get('output_type', None)
 
             # Get connected_node_path and connected_input_index
-            connected_node = node_info.get('connected_node')
+            connected_node_name = node_info.get('connected_node_name')
             connected_node_path = node_info.get('connected_node_path', None)
             connected_input_index = node_info.get('connected_node_index', None)
 
@@ -745,8 +777,8 @@ class NodeRecreator:
     Class for recreating Houdini nodes in a target renderer context.
     """
 
-    def __init__(self, nodeinfo_list: list[NodeInfo], output_connections: Dict, target_context: hou.Node,
-                 target_renderer: str = 'arnold'):
+    def __init__(self, nodeinfo_list, output_connections, target_context,
+                 target_renderer='arnold'):
         """
         Initialize the NodeRecreator with the provided material data and target context.
 
@@ -839,7 +871,7 @@ class NodeRecreator:
         for generic_output_type, output_info in self.output_connections.items():
             # e.g. output_type = "GENERIC::output_surface"
             # e.g. output_info = {'node_path': '/mat/material_mtlx_ORIG/surface_output',
-            #                     'connected_node': <hou.VopNode of type mtlxstandard_surface at /mat/material_mtlx_ORIG/mtlxstandard_surface>,
+            #                     'connected_node_name': 'surface_output',
             #                     'connected_node_index': 0}
             created_output_node_dict: dict = self.created_output_nodes_dict.get(generic_output_type, {})
             created_output_node: hou.VopNode = created_output_node_dict.get('node')
@@ -884,7 +916,7 @@ class NodeRecreator:
             self._create_nodes_recursive(node_info.child_nodes, processed_nodes)
 
 
-    def _create_node(self, node_info: NodeInfo) -> hou.Node:
+    def _create_node(self, node_info):
         """
         Create a Houdini node from NodeInfo.
 
@@ -954,7 +986,7 @@ class NodeRecreator:
             # Recursively set inputs for child nodes
             self._set_node_inputs(node_info.child_nodes)
 
-    def _set_inputs_recursive(self, node_info: NodeInfo, new_node: hou.Node):
+    def _set_inputs_recursive(self, node_info, new_node):
         """
         Recursively set inputs for nodes.
 
@@ -1006,7 +1038,7 @@ class NodeRecreator:
 
 
     @staticmethod
-    def apply_parameters(node: hou.Node, parameters: List[NodeParameter]):
+    def apply_parameters(node, parameters):
         """
         Apply parameters to a Houdini node.
 
@@ -1069,15 +1101,15 @@ class NodeRecreator:
             connected_node_info = self.output_connections.get(output_type)
             # e.g. self.output_connections= {'GENERIC::output_surface':
             #                                   {'node_path': '/mat/material_mtlx_ORIG/surface_output',
-            #                                    'connected_node': <hou.VopNode of type mtlxstandard_surface at /mat/material_mtlx_ORIG/mtlxstandard_surface>,
+            #                                    'connected_node_name': ???,
             #                                    'connected_node_index': 0},
             #                                    'GENERIC::output_displacement':
             #                                        {'node_path': '/mat/material_mtlx_ORIG/displacement_output',
-            #                                         'connected_node': <hou.VopNode of type mtlxdisplacement at /mat/material_mtlx_ORIG/mtlxdisplacement>,
+            #                                         'connected_node_name': ???,
             #                                         'connected_node_index': 0}}
 
             if connected_node_info:
-                print(f"DEBUG: {connected_node_info=}")
+                # print(f"DEBUG: connected_node_info:    \n{pprint.pformat(connected_node_info, indent=6)}")
                 old_connected_node_path = connected_node_info.get('connected_node_path')
                 new_connected_node_path = self.old_new_node_map[old_connected_node_path]
                 print(f"DEBUG: {old_connected_node_path=}")
@@ -1137,10 +1169,12 @@ class NodeRecreator:
 
 
 
-def get_material_type(materialbuilder_node: hou.VopNode) -> str:
+def get_material_type(materialbuilder_node):
     """
-    :param materialbuilder_node: input material shading network, e.g. arnold materialbuilder
-    :return: str material type.
+    Args:
+        materialbuilder_node (hou.VopNode): input material shading network, e.g., arnold materialbuilder
+    Returns:
+        (str): material type.
     """
     material_type = None
 
@@ -1163,7 +1197,7 @@ def run(input_material_builder_node, target_context, target_renderer='mtlx'):
 
     Args:
         input_material_builder_node (hou.Node): The selected Houdini shading network,
-              e.g. arnold materialbuilder or mtlx materialbuilder.
+                                                e.g. arnold materialbuilder or mtlx materialbuilder.
         target_context (hou.Node): The target Houdini context node.
         target_renderer (str, optional): The target renderer (default is 'mtlx').
     """
@@ -1173,17 +1207,25 @@ def run(input_material_builder_node, target_context, target_renderer='mtlx'):
 
     print("NodeTraverser() START----------------------")
     traverser = NodeTraverser(material_type=material_type)
-    traverser.traverse_children_nodes(input_material_builder_node)
+    nested_nodes_dict = traverser.traverse_children_nodes(input_material_builder_node)
+    # print(f"DEBUG: nested_nodes_dict: ", pprint.pformat(nested_nodes_dict))
+    print(f"DEBUG: traverser.output_nodes: ", pprint.pformat(traverser.output_nodes))
+    print(f"DEBUG: material_type: ", material_type)
+    print(f"DEBUG: input_material_builder_node: ", input_material_builder_node)
     print("NodeTraverser() Finished----------------------\n\n\n")
 
 
     print("NodeStandardizer() START----------------------")
     standardizer = NodeStandardizer(
-        traverse_tree=traverser.nested_nodes_dict,
+        traverse_tree=nested_nodes_dict,
         output_nodes=traverser.output_nodes,
         material_type=material_type,
         input_material_builder_node=input_material_builder_node
     )
+    print(f"DEBUG: {standardizer.node_info_list=}")
+    print(f"DEBUG: {standardizer.standardized_output_nodes=}")
+    print(f"DEBUG: {target_context=}")
+    print(f"DEBUG: {target_renderer=}")
     print("NodeStandardizer() Finished----------------------\n\n\n")
 
 
@@ -1209,86 +1251,51 @@ def run(input_material_builder_node, target_context, target_renderer='mtlx'):
 
 
 
-def convert_to_serializable(obj):
-    """
-    [TEMP FOR DEBUG ONLY] Convert non-serializable objects to a string for JSON dumping.
-    """
-    print(f"///////////////////////////{type(obj)=}")
-    if not obj:
-        return 'None'
-    elif isinstance(obj, hou.VopNode):
-        return obj.path()
-    elif isinstance(obj, tuple):
-        return 'tuple'
-    elif isinstance(obj, hou.Parm):
-        return obj.name()
-    try:
-        return str(obj)
-    except:
-        return "None2"  # Handle cases where conversion fails
+
 
 
 def test():
     """
     Test function to validate the node traversal, standardization, and recreation process.
     """
-    # Define a custom node tree with proper structure and input indices
-    custom_tree = {
-        'output_node': {  # This is the output node
-            'generic_type': 'GENERIC::output_surface',
-            'parameters': [],
-            'connections': {
-                'node1': {  # Connected to output_node
-                    'generic_type': 'GENERIC::standard_surface',
-                    'parameters': [
-                        {'name': 'base', 'value': 1.0},
-                        {'name': 'specular', 'value': 0.5}
-                    ],
-                    'input_index': 0,  # Connect to input index 0 of output_node
-                    'connections': {
-                        'node2': {  # Connected to node1
-                            'generic_type': 'GENERIC::image',
-                            'parameters': [
-                                {'name': 'file', 'value': 'path/to/image.png'}
-                            ],
-                            'input_index': 0,  # Connect to input index 0 of node1
-                            'connections': {
-                                'node3': {  # Connected to node2
-                                    'generic_type': 'GENERIC::color_correct',
-                                    'parameters': [
-                                        {'name': 'gamma', 'value': 2.2}
-                                    ],
-                                    'input_index': 0,  # Connect to input index 0 of node2
-                                    'connections': {}
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+    # target_context = hou.node('/mat')
+    target_renderer = 'mtlx'
+    material_type = 'arnold'
+    input_material_builder_node = 'arnold_materialbuilder1'
+
+    output_nodes = {
+        'surface':
+            {'connected_node_index': 0,
+             'connected_node_name': 'standard_surface1',
+             'connected_node_path': '/mat/arnold_materialbuilder1/standard_surface1',
+             'generic_type': 'GENERIC::output_surface',
+             'node_name': 'OUT_material',
+             'node_path': '/mat/arnold_materialbuilder1/OUT_material'
+             }
     }
 
-    material_name = "CustomMaterial"
-    target_context = hou.node('/mat')  # Ensure this node exists in your Houdini scene
+    node_tree = {'/mat/arnold_materialbuilder1/OUT_material': {'children': [{'child_node': {'children': [],
+                                                                            'is_output_node': False,
+                                                                            'node_name': 'standard_surface1',
+                                                                            'node_path': '/mat/arnold_materialbuilder1/standard_surface1',
+                                                                            'node_type': 'arnold::standard_surface',
+                                                                            'output_type': None},
+                                                             'input_index': 0,
+                                                             'input_node_path': '/mat/arnold_materialbuilder1/standard_surface1'}],
+                                               'is_output_node': True,
+                                               'node_name': 'OUT_material',
+                                               'node_path': '/mat/arnold_materialbuilder1/OUT_material',
+                                               'node_type': 'arnold_material',
+                                               'output_type': 'surface'}}
 
-    # Standardize the custom tree into MaterialData
-    standardized_material_data = NodeStandardizer.standardize_custom_tree(custom_tree, material_name)
-    print(f"DEBUG: {standardized_material_data=}")
-
-    # Initialize NodeRecreator with the standardized material data and output connections
-    recreator = NodeRecreator(
-        nodeinfo_list=standardized_material_data.nodeinfo_list,  # Pass the list of NodeInfo objects
-        output_connections=standardized_material_data.output_connections,  # Pass the output connections dictionary
-        target_context=target_context,
-        target_renderer='mtlx'  # Specify the target renderer
+    standardizer = NodeStandardizer(
+        traverse_tree=node_tree,
+        output_nodes=output_nodes,
+        material_type=material_type,
+        input_material_builder_node=input_material_builder_node
     )
-    recreator.run()  # Execute the recreation process
+    print(f"DEBUG: {standardizer=}")
 
-    print(f"\n Standardized_material_data:")
-    pprint(standardized_material_data)
-    print("\n")
-
-
-
+if __name__ == "__main__":
+    test()
 
