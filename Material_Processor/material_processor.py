@@ -2,16 +2,21 @@
 copyright Ahmed Hindy. Please mention the original author if you used any part of this code
 This module processes material nodes in Houdini, extracting and converting shader parameters and textures.
 """
-
+import os
 import json
 import logging
 from typing import Dict, List
+from pathlib import Path
 import pprint
-from importlib import reload
+from importlib import reload, resources
+import tempfile
 
 
-import Material_Processor.material_classes
-reload(Material_Processor.material_classes)
+from Material_Processor import material_classes
+from Material_Processor import utils_io
+
+reload(material_classes)
+reload(utils_io)
 from Material_Processor.material_classes import MaterialData, NodeInfo, NodeParameter
 
 
@@ -204,26 +209,9 @@ OUTPUT_CONNECTIONS_INDEX_MAP = {
             }
         }
 
-
 ##########################################################################################
 
-def _convert_to_serializable(obj):
-    """
-    [TEMP FOR DEBUG ONLY] Convert non-serializable objects to a string for JSON dumping.
-    """
-    if not obj:
-        return 'None'
-    elif isinstance(obj, hou.VopNode):
-        return obj.path()
-    elif isinstance(obj, tuple):
-        return 'tuple'
-    elif isinstance(obj, hou.Parm):
-        return obj.name()
-    try:
-        return str(obj)
-    except:
-        return "None2"  # Handle cases where conversion fails
-
+TEMP_DIR = f"{tempfile.gettempdir()}/MaterialProcessorTemp"
 
 
 class NodeTraverser:
@@ -528,10 +516,7 @@ class NodeTraverser:
         # print(f'Done\n')
 
         # temp: dump all of this into a temp json file
-        json_str = json.dumps(all_branches, default=_convert_to_serializable, indent=4)
-        import tempfile
-        with open(f"{tempfile.gettempdir()}/houdini_temp/json_dump.json", "w") as json_file:
-            json_file.write(json_str)
+        utils_io.dump_dict_to_json(all_branches, f"{TEMP_DIR}/example_material_tree.json")
 
         return all_branches
 
@@ -608,7 +593,7 @@ class NodeStandardizer:
         node_name: str = node_children_dict['node_name']
         node_type: str = node_children_dict['node_type']
         child_node_parms: list = node_children_dict.get('node_parms')
-        print(f"DEBUG: parms for node: '{node_path}': {child_node_parms}")
+        # print(f"DEBUG: parms for node: '{node_path}': {child_node_parms}")
 
         parameters = None
         if child_node_parms:
@@ -881,7 +866,6 @@ class NodeRecreator:
             self.old_new_node_map[output_info['node_path']] = created_output_node.path()
 
             self.created_output_nodes_dict[generic_output_type]['node'] = created_output_node
-        print(f"DEBUG: {self.old_new_node_map=}")
 
 
     def _create_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_nodes=None):
@@ -919,6 +903,7 @@ class NodeRecreator:
         Returns:
             (hou.Node): The created Houdini node.
         """
+        print(f"DEBUG: {node_info=}")
         new_node_type = self._convert_generic_node_type_to_renderer_node_type(node_info.node_type,
                                                                               target_renderer=self.target_renderer)
 
@@ -949,9 +934,6 @@ class NodeRecreator:
         Args:
             nested_nodes_info (List[NodeInfo]): Nested nodes info as a list of NodeInfo objects.
         """
-
-        print(f"\nDEBUG: {self.old_new_node_map=}")
-
         for node_info in nested_nodes_info:
             print(f"DEBUG: {node_info.node_path=}")
             new_node_path = self.old_new_node_map.get(node_info.node_path)
@@ -1039,6 +1021,10 @@ class NodeRecreator:
             node (hou.Node): The Houdini node.
             parameters (List[NodeParameter]): The list of parameters to apply.
         """
+        if not parameters:
+            print(f"No parameters to apply to '{node.path()}'.")
+            return
+
         node_type = node.type().name()
         node_specific_dict = STANDARDIZED_PARAM_NAMES.get(node_type, {})
         if not node_specific_dict:
@@ -1147,7 +1133,7 @@ class NodeRecreator:
         # Proceed with node creation and input setting
         print(f"\n\n\nDEBUG: STARTING _create_all_nodes()....")
         self._create_nodes_recursive(self.nodeinfo_list)
-        print(f"DEBUG: {self.old_new_node_map=}")
+        print(f"DEBUG: self.old_new_node_map: \n", pprint.pformat(self.old_new_node_map, indent=4, sort_dicts=False))
 
         print(f"\n\n\nDEBUG: STARTING _set_node_inputs()....")
         print(f"DEBUG: {len(self.nodeinfo_list)=}, {type(self.nodeinfo_list)=}")
@@ -1215,7 +1201,8 @@ def run(input_material_builder_node, target_context, target_renderer='mtlx'):
         material_type=material_type,
         input_material_builder_node=input_material_builder_node
     )
-    print(f"DEBUG: {standardizer.node_info_list=}")
+    for x in standardizer.node_info_list:
+        print(f"DEBUG: standardizer.node_info_list: {x=}")
     print(f"DEBUG: {standardizer.standardized_output_nodes=}")
     print(f"DEBUG: {target_context=}")
     print(f"DEBUG: {target_renderer=}")
@@ -1251,7 +1238,6 @@ def test():
     """
     Test function to validate the node traversal, standardization, and recreation process.
     """
-    # target_context = hou.node('/mat')
     target_renderer = 'mtlx'
     material_type = 'arnold'
     input_material_builder_node = 'arnold_materialbuilder1'
@@ -1267,19 +1253,10 @@ def test():
              }
     }
 
-    node_tree = {'/mat/arnold_materialbuilder1/OUT_material': {'children': [{'child_node': {'children': [],
-                                                                            'is_output_node': False,
-                                                                            'node_name': 'standard_surface1',
-                                                                            'node_path': '/mat/arnold_materialbuilder1/standard_surface1',
-                                                                            'node_type': 'arnold::standard_surface',
-                                                                            'output_type': None},
-                                                             'input_index': 0,
-                                                             'input_node_path': '/mat/arnold_materialbuilder1/standard_surface1'}],
-                                               'is_output_node': True,
-                                               'node_name': 'OUT_material',
-                                               'node_path': '/mat/arnold_materialbuilder1/OUT_material',
-                                               'node_type': 'arnold_material',
-                                               'output_type': 'surface'}}
+    # node_tree = utils_io.load_node_tree_json(f"{TEMP_DIR}/example_material_tree.json")
+    node_tree = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_material_tree.json")
+    # output_nodes = utils_io.load_node_tree_json("example_output_nodes.json")  # if stored separately
+
 
     standardizer = NodeStandardizer(
         traverse_tree=node_tree,
@@ -1287,10 +1264,26 @@ def test():
         material_type=material_type,
         input_material_builder_node=input_material_builder_node
     )
-    print(f"DEBUG: {standardizer=}")
+    # print(f"DEBUG: {standardizer.node_info_list=}")
+    return standardizer
 
 
 
+
+def test_hou():
+    target_context = hou.node('/mat')
+    target_renderer = 'mtlx'
+    material_type = 'arnold'
+    input_material_builder_node = 'arnold_materialbuilder1'
+
+    standardizer = test()
+
+    recreator = NodeRecreator(
+        nodeinfo_list=standardizer.node_info_list,
+        output_connections=standardizer.standardized_output_nodes,
+        target_context=target_context,
+        target_renderer=target_renderer
+    )
 
 
 """
