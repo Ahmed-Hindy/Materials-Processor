@@ -10,15 +10,19 @@ from typing import Dict, List
 from pprint import pprint, pformat
 from importlib import reload
 
-import material_classes
-reload(material_classes)
-from material_classes import MaterialData, NodeInfo, NodeParameter
+import Material_Processor.PySide2_ui
+
+
+import Material_Processor.material_classes
+reload(Material_Processor.material_classes)
+from Material_Processor.material_classes import MaterialData, NodeInfo, NodeParameter
 
 
 try:
     import hou
 except:
     # temp to make the module work with substance painter
+    print("materialProcessor running outside of Houdini!")
     hou = None
 
 
