@@ -30,6 +30,7 @@ except:
 GENERIC_NODE_TYPES = {
     'arnold::standard_surface': 'GENERIC::standard_surface',
     'arnold::image': 'GENERIC::image',
+    'arnold::range': 'GENERIC::range',
     'arnold::color_correct': 'GENERIC::color_correct',
     'arnold_material': 'GENERIC::output_node',
 
@@ -589,32 +590,37 @@ class NodeStandardizer:
         return standardized_output_nodes
 
     @staticmethod
-    def standardize_shader_node(node_path, connected_input_index: int, is_output_node=False,
-                                output_type=None) -> NodeInfo:
+    def standardize_shader_node(node_path, node_children_dict):
         """
         Create a NodeInfo object from a node.
 
         Args:
             node_path (str): The Houdini node path.
-            connected_input_index (int): The index of the connected input.
-            is_output_node (bool, optional): Whether the node is an output node.
-            output_type (str, optional): The generic type of the output node.
-
+            node_children_dict (dict): The Houdini node path.
         Returns:
             NodeInfo: The created NodeInfo object.
         """
-        node = hou.node(node_path)
-        node_type = node.type().name()
-        parms_list = NodeStandardizer.convert_parms_to_dict(node.parms())
-        # logging.INFO(f"DEBUG: {parms_list=}")
-        parameters = NodeStandardizer.standardize_shader_parameters(node_type, parms_list)
+        is_output_node = node_children_dict.get('is_output_node', False)
+        output_type = node_children_dict.get('output_type', None)
+
+        connected_input_index = node_children_dict.get('connected_node_index', None)
+
+        node_name: str = node_children_dict['node_name']
+        node_type: str = node_children_dict['node_type']
+        child_node_parms: list = node_children_dict.get('node_parms')
+        print(f"DEBUG: parms for node: '{node_path}': {child_node_parms}")
+
+        parameters = None
+        if child_node_parms:
+            parameters = NodeStandardizer.standardize_shader_parameters(node_type, child_node_parms)
+
         generic_node_type = GENERIC_NODE_TYPES.get(node_type)
 
         return NodeInfo(
             node_type=generic_node_type,
-            node_name=node.name(),
-            parameters=parameters,
+            node_name=node_name,
             node_path=node_path,
+            parameters=parameters,
             connected_input_index=connected_input_index,
             child_nodes=[],
             is_output_node=is_output_node,
@@ -634,23 +640,10 @@ class NodeStandardizer:
         local_nodes_info = []
 
         for node_path, node_info in node_dict.items():
-            # print(f"DEBUG: node_path={node_path}, node_info={node_info}")
-
-            is_output_node = node_info.get('is_output_node', False)
-            output_type = node_info.get('output_type', None)
-
-            # Get connected_node_path and connected_input_index
-            connected_node_name = node_info.get('connected_node_name')
-            connected_node_path = node_info.get('connected_node_path', None)
-            connected_input_index = node_info.get('connected_node_index', None)
-
-            node_info_obj = self.standardize_shader_node(
-                node_path, connected_input_index, is_output_node, output_type
-            )
+            node_info_obj = self.standardize_shader_node(node_path, node_info)
 
             # Process children
             children = node_info.get('children', [])
-
             for child_entry in children:
                 child_node_info = child_entry.get('child_node')
                 child_node_path = child_entry.get('input_node_path')
@@ -671,7 +664,7 @@ class NodeStandardizer:
 
 
     @staticmethod
-    def standardize_custom_tree(custom_node_tree: Dict, material_name: str) -> MaterialData:
+    def standardize_custom_tree(custom_node_tree, material_name):
         """
         Manually create a standardized tree from custom tree dict with node names, paths, generic types, and parameters.
 
@@ -743,7 +736,7 @@ class NodeStandardizer:
         )
 
     @staticmethod
-    def standardize_shader_parameters(node_type, parms) -> List[NodeParameter]:
+    def standardize_shader_parameters(node_type, parms):
         """
         Filter and standardize parameters for a given node.
 
@@ -764,7 +757,7 @@ class NodeStandardizer:
             NodeParameter(
                 name=param['name'],
                 value=param['value'],
-                standardized_name=standardized_names.get(param['name'], param['name'])
+                standardized_name=standardized_names.get(param['name'])
             )
             for param in parms if param['name'] in standardized_names
         ]
@@ -1296,6 +1289,40 @@ def test():
     )
     print(f"DEBUG: {standardizer=}")
 
+
+
+
+
+"""
+how to run from houdini shelf tool:
+1 - copy this block of code into a new shelf tool
+2 - select a material node inside a material context
+3 - run the shelf tool
+4 - new mats are created in '/mat'
+
+##########
+from importlib import reload
+import hou
+from Material_Processor import material_processor
+reload(material_processor)
+
+target_context = hou.node('/mat')
+selected_nodes = hou.selectedNodes()
+if selected_nodes:
+    for node in selected_nodes:
+        parent = node.parent()
+        material_processor.run(node, parent)
+    
+###################
+
+
+"""
+
+
+
+
+
 if __name__ == "__main__":
     test()
+
 

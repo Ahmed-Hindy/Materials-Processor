@@ -37,8 +37,8 @@ class NodeInfo:
     """
     node_type: str
     node_name: str
-    parameters: List[NodeParameter]
     node_path: str
+    parameters: List[NodeParameter]
     connected_input_index: Optional[int]
     child_nodes: List['NodeInfo']
 
