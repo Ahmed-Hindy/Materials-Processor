@@ -5,8 +5,10 @@ from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                                QComboBox)
 from PySide2 import QtCore, QtGui
 
+from Material_Processor import material_processor
+
 import hou
-import material_processor
+
 
 
 class QTextEditLogger(logging.Handler):

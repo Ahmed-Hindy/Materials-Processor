@@ -13,13 +13,11 @@ try:
 except:
     pass
 
-import material_classes
-from material_classes import TextureInfo, MaterialData
-if 'hou' in globals():
-    from Material_Processor.material_processor import MaterialCreate
-    reload(Material_Processor.material_classes)
-else:
-    print('hou not in globals')
+from Material_Processor.material_classes import MaterialData
+# from Material_Processor.material_processor import MaterialCreate
+
+reload(MaterialData)
+
 
 
 
