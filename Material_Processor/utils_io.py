@@ -67,8 +67,8 @@ def dump_dict_to_json(data: Dict[str, Any], path: str):
     Dump a dictionary to a JSON file.
     """
     folder = os.path.dirname(path)
-    file_name = os.path.basename(path)
-    file_ext = os.path.splitext(file_name)[1]
+    file_name_with_ext = os.path.basename(path)
+    file_name, file_ext = os.path.splitext(file_name_with_ext)
     if not os.path.exists(folder):
         os.makedirs(folder)
 
