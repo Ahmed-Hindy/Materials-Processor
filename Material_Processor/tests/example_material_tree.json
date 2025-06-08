@@ -10,7 +10,7 @@
             {
                 "input_node_path": "/mat/arnold_materialbuilder1/standard_surface1",
                 "input_index": 0,
-                "child_node": {
+                "child_node_path": {
                     "node_name": "standard_surface1",
                     "node_path": "/mat/arnold_materialbuilder1/standard_surface1",
                     "node_type": "arnold::standard_surface",
@@ -502,7 +502,7 @@
                         {
                             "input_node_path": "/mat/arnold_materialbuilder1/color_correct1",
                             "input_index": 1,
-                            "child_node": {
+                            "child_node_path": {
                                 "node_name": "color_correct1",
                                 "node_path": "/mat/arnold_materialbuilder1/color_correct1",
                                 "node_type": "arnold::color_correct",
@@ -634,7 +634,7 @@
                                     {
                                         "input_node_path": "/mat/arnold_materialbuilder1/image_diffuse",
                                         "input_index": 0,
-                                        "child_node": {
+                                        "child_node_path": {
                                             "node_name": "image_diffuse",
                                             "node_path": "/mat/arnold_materialbuilder1/image_diffuse",
                                             "node_type": "arnold::image",
@@ -815,7 +815,7 @@
                         {
                             "input_node_path": "/mat/arnold_materialbuilder1/range1",
                             "input_index": 6,
-                            "child_node": {
+                            "child_node_path": {
                                 "node_name": "range1",
                                 "node_path": "/mat/arnold_materialbuilder1/range1",
                                 "node_type": "arnold::range",
@@ -899,7 +899,7 @@
                                     {
                                         "input_node_path": "/mat/arnold_materialbuilder1/image_roughness",
                                         "input_index": 0,
-                                        "child_node": {
+                                        "child_node_path": {
                                             "node_name": "image_roughness",
                                             "node_path": "/mat/arnold_materialbuilder1/image_roughness",
                                             "node_type": "arnold::image",

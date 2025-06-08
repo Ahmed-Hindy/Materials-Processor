@@ -40,6 +40,7 @@ class NodeInfo:
     node_path: str
     parameters: List[NodeParameter]
     connected_input_index: Optional[int]
+    connected_output_index: Optional[int]
     child_nodes: List['NodeInfo']
 
     is_output_node: bool = False  # Add this line
