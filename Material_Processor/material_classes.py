@@ -1,5 +1,6 @@
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List
+from typing import Optional, Dict, List, Any
+import pprint
 
 
 @dataclass
@@ -37,31 +38,41 @@ class NodeInfo:
     """
     node_type: str
     node_name: str
-    parameters: List[NodeParameter]
     node_path: str
-    connected_input_index: Optional[int]
-    child_nodes: List['NodeInfo']
-
-    is_output_node: bool = False  # Add this line
+    parameters: List[NodeParameter]
+    connected_input_index: Optional[int] = None
+    connected_output_index: Optional[int] = None
+    connection_info: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # {"input": {"index": int, "parm": str}, "output": {...}}
+    child_nodes: List['NodeInfo'] = field(default_factory=list)
+    is_output_node: bool = False
     output_type: Optional[str] = None
 
-    def __str__(self):
-        output_print = "Not Output"
-        if self.is_output_node:
-            output_print = f"IS_OUTPUT_NODE = {self.is_output_node}, output_type = {self.output_type})"
 
-        return(f"NodeInfo(node_type={self.node_type}, node_name={self.node_name}, "
-               f"node_path={self.node_path}, connected_input_index={self.connected_input_index}, "
-               f"{output_print}, child_nodes=\n        {self.child_nodes} -->")
+
+    # def __str__(self):
+    #     output_print = "Not Output"
+    #     if self.is_output_node:
+    #         output_print = f"IS_OUTPUT_NODE = {self.is_output_node}, output_type = {self.output_type})"
+    #
+    #     return(f"NodeInfo(node_type={self.node_type}, node_name={self.node_name}, "
+    #            f"node_path={self.node_path}, connected_input_index={self.connected_input_index}, "
+    #            f"{output_print}, child_nodes=\n        {self.child_nodes} -->\n")
 
     def __repr__(self):
-        output_print = "Not Output"
+        output_print = ""
         if self.is_output_node:
-            output_print = f"IS_OUTPUT_NODE = {self.is_output_node}, output_type = {self.output_type})"
+            output_print = f", IS_OUTPUT_NODE = {self.is_output_node}, output_type = {self.output_type}),"
 
-        return (f"NodeInfo(node_type={self.node_type}, node_name={self.node_name}, "
-                f"node_path={self.node_path}, connected_input_index={self.connected_input_index}, "
-                f"{output_print}, child_nodes={self.child_nodes} -->")
+        child_nodes_print = ""
+        if self.child_nodes:
+            child_nodes_print = f", child_nodes={self.child_nodes} -->"
+
+        return (f"\n    NodeInfo(node_type='{self.node_type}', node_name='{self.node_name}', "
+                f"node_path='{self.node_path}', connected_input_index='{self.connected_input_index}'"
+                f"{output_print}{child_nodes_print})")
+
+    def print_connections(self):
+        return pprint.pformat(self.connection_info, sort_dicts=False)
 
 
 @dataclass
