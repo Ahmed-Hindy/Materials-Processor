@@ -14,7 +14,6 @@ import tempfile
 
 from Material_Processor import material_classes
 from Material_Processor import utils_io
-
 reload(material_classes)
 reload(utils_io)
 from Material_Processor.material_classes import MaterialData, NodeInfo, NodeParameter
@@ -32,17 +31,24 @@ except:
 
 ###################################### CONSTANTS ######################################
 
-GENERIC_NODE_TYPES = {
+REGULAR_NODE_TYPES_TO_GENERIC = {
+    # arnold nodes:
     'arnold::standard_surface': 'GENERIC::standard_surface',
     'arnold::image': 'GENERIC::image',
     'arnold::range': 'GENERIC::range',
     'arnold::color_correct': 'GENERIC::color_correct',
+    'arnold::curvature': 'GENERIC::curvature',
+    'arnold::mix_rgba': 'GENERIC::mix_rgba',
+    'arnold::mix_layer': 'GENERIC::mix_layer',
+    'arnold::layer_rgba': 'GENERIC::layer_rgba',
     'arnold_material': 'GENERIC::output_node',
 
+    # mtlx nodes:
     'mtlxstandard_surface': 'GENERIC::standard_surface',
     'mtlximage': 'GENERIC::image',
     'mtlxrange': 'GENERIC::range',
     'mtlxcolorcorrect': 'GENERIC::color_correct',
+    'mtlxmix': 'GENERIC::mix_rgba',  # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
     'mtlxdisplacement': 'GENERIC::displacement',
     'subnetconnector': 'GENERIC::output_node',
     'null': 'GENERIC::null'
@@ -51,23 +57,30 @@ GENERIC_NODE_TYPES = {
 
 
 """
-Conversion_map is a dict of 'from_node_type' : 'to_node_type'
+Conversion_map is a dict of {'from_node_type': 'to_node_type'}
 """
-CONVERSION_MAP = {
+GENERIC_NODE_TYPES_TO_REGULAR = {
             'arnold': {
                 'GENERIC::standard_surface': 'arnold::standard_surface',
                 'GENERIC::image': 'arnold::image',
                 'GENERIC::color_correct': 'arnold::color_correct',
                 'GENERIC::range': 'arnold::range',
-                'GENERIC::null': 'null'
+                'GENERIC::curvature': 'arnold::curvature',
+                'GENERIC::mix_rgba': 'arnold::mix_rgba',
+                'GENERIC::mix_layer': 'arnold::mix_layer',
+                'GENERIC::layer_rgba': 'arnold::layer_rgba',
+                'GENERIC::null': 'null',
             },
             'mtlx': {
                 'GENERIC::standard_surface': 'mtlxstandard_surface',
                 'GENERIC::image': 'mtlximage',
                 'GENERIC::color_correct': 'mtlxcolorcorrect',
                 'GENERIC::range': 'mtlxrange',
+                # 'GENERIC::curvature': 'mtlxcurvature',  # not supported yet
+                'GENERIC::mix_rgba': 'mtlxmix',
+                'GENERIC::mix_layer': 'mtlxmix',
                 'GENERIC::displacement': 'mtlxdisplacement',
-                'GENERIC::null': 'null'
+                'GENERIC::null': 'null',
             }
         }
 
@@ -78,9 +91,10 @@ OUTPUT_NODE_MAP = {
 
 
 """
-names of parameters on specific node which is supported in this module. Any other node type will be filtered out.
+standardization dict for parameters. {<orig_parm_name>: <generic_name>}. Any other node type will be filtered out.
 """
 STANDARDIZED_PARAM_NAMES = {
+    # mtlx parms
     'mtlxstandard_surface': {
         'base': 'base',
         'base_colorr': 'base_colorr',
@@ -104,7 +118,11 @@ STANDARDIZED_PARAM_NAMES = {
         'emission_colorr': 'emission_colorr',
         'emission_colorg': 'emission_colorg',
         'emission_colorb': 'emission_colorb',
-        'opacity': 'opacity'
+        'opacity': 'opacity',
+        'normalx': 'normalx',
+        'normaly': 'normaly',
+        'normalz': 'normalz',
+        'thin_walled': 'thin_walled',
     },
     'mtlximage': {
         'signature': 'signature',
@@ -125,11 +143,22 @@ STANDARDIZED_PARAM_NAMES = {
         'outlow': 'outlow',
         'outhigh': 'outhigh',
     },
+    'mtlxmix': {
+        'signature': 'signature',
+        'fg_color3r': 'fg_color3r',
+        'fg_color3g': 'fg_color3g',
+        'fg_color3b': 'fg_color3b',
+        'bg_color3r': 'bg_color3r',
+        'bg_color3g': 'bg_color3g',
+        'bg_color3b': 'bg_color3b',
+        'mix': 'mix',
+    },
     'mtlxdisplacement': {
         'displacement': 'displacement',
         'scale': 'scale',
     },
 
+    # arnold parms:
     'arnold::standard_surface': {
         'base': 'base',
         'base_colorr': 'base_colorr',
@@ -172,7 +201,18 @@ STANDARDIZED_PARAM_NAMES = {
         'output_min': 'outlow',
         'output_max': 'outhigh',
     },
+    'arnold::mix_rgba': {
+        # 'signature': 'signature',
+        'input1r': 'fg_color3r',
+        'input1g': 'fg_color3g',
+        'input1b': 'fg_color3b',
+        'input2r': 'bg_color3r',
+        'input2g': 'bg_color3g',
+        'input2b': 'bg_color3b',
+        'mix': 'mix',
+    },
 
+    # principled shader 2.0:
     'principledshader::2.0': {
         'basecolor': 'base_color',
         'metallic': 'metalness',
@@ -495,7 +535,7 @@ class NodeTraverser:
     @staticmethod
     def extract_principled_parameters(node):
         """
-        Extract parameters from a Principled Shader node.
+        Extract parameters from a Principled Shader node. Only extracts supported parameters in 'STANDARDIZED_PARAM_NAMES'
 
         Args:
             node (hou.Node): The Principled Shader Houdini node.
@@ -504,15 +544,18 @@ class NodeTraverser:
             List[NodeParameter]: A list of extracted node parameters.
         """
         node_type = node.type().name()
-        filtered_param_names = []
-        standardized_names = STANDARDIZED_PARAM_NAMES.get(node_type, {})
+        standardized_names = STANDARDIZED_PARAM_NAMES.get(node_type)
+        if not standardized_names:
+            print(f"WARNING: No standardized names for {node_type=}")
+            return
         try:
             filtered_param_names = list(STANDARDIZED_PARAM_NAMES.get(node_type).keys())
         except AttributeError:
             print(f"WARNING: node_type: {node_type} not in STANDARDIZED_PARAM_NAMES dict")
+            return
 
         node_parameters = [NodeParameter(name=p.name(), value=p.eval(),
-                                         standardized_name=standardized_names.get(p.name(), p.name()))
+                                         standardized_name=standardized_names.get(p.name()))
                            for p in node.parms() if p.name() in filtered_param_names
                            ]
         return node_parameters
@@ -764,7 +807,7 @@ class NodeStandardizer:
         if child_node_parms:
             parameters = NodeStandardizer.standardize_shader_parameters(node_type, child_node_parms)
 
-        generic_node_type = GENERIC_NODE_TYPES.get(node_type)
+        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC.get(node_type)
 
         return NodeInfo(
             node_type=generic_node_type,
@@ -981,6 +1024,7 @@ class NodeRecreator:
         for generic_output_type, output_info in self.orig_output_connections.items():
             # e.g. output_type = "GENERIC::output_surface"
             # e.g. output_info = {'node_path': '/mat/material_mtlx_ORIG/surface_output',
+            #                     'node_name': 'surface_output', ???
             #                     'connected_node_name': 'surface_output',
             #                     'connected_input_index': 0}
             created_output_node_dict: dict = self.created_output_connections.get(generic_output_type, {})
@@ -1078,11 +1122,11 @@ class NodeRecreator:
         Returns:
             str: The renderer-specific node type.
         """
-        # print(f"DEBUG: Generic node {node_type}, converted to: {CONVERSION_MAP[self.target_renderer][node_type]}")
-        if node_type in CONVERSION_MAP[target_renderer]:
-            return CONVERSION_MAP[target_renderer][node_type]
+        # print(f"DEBUG: Generic node {node_type}, converted to: {GENERIC_NODE_TYPES_TO_REGULAR[self.target_format][node_type]}")
+        if node_type in GENERIC_NODE_TYPES_TO_REGULAR[target_renderer]:
+            return GENERIC_NODE_TYPES_TO_REGULAR[target_renderer][node_type]
         else:
-            return CONVERSION_MAP[target_renderer]['GENERIC::null']
+            return GENERIC_NODE_TYPES_TO_REGULAR[target_renderer]['GENERIC::null']
 
     @staticmethod
     def apply_parameters(node, parameters):
@@ -1319,7 +1363,7 @@ class NodeRecreator:
                 continue
 
             if not node_info.connection_info:
-                print(f"WARNING: '{new_node.name()}': No connections found. Skipping.")
+                print(f"WARNING: '{new_node.name()}': No Input Connections found. Skipping.")
             else:
                 self._process_connections_for_node(node_info, new_node)
 
@@ -1356,7 +1400,7 @@ class NodeRecreator:
         print(f"INFO: DONE _set_output_connections()....")
 
         print(f"\n\n\nINFO: STARTING _set_node_inputs()....")
-        print(f"DEBUG: self.old_new_node_map: {pprint.pformat(self.old_new_node_map, sort_dicts=False)}")
+        # print(f"DEBUG: self.old_new_node_map: {pprint.pformat(self.old_new_node_map, sort_dicts=False)}")
         print(f"DEBUG: {len(self.nodeinfo_list)=}")
         self.set_node_connections(self.nodeinfo_list)
         print(f"INFO: DONE _set_node_inputs()....")
@@ -1391,7 +1435,7 @@ def get_material_type(materialbuilder_node):
     return material_type
 
 
-def run(input_material_builder_node, target_context, target_renderer='mtlx'):
+def run(input_material_builder_node, target_context, target_format='mtlx'):
     """
     Run the material conversion process for the selected node.
 
@@ -1399,7 +1443,7 @@ def run(input_material_builder_node, target_context, target_renderer='mtlx'):
         input_material_builder_node (hou.Node): The selected Houdini shading network,
                                                 e.g. arnold materialbuilder or mtlx materialbuilder.
         target_context (hou.Node): The target Houdini context node.
-        target_renderer (str, optional): The target renderer (default is 'mtlx').
+        target_format (str, optional): The target renderer (default is 'mtlx').
     """
     material_type = get_material_type(input_material_builder_node)
     if not material_type:
@@ -1427,7 +1471,7 @@ def run(input_material_builder_node, target_context, target_renderer='mtlx'):
         print(f"DEBUG: node_info_list: {x=}\n\n")
     print(f"DEBUG: standardized_output_nodes: {pprint.pformat(standardized_output_nodes, sort_dicts=False)}\n")
     print(f"DEBUG: {target_context.path()=}")
-    print(f"DEBUG: {target_renderer=}")
+    print(f"DEBUG: {target_format=}")
     print("NodeStandardizer() Finished----------------------\n\n\n")
 
 
@@ -1436,10 +1480,10 @@ def run(input_material_builder_node, target_context, target_renderer='mtlx'):
         nodeinfo_list=node_info_list,
         output_connections=standardized_output_nodes,
         target_context=target_context,
-        target_renderer=target_renderer
+        target_renderer=target_format
     )
     print("NodeRecreator() Finished----------------------\n\n\n")
-    print(f"Material conversion complete. Converted material from '{material_type}' to '{target_renderer}'.")
+    print(f"Material conversion complete. Converted material from '{material_type}' to '{target_format}'.")
 
     """
     TODO:
@@ -1464,19 +1508,8 @@ def test():
     material_type = 'arnold'
     input_material_builder_node = 'arnold_materialbuilder1'
 
-    output_nodes = {
-        'surface':
-            {'connected_input_index': 0,
-             'connected_node_name': 'standard_surface1',
-             'connected_node_path': '/mat/arnold_materialbuilder1/standard_surface1',
-             'generic_type': 'GENERIC::output_surface',
-             'node_name': 'OUT_material',
-             'node_path': '/mat/arnold_materialbuilder1/OUT_material'
-             }
-    }
-
-    # node_tree = utils_io.load_node_tree_json(f"{TEMP_DIR}/example_material_tree.json")
     node_tree = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_material_tree.json")
+    output_nodes = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_output_tree.json")
     # output_nodes_dict = utils_io.load_node_tree_json("example_output_nodes.json")  # if stored separately
 
     standardizer = NodeStandardizer(

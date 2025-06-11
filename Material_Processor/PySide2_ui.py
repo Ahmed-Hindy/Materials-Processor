@@ -61,7 +61,7 @@ class MyMainWindow(QMainWindow):
         bottom_bar = QHBoxLayout()
         layout.addLayout(bottom_bar)
         convert_button = QPushButton("Convert Materials")
-        convert_button.clicked.connect(self.convert_materials)
+        convert_button.clicked.connect(self.run)
         bottom_bar.addWidget(convert_button)
 
         button_close = QPushButton("Close")
@@ -106,12 +106,26 @@ class MyMainWindow(QMainWindow):
         self.preferences = {
             'log_level': 'DEBUG'
         }
+    
+    def convert_material(self, node, target_context, target_format):
+        """
+        runs on a single material. Method is called by convert_materials() for each selected material
+        Args:
+            
+        """
+        material_processor.run(node, target_context, target_format=target_format)
 
-    def convert_materials(self):
+
+    def run(self):
+        """
+        main run method. Invoked by the "Convert Materials" button".
+        :return: None
+        """
         reload(material_processor)
         selected_nodes = [self.node_list.item(i).text() for i in range(self.node_list.count())]
-        selected_format = self.format_combobox.currentText()
-        self.logger.info(f"Converting materials for nodes: {selected_nodes} to format: {selected_format}")
+        target_format = self.format_combobox.currentText()
+        self.logger.info(f"Converting materials for nodes: '{selected_nodes}' to format: '{target_format}'")
+
         conversion_successful = True  # Assuming conversion is successful initially
         for node_path in selected_nodes:
             node = hou.node(node_path)
@@ -119,15 +133,10 @@ class MyMainWindow(QMainWindow):
                 self.logger.warning(f"Node not found: {node_path}, skipping...")
                 continue
             try:
-                material_ingest_instance = material_processor.MaterialIngest(selected_node=node)
-                material_data = material_ingest_instance.material_data
-                shader_parms_dict = material_ingest_instance.shader_parms_dict
-                material_processor.MaterialCreate(material_data=material_data, shader_parms_dict=shader_parms_dict,
-                                                  convert_to=selected_format)
-
-                self.logger.info(f"Converted materials for node: {node_path} to format: {selected_format}")
+                self.convert_material(node, target_context=node.parent(), target_format=target_format)
+                self.logger.info(f"Converted materials for node: {node_path} to format: '{target_format}'")
             except Exception as e:
-                self.logger.exception(f"Error converting node {node_path} to format {selected_format}: {str(e)}")
+                self.logger.exception(f"Error converting node {node_path} to format '{target_format}': {str(e)}")
                 conversion_successful = False
 
         if conversion_successful:
