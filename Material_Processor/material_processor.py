@@ -265,20 +265,17 @@ class NodeTraverser:
                     "input": {
                         "node_name": connection.inputNode().name(),
                         "node_path": connection.inputNode().path(),
-                        "node_index": connection.inputIndex(),
+                        "node_index": connection.outputIndex(),
                         "parm_name": connection.inputName(),
                     },
                     "output": {
                         "node_name": connection.outputNode().name(),
                         "node_path": connection.outputNode().path(),
-                        "node_index": connection.outputIndex(),
+                        "node_index": connection.inputIndex(),
                         "parm_name": connection.outputName(),
                     }
                 }
             })
-
-        # print(f"DEBUG: {node.path()=}")
-        # print(f"DEBUG: connections_dict: {pprint.pformat(connections_dict)}")
 
         return connections_dict
     
@@ -383,7 +380,6 @@ class NodeTraverser:
                 }
             elif connected_output_index == 1:
                 output_nodes['displacement'] = {
-                    # 'node': arnold_output,
                     'node_name': arnold_output.name(),
                     'node_path': arnold_output.path(),
                     'connected_node_name': connected_input.name(),
@@ -416,7 +412,6 @@ class NodeTraverser:
             parmname = output_node.parm('parmname').eval()
             if parmname in ['surface', 'displacement']:
                 output_nodes[parmname] = {
-                    # 'node': arnold_output,
                     'node_name': output_node.name(),
                     'node_path': output_node.path(),
                     'connected_node_name': connected_input.name(),
@@ -634,6 +629,7 @@ class NodeStandardizer:
         for key, value in output_nodes_dict.items():
             standardized_key = f"GENERIC::output_{key}"
             standardized_output_nodes[standardized_key] = {
+                'node_name': value['node_name'],
                 'node_path': value['node_path'],
                 'connected_node_name': value['connected_node_name'],
                 'connected_node_path': value['connected_node_path'],
@@ -776,8 +772,6 @@ class NodeStandardizer:
             node_path=node_path,
             parameters=parameters,
             connection_info=connection_info,
-            connected_input_index=connected_input_index,
-            connected_output_index=connected_output_index,
             child_nodes=[],
             is_output_node=is_output_node,
             output_type=output_type if is_output_node else generic_node_type
@@ -812,11 +806,6 @@ class NodeStandardizer:
 
                 # Recursively traverse child nodes
                 child_nodes_info = self.standardize_node_dict({child_node_path: child_node_info})
-
-                # Assign the input index to each child node
-                for child_node in child_nodes_info:
-                    child_node.connected_input_index = child_input_index
-                    child_node.connected_output_index = child_output_index
 
                 nodeinfo.child_nodes.extend(child_nodes_info)
 
@@ -885,7 +874,7 @@ class NodeRecreator:
 
 
     @staticmethod
-    def create_init_mtlx_shader(matnet=None):
+    def create_mtlx_init_shader(matnet=None):
         """
         Create an initial MaterialX shader in the specified network.
 
@@ -910,14 +899,55 @@ class NodeRecreator:
                                                            folder_label=folder_label, render_context=render_context)
         output_nodes = {
             'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
-                                        'node_path': subnet_node.node('surface_output').path()},
+                                        'node_name': subnet_node.node('surface_output').name(),
+                                        'node_path': subnet_node.node('surface_output').path(),
+                                        },
             'GENERIC::output_displacement': {'node': subnet_node.node('displacement_output'),
-                                             'node_path': subnet_node.node('displacement_output').path()}
+                                             'node_path': subnet_node.node('displacement_output').path(),
+                                             'node_name': subnet_node.node('displacement_output').name(),
+                                             }
         }
         return subnet_node, output_nodes
 
+    def create_mtlx_vec3_split_node(self, src_node, dest_node, src_out_parm_name, dest_in_index):
+        """
+        Creates a vec3 split node to 3 floats between 2 nodes and connects them.
+        This method is created for arnold images that have their out individual channels:r,g, or b connected to a node.
+        Args:
+            src_node: (hou.Node) e.g., a 'mtlximage' node
+            src_out_parm_name: (str) parm name on output_node e.g., "r"
+            dest_node: (hou.node) the 2nd node which will connect to the first node. e.g., mtlxstandardsurface
+            dest_in_index: (int) input index on node
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if src_out_parm_name not in ['r', 'g', 'b']:
+            print(f"WARNING: mtlx separate3c node currently only supports splitting of 'r','g','b' channels, "
+                  f"but instead it got a '{src_out_parm_name}'")
+            return False, None
+
+        try:
+            # create a vec3 split node
+            vec3_split_node_name = f"{src_node.name()}_split_vec3"
+            vec3_split_node = self.material_builder.node(vec3_split_node_name)
+            if not vec3_split_node:
+                vec3_split_node = self.material_builder.createNode('mtlxseparate3c', f"{src_node.name()}_split_vec3")
+
+            # get which channel from the split node to connect to the output node
+            out_index = vec3_split_node.outputIndex(f"out{src_out_parm_name}")
+            if out_index == -1:
+                out_index = vec3_split_node.outputIndex(f"out{src_out_parm_name}")
+
+            vec3_split_node.setInput(0, src_node)
+            dest_node.setInput(dest_in_index, vec3_split_node, out_index)
+            return True, vec3_split_node
+
+        except Exception as e:
+            print(f"ERROR: create_mtlx_vec3_split_node: {e}")
+            return False, None
+
     @staticmethod
-    def create_init_arnold_shader(matnet=None):
+    def create_arnold_init_shader(matnet=None):
         """
         Create an initial Arnold shader in the specified network.
 
@@ -1076,8 +1106,7 @@ class NodeRecreator:
         for param in parameters:
             standardized_name = param.standardized_name
             if not standardized_name:
-                print(
-                    f"WARNING: Parameter '{param.name}' has no standardized name for node type '{node_type}'. Skipping.")
+                print(f"WARNING: Parameter '{param.name}' has no standardized name for node type '{node_type}'. Skipping.")
                 continue
 
             # Find the renderer-specific parameter name
@@ -1088,8 +1117,8 @@ class NodeRecreator:
                     break
 
             if not renderer_specific_name:
-                print(
-                    f"WARNING: No renderer-specific parameter found for standardized name '{standardized_name}' in node type '{node_type}'. Skipping.")
+                print(f"WARNING: No renderer-specific parameter found for standardized name '{standardized_name}'"
+                      f" in node type '{node_type}'. Skipping.")
                 continue
 
             hou_parm = node.parm(renderer_specific_name)
@@ -1099,7 +1128,7 @@ class NodeRecreator:
             else:
                 print(f"WARNING: Parm '{renderer_specific_name}' not found on node '{node.path()}'.")
 
-    def _set_output_connections(self):
+    def set_output_connections(self):
         """
         Set connections for the output nodes in the recreated material.
         """
@@ -1158,116 +1187,144 @@ class NodeRecreator:
                 print(f"DEBUG: {output_info['node_path']=}")
                 existing_output_node = self.old_new_node_map.get(output_info['node_path'])
                 if existing_output_node:
-                    print(f"DEBUG: {output_info['node_path']=}")
                     self.old_new_node_map[output_info['node_path']] = existing_output_node
                     print(f"DEBUG: Using newly created output node: '{existing_output_node.path()}' for "
                           f"generic output: '{output_type}'")
                 else:
                     print(f"DEBUG: No connected node info found for {output_type=}")
 
-    def _set_node_connections(self, nested_nodes_info):
+
+    def _get_new_node_from_nodeinfo(self, node_info):
         """
-        [RECURSIVE] Re-connect all created nodes.  Prefers the new `connection_info`
-        dict, but gracefully falls back to the old single-index attributes
-        while the code base is still being migrated.
+        Find the newly-created Houdini node corresponding to node_info.
         """
-        if len(nested_nodes_info) <= 0:
-            print(f"WARNING: Empty Iteration!")
+        old_path = node_info.node_path
+        mapping = self.old_new_node_map.get(old_path, {})
+        new_path = mapping.get('node_path')
+        if not new_path:
+            print(f"WARNING: Couldn't find new node for '{old_path}'.")
+            return None
+
+        node = hou.node(new_path)
+        if not node:
+            print(f"WARNING: New node path '{new_path}' does not exist in the scene.")
+            return None
+
+        return node
+
+    def _process_connections_for_node(self, node_info, new_node):
+        """
+        Iterate all connections for one node and wire them up (skipping output nodes).
+        """
+        for conn in node_info.connection_info.values():
+            in_name = conn['input']['node_name']
+            out_name = conn['output']['node_name']
+
+            # find the source (input) node
+            input_node = self._get_input_node(in_name)
+            if not input_node:
+                continue
+
+            # skip wiring if this is one of our designated outputs
+            if self._is_output_node(out_name):
+                print(f"WARNING: Skipping connection for '{out_name}' on '{new_node.name()}' (it's an output node).")
+                continue
+
+            # perform the actual wire
+            self._connect_pair(
+                src_node=input_node,
+                dest_node=new_node,
+                src_parm=conn['input']['parm_name'],
+                dest_parm=conn['output']['parm_name'],
+                src_idx=conn['input']['node_index'],
+                dest_idx=conn['output']['node_index'],
+            )
+
+    def _get_input_node(self, node_name):
+        """
+        Look up a child of material_builder by name.
+
+        Args:
+            node_name (str): The name of the node to find in the material builder's children.
+
+        Returns:
+            hou.Node: The found child node, or None if not found.
+        """
+        path = f"{self.material_builder.path()}/{node_name}"
+        node = hou.node(path)
+        if not node:
+            print(f"WARNING: Input node '{node_name}' not found at '{path}'.")
+        return node
+
+    def _is_output_node(self, nodename):
+        """
+        Return True if `nodename` matches one of our created output nodes.
+        """
+        return any(info['node_name'] == nodename
+                   for info in self.created_output_connections.values())
+
+    def _connect_pair(self, src_node, dest_node, src_parm='', dest_parm='',
+                      src_idx=None, dest_idx=None):
+        """
+        Wire src_node.output[src_idx] into dest_node.input[<resolved index>].
+
+        Args:
+            src_node (hou.node): The source node.
+            dest_node (hou.node): The destination node.
+            src_parm (str, Optional): The source parameter name that connects to the dest_node, if not provided then use src_idx
+            dest_parm (str, Optional): The destination parameter name that will be connected to the src_node, if not provided then use dest_idx
+
+        """
+        # if it's a node which might need splitting, we split the channels
+        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_idx != 0:
+            print(f"\n/////////////////, {src_parm=}, {dest_parm=}, {src_idx=}, {dest_idx=}, {src_node.outputNames()=}")
+            self.create_mtlx_vec3_split_node(src_node=src_node, dest_node=dest_node,
+                                             src_out_parm_name=src_parm, dest_in_index=dest_idx)
+            print(f"INFO: created split node for '{src_node.name()}' to '{dest_node.name()}' for '{src_parm}' ")
+            return
+
+        if not dest_idx:
+            dest_idx = 0
+            dest_idx_by_name = dest_node.inputIndex(dest_parm)
+            if dest_idx_by_name != -1:
+                dest_idx = dest_idx_by_name
+            else:
+                print(f"WARNING: dest: '{dest_node.name()}' has no parm '{dest_parm}', using provided index {dest_idx}.")
+
+        if not src_idx:
+            src_idx = 0
+            src_idx_by_name = src_node.outputIndex(src_parm)
+            if src_idx_by_name != -1:
+                src_idx = src_idx_by_name
+            else:
+                print(f"WARNING: src: '{src_node.name()}' has no parm '{src_parm}', using provided index {src_idx}.")
+
+        try:
+            dest_node.setInput(dest_idx, src_node, src_idx)
+            print(f"Connected '{src_node.name()}'[{src_idx}] → '{dest_node.name()}'[{dest_idx}].")
+        except Exception as e:
+            print(f"WARNING: Failed to connect '{src_node.name()}'[{src_idx}] to '{dest_node.name()}'[{dest_idx}]: {e}")
+
+    def set_node_connections(self, nested_nodes_info):
+        """
+        Top-level entry: recurse over a list of NodeInfo and wire them up.
+        """
+        if not nested_nodes_info:
+            print("WARNING: Empty node list, nothing to connect.")
+            return
 
         for node_info in nested_nodes_info:
-            print(f"Start for: '{node_info.node_name}'")
-
-            new_out_node_path = self.old_new_node_map[node_info.node_path]['node_path']
-            new_node = hou.node(new_out_node_path)
-            new_node_name = new_node.name()
+            new_node = self._get_new_node_from_nodeinfo(node_info)
             if not new_node:
-                print(f"WARNING: Out node: '{new_out_node_path}' not found!")
                 continue
 
-            new_out_node_path = self.old_new_node_map.get(node_info.node_path).get('node_path')
-            old_path = node_info.node_path
-            old_name = node_info.node_name
-            new_path = self.old_new_node_map.get(old_path).get('node_path')
-            new_node = hou.node(new_path)
-            if not new_node:
-                print(f"WARNING: Couldn't find new node: '{new_path}'")
-                continue
+            if not node_info.connection_info:
+                print(f"WARNING: '{new_node.name()}': No connections found. Skipping.")
+            else:
+                self._process_connections_for_node(node_info, new_node)
 
-            connection_keys: list[str] = list(node_info.connection_info.keys())
-            connection_count = len(connection_keys)
-            if connection_count <= 0:
-                print(f"WARNING: iteration: '{new_node_name}': No connections found for '{new_node_name}'. Skipping NodeInfo.")
-                continue
-
-            print(f"DEBUG: iteration: '{new_node_name}': {connection_count=}")
-            for connection_index in connection_keys:
-                conn_input_nodename = node_info.connection_info[connection_index]['input']['node_name']
-                conn_input_nodeindex = node_info.connection_info[connection_index]['input']['node_index']
-                conn_input_parmname = node_info.connection_info[connection_index]['input']['parm_name']
-
-                conn_output_nodename = node_info.connection_info[connection_index]['output']['node_name']
-                conn_output_nodeindex = node_info.connection_info[connection_index]['output']['node_index']
-                conn_output_parmname = node_info.connection_info[connection_index]['output']['parm_name']
-
-
-
-                input_node_path = f'{self.material_builder.path()}/{conn_input_nodename}'
-                input_node = hou.node(input_node_path)
-
-
-                # print(f"DEBUG: iteration: '{new_node_name}': {old_path=}")  # iteration: 'OUT_material': old_path='/mat/arnold_materialbuilder1/OUT_material'
-                # print(f"DEBUG: iteration: '{new_node_name}': {new_path=}")  # iteration: 'OUT_material': new_path='/mat/arnold_materialbuilder2/OUT_material'
-                # print(f"DEBUG: iteration: '{new_node_name}': {conn_input_nodename=}")    # 'OUT_material'/'OUT_material': conn_input_nodename='standard_surface1'
-                # print(f"DEBUG: iteration: '{new_node_name}': {conn_input_nodeindex=}")   # 'OUT_material'/'OUT_material': conn_input_nodeindex=0
-                # print(f"DEBUG: iteration: '{new_node_name}': {conn_input_parmname=}")    # 'OUT_material'/'OUT_material': conn_input_parmname='shader'
-                # print(f"DEBUG: iteration: '{new_node_name}': {conn_output_nodename=}")   # 'OUT_material'/'OUT_material': conn_output_nodename='OUT_material'
-                # print(f"DEBUG: iteration: '{new_node_name}': {conn_output_nodeindex=}")  # 'OUT_material'/'OUT_material': conn_output_nodeindex=0
-                # print(f"DEBUG: iteration: '{new_node_name}': {conn_output_parmname=}")   # 'OUT_material'/'OUT_material': conn_output_parmname='surface'
-
-                print(f"DEBUG: self.created_output_connections: {pprint.pformat(self.created_output_connections, sort_dicts=False)}")
-                _existing_names = [info['node_name'] for info in self.created_output_connections.values()]
-                if conn_output_nodename in _existing_names:
-                    print(f"WARNING: Skipping connections for '{conn_output_nodename}' because it's an output node.")
-                else:
-
-                    # e.g. self.created_output_connections = {'GENERIC::output_surface': {'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder2/OUT_material>,
-                    #                               'node_path': '/mat/arnold_materialbuilder2/OUT_material'},
-                    #                               'GENERIC::output_displacement': {'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder2/OUT_material>,
-                    #                               'node_path': '/mat/arnold_materialbuilder2/OUT_material'}}
-
-
-                    output_new_node_index: int = input_node.outputIndex(conn_input_parmname)
-                    input_new_node_index: int = new_node.inputIndex(conn_output_parmname)
-                    print(f"INFO: iteration: '{new_node_name}'/'{old_name}': to have it's input connected to: '{conn_input_nodename}' at input_index: {input_new_node_index} and output_index: {conn_output_nodeindex}")
-                    print(f"DEBUG: {input_new_node_index=}")
-                    print(f"DEBUG: {conn_input_nodeindex=}")
-                    print(f"DEBUG: {output_new_node_index=}")
-                    if input_new_node_index == -1:
-                        print(f"WARNING: iteration: '{new_node_name}'/'{old_name}': No input index found for node: '{new_node.name()}' with parm name: '{conn_output_parmname}'\n")
-                        input_new_node_index = conn_input_nodeindex
-
-                    try:
-                        new_node.setInput(input_index=input_new_node_index, item_to_become_input=input_node, output_index=conn_output_nodeindex)
-                        print(
-                            f"DEBUG: iteration: '{new_node_name}': set {new_out_node_path}.input[{input_new_node_index}] "
-                            f"({conn_output_parmname}) <- {new_node.path()}"
-                        )
-                    except Exception as exc:
-                        print(
-                            f"WARNING: iteration: '{new_node_name}'/'{old_name}': could not wire {new_path} "
-                            f"to {new_out_node_path}[{input_new_node_index}]: {exc}"
-                        )
-
-            # recurse inside child_nodes
-            if len(node_info.child_nodes) <= 0:
-                print(f"WARNING: No child_nodes found for {new_node_name=}!")
-                return
-
-            print(f"\nStarting new iteration for: {node_info.node_name}'s child_nodes ")
-            self._set_node_connections(node_info.child_nodes)
-
-
-
+            # recurse into children
+            self.set_node_connections(node_info.child_nodes)
 
 
     def run(self):
@@ -1276,9 +1333,9 @@ class NodeRecreator:
         """
         # Create the initial shader network based on the target renderer
         if self.target_renderer == 'mtlx':
-            self.material_builder, self.created_output_connections = self.create_init_mtlx_shader(self.target_context)
+            self.material_builder, self.created_output_connections = self.create_mtlx_init_shader(self.target_context)
         elif self.target_renderer == 'arnold':
-            self.material_builder, self.created_output_connections = self.create_init_arnold_shader(self.target_context)
+            self.material_builder, self.created_output_connections = self.create_arnold_init_shader(self.target_context)
         else:
             raise Exception(f"Unsupported target renderer: {self.target_renderer}")
 
@@ -1295,13 +1352,13 @@ class NodeRecreator:
         print(f"INFO: DONE _create_all_nodes()....")
 
         print(f"\n\n\nINFO: STARTING _set_output_connections()....")
-        self._set_output_connections()
+        self.set_output_connections()
         print(f"INFO: DONE _set_output_connections()....")
 
         print(f"\n\n\nINFO: STARTING _set_node_inputs()....")
         print(f"DEBUG: self.old_new_node_map: {pprint.pformat(self.old_new_node_map, sort_dicts=False)}")
         print(f"DEBUG: {len(self.nodeinfo_list)=}")
-        self._set_node_connections(self.nodeinfo_list)
+        self.set_node_connections(self.nodeinfo_list)
         print(f"INFO: DONE _set_node_inputs()....")
 
 
@@ -1334,7 +1391,7 @@ def get_material_type(materialbuilder_node):
     return material_type
 
 
-def run(input_material_builder_node, target_context, target_renderer='arnold'):
+def run(input_material_builder_node, target_context, target_renderer='mtlx'):
     """
     Run the material conversion process for the selected node.
 

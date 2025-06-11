@@ -31,7 +31,7 @@ class NodeInfo:
         node_name (str): The name of the node.
         parameters (List[NodeParameter]): A list of parameters associated with the node.
         node_path (str): The path to the node within the network.
-        connected_input_index (Optional[int]): The index of the input this node is connected to, if any.
+        # connected_input_index (Optional[int]): The index of the input this node is connected to, if any.
         child_nodes (List['NodeInfo']): A list of child nodes connected to this node.
         is_output_node (bool): Whether this node is an output node.
         output_type (Optional[str]): The type of output, e.g., 'surface', 'displacement', etc.
@@ -40,8 +40,6 @@ class NodeInfo:
     node_name: str
     node_path: str
     parameters: List[NodeParameter]
-    connected_input_index: Optional[int] = None
-    connected_output_index: Optional[int] = None
     connection_info: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # {"input": {"index": int, "parm": str}, "output": {...}}
     child_nodes: List['NodeInfo'] = field(default_factory=list)
     is_output_node: bool = False
@@ -68,7 +66,7 @@ class NodeInfo:
             child_nodes_print = f", child_nodes={self.child_nodes} -->"
 
         return (f"\n    NodeInfo(node_type='{self.node_type}', node_name='{self.node_name}', "
-                f"node_path='{self.node_path}', connected_input_index='{self.connected_input_index}'"
+                f"node_path='{self.node_path}',"
                 f"{output_print}{child_nodes_print})")
 
     def print_connections(self):
