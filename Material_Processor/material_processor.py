@@ -274,9 +274,9 @@ class NodeTraverser:
         self.material_type = material_type
         self.output_nodes = {}
 
-    def _detect_node_connections(self, node):
+    def _detect_node_connections(self, node, parent_node):
         """
-        Detect and extract the connections of a given node, including input and output connections.
+        Detect and extract the output connections of a given node, including input and output connections.
 
         Args:
             node (hou.Node): The Houdini node to analyze connections for.
@@ -302,7 +302,11 @@ class NodeTraverser:
         """
 
         connections_dict = {}
-        for i, connection in enumerate(node.inputConnections()):
+        for i, connection in enumerate(node.outputConnections()):
+            # we only want to get the output connections of the parent node. We don't want all connections to all nodes
+            if connection.outputNode().name() != parent_node.name():
+                continue
+
             # print(f"DEBUG: -------------[{i}] input: '{input_conn.inputNode().name()}' index: '{input_conn.inputIndex()}', parm_name: '{input_conn.inputName()}'")
             # print(f"DEBUG: -------------[{i}] output: '{input_conn.outputNode().name()}' index: '{input_conn.outputIndex()}', parm_name: '{input_conn.outputName()}'")
             connections_dict.update({f"connection_{i}":
@@ -344,21 +348,18 @@ class NodeTraverser:
         """
         return [{'name': p.name(), 'value': p.eval()} for p in parms_list]
 
-    def _traverse_recursively_node_tree(self, node, path=None):
+    def _traverse_recursively_node_tree(self, node, parent_node=None):
         """
         Recursively traverse the node tree and return a dictionary of node connections with additional metadata,
         separating the input index and input node path as key-value pairs.
 
         Args:
             node (hou.Node): The current Houdini node.
-            path (list[hou.Node], optional): The traversal path.
+            parent_node (hou.Node), optional): The traversal path.
 
         Returns:
             Dict[str, Dict]: A dictionary representing the node tree with additional metadata.
         """
-        if path is None:
-            path = []
-
         # Check if this node is an output node
         is_output_node = False
         output_type = None
@@ -370,7 +371,7 @@ class NodeTraverser:
                 break
 
         # get a dict with all input and output connections related to the node
-        connections_dict = self._detect_node_connections(node)
+        connections_dict = self._detect_node_connections(node, parent_node)
 
         # Initialize the node's dictionary with metadata
         node_dict = {
@@ -394,7 +395,7 @@ class NodeTraverser:
                 continue
 
             # Recursively get child nodes
-            input_node_dict = self._traverse_recursively_node_tree(input_node, path + [node])
+            input_node_dict = self._traverse_recursively_node_tree(input_node, node)
 
             node_dict['children_list'].append(
                 input_node_dict[input_node.path()]
@@ -489,14 +490,6 @@ class NodeTraverser:
                   mirroring Arnold's structure so downstream code works unchanged.
 
         """
-        # return {
-        #     'surface': {
-        #         'node_name': parent_node.name(),
-        #         'node_path': parent_node.path(),
-        #         'connected_node_name': parent_node.name(),
-        #         'connected_node_path': parent_node.path(),
-        #         'connected_input_index': 0
-        #     }
         return {
             "surface": {
                 "node_name": "OUT_material",
@@ -551,41 +544,50 @@ class NodeTraverser:
         """
         # grab parameters + direct connections
         parms = self._convert_parms_to_dict(node.parms())
-        conns = self._detect_node_connections(node)
 
         entry = {
-            "node_name": "OUT_material",
-            "node_path": f"{node.path()}/OUT_material",
-            "node_type": "arnold_material",
-            "node_parms": [],
-            "connections_dict": {
-                "connection_0": {
-                    "input": {
+            f"{node.path()}/OUT_material": {
+                "node_name": "OUT_material",
+                "node_path": f"{node.path()}/OUT_material",
+                "node_type": "arnold_material",
+                "node_parms": [],
+                "connections_dict": {},
+                "children_list": [
+                    {
                         "node_name": "standard_surface",
                         "node_path": f"{node.path()}/standard_surface",
-                        "node_index": 0,
-                        "parm_name": "shader"
+                        "node_type": "arnold::standard_surface",
+                        "node_parms": [],
+                        "connections_dict": {
+                            "connection_0": {
+                                "input": {
+                                    "node_name": "standard_surface",
+                                    "node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+                                    "node_index": 0,
+                                    "parm_name": "shader"
+                                },
+                                "output": {
+                                    "node_name": "OUT_material",
+                                    "node_path": "/mat/arnold_materialbuilder_basic/OUT_material",
+                                    "node_index": 0,
+                                    "parm_name": "surface"
+                                },
+                            }
+                        },
+                        "children_list": [],
                     },
-                    "output": {
-                        "node_name": "OUT_material",
-                        "node_path": f"{node.path()}/OUT_material",
-                        "node_index": 0,
-                        "parm_name": "surface"
-                    }
-                }
-            },
-            "children_list": [
-                {
-                    "connections_dict": {},
-                    "node_name": "standard_surface",
-                    "node_path": f"{node.path()}/standard_surface",
-                    "node_type": "arnold::standard_surface",
-                },
-            ]
+                ]
+            }
         }
 
         if node.parm('basecolor_useTexture').eval():
-            entry['children_list'].append({
+            entry[f"{node.path()}/OUT_material"]['children_list'][0]['children_list'].append({
+                "node_name": "image_diffuse",
+                "node_path": f"{node.path()}/image_diffuse",
+                "node_type": "arnold::image",
+                'node_parms': [
+                    {'name': 'filename', 'value': node.parm('basecolor_texture').eval()},
+                ],
                 'connections_dict': {
                     "connection_0": {
                         "input": {
@@ -597,50 +599,15 @@ class NodeTraverser:
                         "output": {
                             "node_name": "standard_surface",
                             "node_path": f"{node.path()}/standard_surface",
-                            "node_index": 0,
-                            "parm_name": "base"
+                            "node_index": 1,
+                            "parm_name": "base_color"
                         }
                     },
                 },
-                "node_name": "image_diffuse",
-                "node_path": f"{node.path()}/image_diffuse",
-                "node_type": "arnold::image",
-                'node_parms': [
-                    {'name': 'filename', 'value': node.parm('basecolor_texture').eval()}
-                    ]
+
             })
 
-            entry['connections_dict'].update({
-                "connection_0": {
-                    "input": {
-                        "node_name": "image_diffuse",
-                        "node_path": f"{node.path()}/image_diffuse",
-                        "node_index": 0,
-                        "parm_name": "rgba"
-                    },
-                    "output": {
-                        "node_name": "standard_surface",
-                        "node_path": f"{node.path()}/standard_surface",
-                        "node_index": 0,
-                        "parm_name": "base"
-                    }
-                },
-            })
-
-        # for each input-connection, recurse upstream
-        for conn in conns.values():
-            src = conn['input']
-            upstream = hou.node(src['node_path'])
-            if not upstream:
-                continue
-
-            child_block = {
-                'connections_dict': self._detect_node_connections(upstream),
-            }
-            child_block.update(self._build_principled_entry(upstream))
-            entry['children_list'].append(child_block)
-
-        return {node.path(): entry}
+        return entry
 
 
     def run(self, parent_node):
@@ -780,17 +747,16 @@ class NodeStandardizer:
                 node_info = NodeInfo(
                     node_type=generic_node_type,
                     node_name=node_name,
-                    node_path=node_name,  # Assuming node_name is used as the path here
-                    connected_input_index=parent_input_index,
+                    node_path=node_name,
                     is_output_node=is_output_node,
                     output_type=generic_node_type if is_output_node else None,
                     parameters=parameters,
-                    child_nodes=[]
+                    children_list=[]
                 )
 
                 # Recursively process child nodes (connections)
                 child_nodes_info = traverse_tree(connections, parent_input_index=input_index)
-                node_info.child_nodes.extend(child_nodes_info)
+                node_info.children_list.extend(child_nodes_info)
                 node_info_list.append(node_info)
 
             return node_info_list
@@ -839,27 +805,36 @@ class NodeStandardizer:
         ]
         return node_parameters
 
-    @staticmethod
-    def create_nodeinfo_object(node_path, node_children_dict):
+    def create_nodeinfo_object(self, node_path, child_dict):
         """
         Create a NodeInfo object from a NodeTraverser dictionary.
 
         Args:
             node_path (str): The Houdini node path.
-            node_children_dict (dict): The Houdini node path.
+            child_dict (dict): The Houdini node path.
         Returns:
             NodeInfo: The created NodeInfo object.
+
+        Example:
+            >>> node_path='/mat/arnold_materialbuilder_basic/OUT_material'
+            >>> child_dict={
+                     'node_name': 'image_roughness',
+                     'node_path': '/mat/arnold_materialbuilder_basic/image_roughness',
+                     'node_type': 'arnold::image',
+                     'node_parms': []
+                                 }
+
+            >>> node_info_obj = self.create_nodeinfo_object(node_path='/mat/arnold_materialbuilder_basic/OUT_material', child_dict=child_dict)
+
         """
-        is_output_node = node_children_dict.get('is_output_node', False)
-        output_type = node_children_dict.get('output_type', None)
+        is_output_node = child_dict.get('is_output_node', False)
+        output_type = child_dict.get('output_type', None)
 
-        connection_info = node_children_dict.get('connections_dict', {})
-        connected_input_index = node_children_dict.get('connected_input_index', None)
-        connected_output_index = node_children_dict.get('connected_output_index', None)
+        connection_info = child_dict.get('connections_dict', {})
 
-        node_name: str = node_children_dict['node_name']
-        node_type: str = node_children_dict['node_type']
-        child_node_parms: list = node_children_dict.get('node_parms')
+        node_name: str = child_dict['node_name']
+        node_type: str = child_dict['node_type']
+        child_node_parms: list = child_dict.get('node_parms')
         # print(f"DEBUG: parms for node: '{node_path}': {child_node_parms}")
 
         parameters = None
@@ -874,7 +849,7 @@ class NodeStandardizer:
             node_path=node_path,
             parameters=parameters,
             connection_info=connection_info,
-            child_nodes=[],
+            children_list=[],
             is_output_node=is_output_node,
             output_type=output_type if is_output_node else generic_node_type
         )
@@ -906,7 +881,7 @@ class NodeStandardizer:
                 # Recursively traverse child nodes
                 child_nodes_info = self.standardize_node_dict({child_node_path: child_entry})
 
-                nodeinfo.child_nodes.extend(child_nodes_info)
+                nodeinfo.children_list.extend(child_nodes_info)
 
             nodeinfo_list.append(nodeinfo)
         print(f"DEBUG: {len(nodeinfo_list)=}")
@@ -1024,6 +999,9 @@ class NodeRecreator:
             print(f"WARNING: mtlx separate3c node currently only supports splitting of 'r','g','b' channels, "
                   f"but instead it got a '{src_out_parm_name}'")
             return False, None
+        if dest_in_index is None:
+            print(f"WARNING: dest_in_index is None '{dest_in_index}', but it should be an integer, src_node: '{src_node.name()}'")
+            return False, None
 
         try:
             # create a vec3 split node
@@ -1039,10 +1017,11 @@ class NodeRecreator:
 
             vec3_split_node.setInput(0, src_node)
             dest_node.setInput(dest_in_index, vec3_split_node, out_index)
+            print(f"INFO: created split node for '{src_node.name()}' to '{dest_node.name()}' for '{src_out_parm_name}' ")
             return True, vec3_split_node
 
         except Exception as e:
-            print(f"ERROR: create_mtlx_vec3_split_node: {e}")
+            print(f"ERROR: create_mtlx_vec3_split_node, {dest_in_index=}, {vec3_split_node=}, {out_index=}, error: {e}")
             return False, None
 
     @staticmethod
@@ -1266,7 +1245,7 @@ class NodeRecreator:
             processed_nodes.add(node_info.node_path)
 
             # Recursively create child nodes
-            self._create_nodes_recursive(node_info.child_nodes, processed_nodes)
+            self._create_nodes_recursive(node_info.children_list, processed_nodes)
 
     def create_nodes(self, nested_nodes_info):
         """
@@ -1398,32 +1377,34 @@ class NodeRecreator:
 
         return node
 
-    def _process_connections_for_node(self, node_info, new_node):
+    def _process_connections_for_node(self, src_nodeinfo, dest_node):
         """
         Iterate all connections for one node and wire them up (skipping output nodes).
         """
-        for conn in node_info.connection_info.values():
-            in_name = conn['input']['node_name']
-            out_name = conn['output']['node_name']
+        for conn in src_nodeinfo.connection_info.values():
+            print(f"\nDEBUG: connecting src node: '{src_nodeinfo.node_name}[{conn['input']['node_index']}][{conn['input']['parm_name']}]' to "
+                  f"dest node: '{dest_node.name()}[{conn['output']['node_index']}][{conn['output']['parm_name']}]'")
+            src_node_name = conn['input']['node_name']
+            dest_node_name = conn['output']['node_name']
 
             # find the source (input) node
-            input_node = self._get_input_node(in_name)
-            if not input_node:
+            src_node = self._get_input_node(src_node_name)
+            if not src_node:
                 continue
 
             # skip wiring if this is one of our designated outputs
-            if self._is_output_node(out_name):
-                print(f"WARNING: Skipping connection for '{out_name}' on '{new_node.name()}' (it's an output node).")
+            if self._is_output_node(dest_node_name):
+                print(f"WARNING: Skipping connection for '{dest_node_name}' on '{dest_node.name()}' (it's an output node).")
                 continue
 
             # perform the actual wire
             self._connect_pair(
-                src_node=input_node,
-                dest_node=new_node,
+                src_node=src_node,
+                dest_node=dest_node,
                 src_parm=conn['input']['parm_name'],
                 dest_parm=conn['output']['parm_name'],
-                src_idx=conn['input']['node_index'],
-                dest_idx=conn['output']['node_index'],
+                # src_idx=conn['input']['node_index'],
+                # dest_idx=conn['output']['node_index'],
             )
 
     def _get_input_node(self, node_name):
@@ -1461,21 +1442,15 @@ class NodeRecreator:
             dest_parm (str, Optional): The destination parameter name that will be connected to the src_node, if not provided then use dest_idx
 
         """
-        # if it's a node which might need splitting, we split the channels
-        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_idx != 0:
-            print(f"\n/////////////////, {src_parm=}, {dest_parm=}, {src_idx=}, {dest_idx=}, {src_node.outputNames()=}")
-            self.create_mtlx_vec3_split_node(src_node=src_node, dest_node=dest_node,
-                                             src_out_parm_name=src_parm, dest_in_index=dest_idx)
-            print(f"INFO: created split node for '{src_node.name()}' to '{dest_node.name()}' for '{src_parm}' ")
-            return
-
+        # TODO: add a standardization parm names. e.g., 'RGBA' in arnold should be translated to 'out' in MTLX
         if not dest_idx:
             dest_idx = 0
             dest_idx_by_name = dest_node.inputIndex(dest_parm)
             if dest_idx_by_name != -1:
+                print(f"DEBUG: /////////////////// {dest_idx_by_name=}")
                 dest_idx = dest_idx_by_name
             else:
-                print(f"WARNING: dest: '{dest_node.name()}' has no parm '{dest_parm}', using provided index {dest_idx}.")
+                print(f"WARNING: dest: '{dest_node.name()}' has no parm: '{dest_parm}', using provided index: {dest_idx}.")
 
         if not src_idx:
             src_idx = 0
@@ -1483,35 +1458,49 @@ class NodeRecreator:
             if src_idx_by_name != -1:
                 src_idx = src_idx_by_name
             else:
-                print(f"WARNING: src: '{src_node.name()}' has no parm '{src_parm}', using provided index {src_idx}.")
+                print(f"WARNING: src: '{src_node.name()}' has no parm: '{src_parm}', using provided index: {src_idx}.")
+
+
+        # if it's a node that needs splitting, we split the channels
+        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_parm not in ['rgb', 'rgba']:
+            # print(f"DEBUG: {src_parm=}, {dest_parm=}, {src_idx=}, {dest_idx=}, {src_node.outputNames()=}")
+            check, _ = self.create_mtlx_vec3_split_node(src_node=src_node, dest_node=dest_node,
+                                                        src_out_parm_name=src_parm, dest_in_index=dest_idx)
+            return check
+
 
         try:
             dest_node.setInput(dest_idx, src_node, src_idx)
-            print(f"Connected '{src_node.name()}'[{src_idx}] → '{dest_node.name()}'[{dest_idx}].")
+            print(f"INFO: Connected '{src_node.name()}'[{src_idx}] → '{dest_node.name()}'[{dest_idx}].")
+            return True
         except Exception as e:
             print(f"WARNING: Failed to connect '{src_node.name()}'[{src_idx}] to '{dest_node.name()}'[{dest_idx}]: {e}")
+            return False
 
-    def set_node_connections(self, nested_nodes_info):
+    def set_node_connections(self, nodeinfo_list, parent_node=None):
         """
         Top-level entry: recurse over a list of NodeInfo and wire them up.
         """
-        if not nested_nodes_info:
+        if not nodeinfo_list:
             print("WARNING: Empty node list, nothing to connect.")
             return
 
-        for node_info in nested_nodes_info:
-            new_node = self._get_new_node_from_nodeinfo(node_info)
-            if not new_node:
+        for i, node_info in enumerate(nodeinfo_list):
+            current_node = parent_node or self._get_new_node_from_nodeinfo(node_info)
+            if not current_node:
                 continue
 
             if not node_info.connection_info:
-                print(f"WARNING: '{new_node.name()}': No Input Connections found. Skipping.")
+                print(f"WARNING: '{current_node.name()}': No Input Connections found. Skipping.")
             else:
-                self._process_connections_for_node(node_info, new_node)
+                # actual connection logic:
+                self._process_connections_for_node(node_info, current_node)
+                # set current_node to be the parent (dest_node) for recursive iteration)
+                current_node = self._get_new_node_from_nodeinfo(node_info)
 
-            # recurse into children
-            self.set_node_connections(node_info.child_nodes)
-
+            # recurse into *its* children, passing *that* new node
+            if node_info.children_list:
+                self.set_node_connections(node_info.children_list, current_node)
 
     def run(self):
         """
@@ -1574,7 +1563,7 @@ def get_material_type(materialbuilder_node):
     return material_type
 
 
-def run(input_material_builder_node, target_context, target_format='arnold'):
+def run(input_material_builder_node, target_context, target_format='mtlx'):
     """
     Run the material conversion process for the selected node.
 

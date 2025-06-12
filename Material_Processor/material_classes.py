@@ -32,7 +32,7 @@ class NodeInfo:
         parameters (List[NodeParameter]): A list of parameters associated with the node.
         node_path (str): The path to the node within the network.
         # connected_input_index (Optional[int]): The index of the input this node is connected to, if any.
-        child_nodes (List['NodeInfo']): A list of child nodes connected to this node.
+        children_list (List['NodeInfo']): A list of child nodes connected to this node.
         is_output_node (bool): Whether this node is an output node.
         output_type (Optional[str]): The type of output, e.g., 'surface', 'displacement', etc.
     """
@@ -41,7 +41,7 @@ class NodeInfo:
     node_path: str
     parameters: List[NodeParameter]
     connection_info: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # {"input": {"index": int, "parm": str}, "output": {...}}
-    child_nodes: List['NodeInfo'] = field(default_factory=list)
+    children_list: List['NodeInfo'] = field(default_factory=list)
     is_output_node: bool = False
     output_type: Optional[str] = None
 
@@ -54,7 +54,7 @@ class NodeInfo:
     #
     #     return(f"NodeInfo(node_type={self.node_type}, node_name={self.node_name}, "
     #            f"node_path={self.node_path}, connected_input_index={self.connected_input_index}, "
-    #            f"{output_print}, child_nodes=\n        {self.child_nodes} -->\n")
+    #            f"{output_print}, children_list=\n        {self.children_list} -->\n")
 
     def __repr__(self):
         output_print = ""
@@ -62,8 +62,8 @@ class NodeInfo:
             output_print = f", IS_OUTPUT_NODE = {self.is_output_node}, output_type = {self.output_type}),"
 
         child_nodes_print = ""
-        if self.child_nodes:
-            child_nodes_print = f", child_nodes={self.child_nodes} -->"
+        if self.children_list:
+            child_nodes_print = f", children_list={self.children_list} -->"
 
         return (f"\n    NodeInfo(node_type='{self.node_type}', node_name='{self.node_name}', "
                 f"node_path='{self.node_path}',"
