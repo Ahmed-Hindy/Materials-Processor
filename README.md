@@ -1,9 +1,4 @@
-# AxeFx_tools
-this repo is in active development. Will be constantly updated by any new tools
-
-
-
-## Material Processor
+# Material Processor
 a WIP Houdini tool for Ingestion/ Conversions of any kind for materials in Houdini or .usd files\
 Universal support for other dccs and .usd file format will be added in near future.
 
@@ -24,6 +19,6 @@ Universal support for other dccs and .usd file format will be added in near futu
 ### Roadmap
 - [ ] Add support for .usd files
 - [ ] Extend functionality to other apps like Substance Painter, Maya and blender.
-- [ ] Add Changelog.
+- [x] Add Changelog.
 
 
