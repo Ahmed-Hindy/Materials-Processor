@@ -1,15 +1,18 @@
 # Material Processor
-a WIP Houdini tool for Ingestion/ Conversions of any kind for materials in Houdini or .usd files\
-Universal support for other dccs and .usd file format will be added in near future.
+a WIP 3D Materials tool for Ingestion, Standardization, and Conversion for complex multi-input/ multi-output materials\
+in various DCCs. Also supports USD file format.\
+Currently in pre-release with support for only Arnold, MaterialX, PrincipledShader in Houdini.\
+Has basic support also for USD.
+
 
 ![Material_processor_v004](https://github.com/Ahmed-Hindy/AxeFx_tools/assets/23151881/0a330312-8809-44bf-b6a9-35e233c57eda)
 
 
 ### Features
-- [x] Drag and drop mat nodes into dropping area on the Application.
-- [x] Ingests Most Materials -Principled, Arnold and MTLX for now-.
-- [x] Convert to any chosen render engine.
-- [x] has it's own logging mechanisms.[Axe_Material_Processor.json](../../houdini20.5/packages/Axe_Material_Processor.json)
+- [x] UI supports Drag and drop for dropping mat nodes from the Application.
+- [x] Ingests Most Materials: PrincipledShader, Arnold, MaterialX, PrincipledShader.
+- [x] Convert to varius render engine: Arnold, MaterialX, PrincipledShader.
+- [x] ships with proper logging.
 - [x] pip-standard coding practices as much as possible.
 - [x] [NEW] added ingestions of usdPreview materials in Solaris.
 - [x] [NEW] added conversion to Arnold + UsdPreview material in Solaris.
@@ -18,7 +21,7 @@ Universal support for other dccs and .usd file format will be added in near futu
 
 ### Roadmap
 - [ ] Add support for .usd files
-- [ ] Extend functionality to other apps like Substance Painter, Maya and blender.
+- [ ] Extend support to other apps like Substance Painter, Maya, and blender.
 - [x] Add Changelog.
 
 
