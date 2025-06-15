@@ -929,19 +929,22 @@ class NodeRecreator:
         self.orig_output_connections = output_connections
         self.target_context = target_context
         self.target_renderer = target_renderer
-        self.old_new_node_map = {}  # a dict of {old_node_path:str  :  new_node_path:str}
+        self.old_new_node_map = {}  # e.g., {old_node_path:str :
+        #                                       'node_name': node.name(),
+        #                                       'node_path': node.path()
+        #                                   }
         self.reused_nodes = {}
         self.material_builder = None
-        self.created_output_connections = None  # e.g.: {'GENERIC::output_surface':{
+        self.created_output_connections = None  # e.g., {'GENERIC::output_surface':{
         #                                                  'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder1/OUT_material>,
         #                                                  'node_name': 'OUT_material',
-        #                                                  'node_path': '/mat/arnold_materialbuilder1/OUT_material'
-        #                                                                          },
+        #                                                  'node_path': '/mat/arnold_materialbuilder1/OUT_material',
+        #                                                  },
         #                                               'GENERIC::output_displacement': {
         #                                                   'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder1/OUT_material>,
         #                                                   'node_name': 'OUT_material',
-        #                                                   'node_path': '/mat/arnold_materialbuilder1/OUT_material'
-        #                                                                                }
+        #                                                   'node_path': '/mat/arnold_materialbuilder1/OUT_material',
+        #                                                   }
         #                                               }
 
         self.run()
@@ -1113,8 +1116,6 @@ class NodeRecreator:
 
 
             print(f"DEBUG: output_info: {pprint.pformat(output_info, sort_dicts=False)}")
-            # print(f"DEBUG: {output_info['node_path']=}")  # '/mat/material_mtlx_ORIG/mtlxstandard_surface' TODO: THIS IS WRONG. IT SHOULD BE THE OUTPUT NODE
-            # self.old_new_node_map[output_info['node_path']] = created_output_node.path()
             self.old_new_node_map[output_info['node_path']] = {'node_name': created_output_node.name(),
                                                                'node_path': created_output_node.path()}
 
