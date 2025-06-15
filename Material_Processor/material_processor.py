@@ -14,7 +14,6 @@ import tempfile
 
 from Material_Processor import material_classes
 from Material_Processor import utils_io
-
 reload(material_classes)
 reload(utils_io)
 from Material_Processor.material_classes import MaterialData, NodeInfo, NodeParameter
@@ -32,55 +31,75 @@ except:
 
 ###################################### CONSTANTS ######################################
 
-GENERIC_NODE_TYPES = {
+REGULAR_NODE_TYPES_TO_GENERIC = {
+    # arnold nodes:
     'arnold::standard_surface': 'GENERIC::standard_surface',
     'arnold::image': 'GENERIC::image',
     'arnold::range': 'GENERIC::range',
     'arnold::color_correct': 'GENERIC::color_correct',
+    'arnold::curvature': 'GENERIC::curvature',
+    'arnold::mix_rgba': 'GENERIC::mix_rgba',
+    'arnold::mix_layer': 'GENERIC::mix_layer',
+    'arnold::layer_rgba': 'GENERIC::layer_rgba',
+    'arnold::ramp_rgb::2': 'GENERIC::ramp_rgb',
+    'arnold::ramp_float::2': 'GENERIC::ramp_float',
     'arnold_material': 'GENERIC::output_node',
 
+    # mtlx nodes:
     'mtlxstandard_surface': 'GENERIC::standard_surface',
     'mtlximage': 'GENERIC::image',
     'mtlxrange': 'GENERIC::range',
     'mtlxcolorcorrect': 'GENERIC::color_correct',
+    'mtlxmix': 'GENERIC::mix_rgba',  # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
     'mtlxdisplacement': 'GENERIC::displacement',
     'subnetconnector': 'GENERIC::output_node',
-    'null': 'GENERIC::null'
+
+    'null': 'GENERIC::null',
 }
 
 
 
 """
-Conversion_map is a dict of 'from_node_type' : 'to_node_type'
+Conversion_map is a dict of {'from_node_type': 'to_node_type'}
 """
-CONVERSION_MAP = {
+GENERIC_NODE_TYPES_TO_REGULAR = {
             'arnold': {
                 'GENERIC::standard_surface': 'arnold::standard_surface',
                 'GENERIC::image': 'arnold::image',
                 'GENERIC::color_correct': 'arnold::color_correct',
                 'GENERIC::range': 'arnold::range',
-                'GENERIC::null': 'null'
+                'GENERIC::curvature': 'arnold::curvature',
+                'GENERIC::mix_rgba': 'arnold::mix_rgba',
+                'GENERIC::mix_layer': 'arnold::mix_layer',
+                'GENERIC::layer_rgba': 'arnold::layer_rgba',
+                'GENERIC::null': 'null',
             },
             'mtlx': {
                 'GENERIC::standard_surface': 'mtlxstandard_surface',
                 'GENERIC::image': 'mtlximage',
                 'GENERIC::color_correct': 'mtlxcolorcorrect',
                 'GENERIC::range': 'mtlxrange',
+                # 'GENERIC::curvature': 'mtlxcurvature',  # not supported yet
+                'GENERIC::mix_rgba': 'mtlxmix',
+                'GENERIC::mix_layer': 'mtlxmix',
                 'GENERIC::displacement': 'mtlxdisplacement',
-                'GENERIC::null': 'null'
+                'GENERIC::null': 'null',
             }
         }
 
+# used for creating output nodes for render engines.
 OUTPUT_NODE_MAP = {
     'arnold': 'arnold_material',
-    'mtlx': 'subnetconnector'
+    'mtlx': 'subnetconnector',
+    'principledshader': '',
 }
 
 
 """
-names of parameters on specific node which is supported in this module. Any other node type will be filtered out.
+standardization dict for parameters. {<orig_parm_name>: <generic_name>}. Any other node type will be filtered out.
 """
 STANDARDIZED_PARAM_NAMES = {
+    # mtlx parms
     'mtlxstandard_surface': {
         'base': 'base',
         'base_colorr': 'base_colorr',
@@ -104,7 +123,11 @@ STANDARDIZED_PARAM_NAMES = {
         'emission_colorr': 'emission_colorr',
         'emission_colorg': 'emission_colorg',
         'emission_colorb': 'emission_colorb',
-        'opacity': 'opacity'
+        'opacity': 'opacity',
+        'normalx': 'normalx',
+        'normaly': 'normaly',
+        'normalz': 'normalz',
+        'thin_walled': 'thin_walled',
     },
     'mtlximage': {
         'signature': 'signature',
@@ -125,11 +148,22 @@ STANDARDIZED_PARAM_NAMES = {
         'outlow': 'outlow',
         'outhigh': 'outhigh',
     },
+    'mtlxmix': {
+        'signature': 'signature',
+        'fg_color3r': 'fg_color3r',
+        'fg_color3g': 'fg_color3g',
+        'fg_color3b': 'fg_color3b',
+        'bg_color3r': 'bg_color3r',
+        'bg_color3g': 'bg_color3g',
+        'bg_color3b': 'bg_color3b',
+        'mix': 'mix',
+    },
     'mtlxdisplacement': {
         'displacement': 'displacement',
         'scale': 'scale',
     },
 
+    # arnold parms:
     'arnold::standard_surface': {
         'base': 'base',
         'base_colorr': 'base_colorr',
@@ -172,7 +206,18 @@ STANDARDIZED_PARAM_NAMES = {
         'output_min': 'outlow',
         'output_max': 'outhigh',
     },
+    'arnold::mix_rgba': {
+        # 'signature': 'signature',
+        'input1r': 'fg_color3r',
+        'input1g': 'fg_color3g',
+        'input1b': 'fg_color3b',
+        'input2r': 'bg_color3r',
+        'input2g': 'bg_color3g',
+        'input2b': 'bg_color3b',
+        'mix': 'mix',
+    },
 
+    # principled shader 2.0:
     'principledshader::2.0': {
         'basecolor': 'base_color',
         'metallic': 'metalness',
@@ -228,10 +273,10 @@ class NodeTraverser:
         """
         self.material_type = material_type
         self.output_nodes = {}
-    
-    def _detect_node_connections(self, node):
+
+    def _detect_node_connections(self, node, parent_node):
         """
-        Detect and extract the connections of a given node, including input and output connections.
+        Detect and extract the output connections of a given node, including input and output connections.
 
         Args:
             node (hou.Node): The Houdini node to analyze connections for.
@@ -242,11 +287,13 @@ class NodeTraverser:
                     "connection_<index>": {
                         "input": {
                             "node_name": str,  # Name of the input node
+                            "node_path": str,  # Path of the input path
                             "node_index": int, # Index of the input connection
                             "parm_name": str   # Name of the input parameter
                         },
                         "output": {
                             "node_name": str,  # Name of the output node
+                            "node_path": str,  # Path of the input path
                             "node_index": int, # Index of the output connection
                             "parm_name": str   # Name of the output parameter
                         }
@@ -255,44 +302,64 @@ class NodeTraverser:
         """
 
         connections_dict = {}
-        for i, connection in enumerate(node.inputConnections()):
+        for i, connection in enumerate(node.outputConnections()):
+            # we only want to get the output connections of the parent node. We don't want all connections to all nodes
+            if connection.outputNode().name() != parent_node.name():
+                continue
+
             # print(f"DEBUG: -------------[{i}] input: '{input_conn.inputNode().name()}' index: '{input_conn.inputIndex()}', parm_name: '{input_conn.inputName()}'")
             # print(f"DEBUG: -------------[{i}] output: '{input_conn.outputNode().name()}' index: '{input_conn.outputIndex()}', parm_name: '{input_conn.outputName()}'")
             connections_dict.update({f"connection_{i}":
                 {
                     "input": {
                         "node_name": connection.inputNode().name(),
-                        "node_index": connection.inputIndex(),
+                        "node_path": connection.inputNode().path(),
+                        "node_index": connection.outputIndex(),
                         "parm_name": connection.inputName(),
                     },
                     "output": {
                         "node_name": connection.outputNode().name(),
-                        "node_index": connection.outputIndex(),
+                        "node_path": connection.outputNode().path(),
+                        "node_index": connection.inputIndex(),
                         "parm_name": connection.outputName(),
                     }
                 }
             })
 
-        # print(f"DEBUG: {node.path()=}")
-        # print(f"DEBUG: connections_dict: {pprint.pformat(connections_dict)}")
-
         return connections_dict
-    
-    def _traverse_recursively_node_tree(self, node, path=None):
+
+    @staticmethod
+    def _convert_parms_to_dict(parms_list):
+        """
+        Convert a list of hou.Parm objects to a list of dictionaries with name and value.
+
+        Args:
+            parms_list (List[hou.Parm]): The list of hou.Parm objects.
+
+        Returns:
+            List[Dict[str, Any]]: A list of dictionaries with parameter names and values.
+        Examples:
+            >>> parms_dict = self._convert_parms_to_dict(parms_list=[node.parm('filename'), node.parm('reload')])
+            >>> print(parms_dict)
+             [
+             {'name': 'filename', value': 'F:/Assets 3D/Kitbash3D_old/Kitbash3D_Spaceship_battle_2/KB3DTextures/2k/KB3D_SBT_AtlasSpaceLCD_roughness.png'},
+             {'name': 'reload', 'value': '0'}
+             ]
+        """
+        return [{'name': p.name(), 'value': p.eval()} for p in parms_list]
+
+    def _traverse_recursively_node_tree(self, node, parent_node=None):
         """
         Recursively traverse the node tree and return a dictionary of node connections with additional metadata,
         separating the input index and input node path as key-value pairs.
 
         Args:
             node (hou.Node): The current Houdini node.
-            path (list[hou.Node], optional): The traversal path.
+            parent_node (hou.Node), optional): The traversal path.
 
         Returns:
             Dict[str, Dict]: A dictionary representing the node tree with additional metadata.
         """
-        if path is None:
-            path = []
-
         # Check if this node is an output node
         is_output_node = False
         output_type = None
@@ -304,20 +371,22 @@ class NodeTraverser:
                 break
 
         # get a dict with all input and output connections related to the node
-        connections_dict = self._detect_node_connections(node)
+        connections_dict = self._detect_node_connections(node, parent_node)
 
         # Initialize the node's dictionary with metadata
         node_dict = {
             'node_name': node.name(),
             'node_path': node.path(),
             'node_type': node.type().name(),
-            'node_parms': self.convert_parms_to_dict(node.parms()),
+            'node_parms': self._convert_parms_to_dict(node.parms()),
             'connections_dict': connections_dict,
-            'is_output_node': is_output_node,
-            'output_type': output_type,
-            'children': []
+            'children_list': []
         }
-
+        if is_output_node:
+            node_dict.update({
+                'is_output_node': is_output_node,
+                'output_type': output_type,
+            })
         if not node.inputs():
             return {node.path(): node_dict}
 
@@ -326,21 +395,14 @@ class NodeTraverser:
                 continue
 
             # Recursively get child nodes
-            input_node_dict = self._traverse_recursively_node_tree(input_node, path + [node])
+            input_node_dict = self._traverse_recursively_node_tree(input_node, node)
 
-            input_node_connections_dict = self._detect_node_connections(input_node)
-
-            # Store the input index and node path as separate key-value pairs in the children list
-            child_data = {
-                'input_node_path': input_node.path(),
-                'connections_dict': input_node_connections_dict,
-                'child_node_path': input_node_dict[input_node.path()],
-            }
-
-            node_dict['children'].append(child_data)
+            node_dict['children_list'].append(
+                input_node_dict[input_node.path()]
+            )
 
         return {node.path(): node_dict}
-    
+
 
     @staticmethod
     def _detect_arnold_output_nodes(parent_node):
@@ -379,7 +441,6 @@ class NodeTraverser:
                 }
             elif connected_output_index == 1:
                 output_nodes['displacement'] = {
-                    # 'node': arnold_output,
                     'node_name': arnold_output.name(),
                     'node_path': arnold_output.path(),
                     'connected_node_name': connected_input.name(),
@@ -412,7 +473,6 @@ class NodeTraverser:
             parmname = output_node.parm('parmname').eval()
             if parmname in ['surface', 'displacement']:
                 output_nodes[parmname] = {
-                    # 'node': arnold_output,
                     'node_name': output_node.name(),
                     'node_path': output_node.path(),
                     'connected_node_name': connected_input.name(),
@@ -421,35 +481,27 @@ class NodeTraverser:
                 }
         return output_nodes
 
-    @staticmethod
-    def _detect_principled_output_nodes(parent_node):
+    def _detect_principled_output_nodes(self, parent_node):
         """
         Detect Principled Shader output nodes in the node tree.
 
-        Args:
-            parent_node (hou.Node): The parent Houdini node.
-
         Returns:
-            Dict: A dictionary of detected Principled Shader output nodes.
-        """
-        output_nodes = {}
-        for child in parent_node.children():
-            if child.type().name() == 'principledshader::2.0':
-                output_nodes['surface'] = {
-                    'node_name': child.name(),
-                    'node_path': child.path(),
-                    'generic_type': 'GENERIC::output_surface'
-                }
-            elif child.type().name() == 'displacement':
-                output_nodes['displacement'] = {
-                    'node_name': child.name(),
-                    'node_path': child.path(),
-                    'generic_type': 'GENERIC::output_displacement'
-                }
-        return output_nodes
+            Dict: A dictionary with the single 'surface' output connection,
+                  mirroring Arnold's structure so downstream code works unchanged.
 
-    @staticmethod
-    def detect_output_nodes(parent_node, material_type: str):
+        """
+        return {
+            "surface": {
+                "node_name": "OUT_material",
+                "node_path": f"{parent_node.path()}/OUT_material",
+                "connected_node_name": "standard_surface",
+                "connected_node_path": f"{parent_node.path()}/standard_surface",
+                "connected_input_index": 0,
+                "generic_type": "GENERIC::output_surface"
+            }
+        }
+
+    def detect_output_nodes(self, parent_node, material_type: str):
         """
         Detect output nodes in the node tree based on the material type.
 
@@ -459,117 +511,133 @@ class NodeTraverser:
 
         Returns:
             Dict: A dictionary of detected output nodes.
+
+        Examples:
+            >>> output_dict = self.detect_output_nodes(parent_node=hou.node('/mat/arnold_materialbuilder_basic'), material_type='arnold')
+            >>> print(output_dict)
+            {'surface':
+                {'node_name': 'OUT_material',
+                 'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
+                 'connected_node_name': 'standard_surface',
+                 'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
+                 'connected_input_index': 0,
+                 'generic_type': 'GENERIC::output_surface'
+                 }
+             }
         """
         print(f"detect_output_nodes START for {parent_node.path()}")
         if material_type == 'arnold':
-            output_nodes = NodeTraverser._detect_arnold_output_nodes(parent_node)
+            output_nodes = self._detect_arnold_output_nodes(parent_node)
         elif material_type == 'mtlx':
-            output_nodes = NodeTraverser._detect_mtlx_output_nodes(parent_node)
+            output_nodes = self._detect_mtlx_output_nodes(parent_node)
         elif material_type == 'principledshader':
-            output_nodes = NodeTraverser._detect_principled_output_nodes(parent_node)
+            output_nodes = self._detect_principled_output_nodes(parent_node)
         else:
             raise KeyError(f"Unsupported renderer: {material_type=}")
-
         return output_nodes
 
-    def traverse_principled_shader(self, node):
+
+    def _build_principled_entry(self, node):
         """
-        Traverse the Principled Shader node to extract its parameters.
-
-        Args:
-            node (hou.Node): The Principled Shader Houdini node.
-
-        Returns:
-            Dict: A dictionary representing the node tree of the Principled Shader node.
+        Recursively walk all upstream connections into `node` and emit
+        the same fields you use for Arnold.
         """
-        parameters = self.extract_principled_parameters(node)
-        print(f"{parameters=}")
+        # grab parameters + direct connections
+        parms = self._convert_parms_to_dict(node.parms())
 
-        node_dict = {
-            node: {
-                'parameters': parameters,
-                'children': {}
+        entry = {
+            f"{node.path()}/OUT_material": {
+                "node_name": "OUT_material",
+                "node_path": f"{node.path()}/OUT_material",
+                "node_type": "arnold_material",
+                "node_parms": [],
+                "connections_dict": {},
+                "children_list": [
+                    {
+                        "node_name": "standard_surface",
+                        "node_path": f"{node.path()}/standard_surface",
+                        "node_type": "arnold::standard_surface",
+                        "node_parms": [],
+                        "connections_dict": {
+                            "connection_0": {
+                                "input": {
+                                    "node_name": "standard_surface",
+                                    "node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+                                    "node_index": 0,
+                                    "parm_name": "shader"
+                                },
+                                "output": {
+                                    "node_name": "OUT_material",
+                                    "node_path": "/mat/arnold_materialbuilder_basic/OUT_material",
+                                    "node_index": 0,
+                                    "parm_name": "surface"
+                                },
+                            }
+                        },
+                        "children_list": [],
+                    },
+                ]
             }
         }
-        return node_dict
 
-    @staticmethod
-    def extract_principled_parameters(node):
-        """
-        Extract parameters from a Principled Shader node.
+        if node.parm('basecolor_useTexture').eval():
+            entry[f"{node.path()}/OUT_material"]['children_list'][0]['children_list'].append({
+                "node_name": "image_diffuse",
+                "node_path": f"{node.path()}/image_diffuse",
+                "node_type": "arnold::image",
+                'node_parms': [
+                    {'name': 'filename', 'value': node.parm('basecolor_texture').eval()},
+                ],
+                'connections_dict': {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "image_diffuse",
+                            "node_path": f"{node.path()}/image_diffuse",
+                            "node_index": 0,
+                            "parm_name": "rgba"
+                        },
+                        "output": {
+                            "node_name": "standard_surface",
+                            "node_path": f"{node.path()}/standard_surface",
+                            "node_index": 1,
+                            "parm_name": "base_color"
+                        }
+                    },
+                },
 
-        Args:
-            node (hou.Node): The Principled Shader Houdini node.
+            })
 
-        Returns:
-            List[NodeParameter]: A list of extracted node parameters.
-        """
-        node_type = node.type().name()
-        filtered_param_names = []
-        standardized_names = STANDARDIZED_PARAM_NAMES.get(node_type, {})
-        try:
-            filtered_param_names = list(STANDARDIZED_PARAM_NAMES.get(node_type).keys())
-        except AttributeError:
-            print(f"WARNING: node_type: {node_type} not in STANDARDIZED_PARAM_NAMES dict")
+        return entry
 
-        node_parameters = [NodeParameter(name=p.name(), value=p.eval(),
-                                         standardized_name=standardized_names.get(p.name(), p.name()))
-                           for p in node.parms() if p.name() in filtered_param_names
-                           ]
-        return node_parameters
-
-    @staticmethod
-    def convert_parms_to_dict(parms_list):
-        """
-        Convert a list of hou.Parm objects to a list of dictionaries with name and value.
-
-        Args:
-            parms_list (List[hou.Parm]): The list of hou.Parm objects.
-
-        Returns:
-            List[Dict[str, Any]]: A list of dictionaries with parameter names and values.
-        """
-        return [{'name': p.name(), 'value': p.eval()} for p in parms_list]
 
     def run(self, parent_node):
         """
         Traverse the children nodes of a parent node to extract the node tree and detect output nodes.
-
-        Args:
-            parent_node (hou.Node): The parent Houdini node.
-
-        Returns:
-            tuple(Dict, Dict): A dictionary representing the node tree of the children nodes,
-             and another representing output nodes
+        For PrincipledShader, build a one-node tree instead of recursing.
         """
-        # Detect output nodes before starting traversal
-        output_nodes_dict = self.detect_output_nodes(parent_node, material_type=self.material_type)
-        print(f"DEBUG: NodeTraverser.Output nodes: {pprint.pformat(self.output_nodes)}\n")
+        # first, get an output_nodes_dict
+        output_tree = self.detect_output_nodes(parent_node, self.material_type)
 
-        output_nodes_list = []
-        for child in parent_node.children():
-            is_output = True
-            for other_node in parent_node.children():
-                if child in other_node.inputs():
-                    is_output = False
-                    break
-            if is_output:
-                output_nodes_list.append(child)
+        # for principled, short-circuit to produce a one-node tree + identical output map
+        if self.material_type == 'principledshader':
+            node_tree = self._build_principled_entry(parent_node)
+            output_tree = self.detect_output_nodes(parent_node, self.material_type)
 
-        all_branches = {}
-        for output_node in output_nodes_list:
-            branch_dict = self._traverse_recursively_node_tree(output_node, [])
-            all_branches.update(branch_dict)
+        else:
+            # otherwise, fall back to existing child-recursion logic:
+            output_nodes_list = []
+            for child in parent_node.children():
+                if all(child not in o.inputs() for o in parent_node.children()):
+                    output_nodes_list.append(child)
 
-        # print('traverse_children_nodes()-----all_branches:')
-        # pprint.pprint(all_branches, indent=1, compact=True, width=10)
-        # print(f'Done\n')
+            node_tree = {}
+            for out in output_nodes_list:
+                node_tree.update(self._traverse_recursively_node_tree(out))
 
-        # temp: dump all of this into a temp json file
-        utils_io.dump_dict_to_json(output_nodes_dict, f"{TEMP_DIR}/example_material_tree.json")
-        utils_io.dump_dict_to_json(all_branches, f"{TEMP_DIR}/example_output_tree.json")
+        utils_io.dump_dict_to_json(output_tree, f"{TEMP_DIR}/example_output_tree.json")
+        utils_io.dump_dict_to_json(node_tree,      f"{TEMP_DIR}/example_node_tree.json")
 
-        return all_branches, output_nodes_dict
+        return node_tree, output_tree
 
 
 
@@ -626,16 +694,17 @@ class NodeStandardizer:
         Returns:
             Dict[str, Dict[str, Any]]: A new dictionary with each output identifier prefixed with "GENERIC::output_", preserving the original connection details.
         """
-        standardized_output_nodes = {}
+        output_connections = {}
         for key, value in output_nodes_dict.items():
             standardized_key = f"GENERIC::output_{key}"
-            standardized_output_nodes[standardized_key] = {
+            output_connections[standardized_key] = {
+                'node_name': value['node_name'],
                 'node_path': value['node_path'],
                 'connected_node_name': value['connected_node_name'],
                 'connected_node_path': value['connected_node_path'],
                 'connected_input_index': value['connected_input_index']
             }
-        return standardized_output_nodes
+        return output_connections
 
     @staticmethod
     def standardize_custom_tree(custom_node_tree, material_name):
@@ -678,17 +747,16 @@ class NodeStandardizer:
                 node_info = NodeInfo(
                     node_type=generic_node_type,
                     node_name=node_name,
-                    node_path=node_name,  # Assuming node_name is used as the path here
-                    connected_input_index=parent_input_index,
+                    node_path=node_name,
                     is_output_node=is_output_node,
                     output_type=generic_node_type if is_output_node else None,
                     parameters=parameters,
-                    child_nodes=[]
+                    children_list=[]
                 )
 
                 # Recursively process child nodes (connections)
                 child_nodes_info = traverse_tree(connections, parent_input_index=input_index)
-                node_info.child_nodes.extend(child_nodes_info)
+                node_info.children_list.extend(child_nodes_info)
                 node_info_list.append(node_info)
 
             return node_info_list
@@ -721,7 +789,7 @@ class NodeStandardizer:
         Returns:
             List[NodeParameter]: A list of filtered and standardized node parameters.
         """
-        standardized_names = STANDARDIZED_PARAM_NAMES.get(node_type, {})
+        standardized_names = STANDARDIZED_PARAM_NAMES.get(node_type)
 
         if not standardized_names:
             print(f"WARNING: node_type: {node_type} not in STANDARDIZED_PARAM_NAMES dict")
@@ -737,34 +805,43 @@ class NodeStandardizer:
         ]
         return node_parameters
 
-    @staticmethod
-    def create_nodeinfo_object(node_path, node_children_dict):
+    def create_nodeinfo_object(self, node_path, child_dict):
         """
         Create a NodeInfo object from a NodeTraverser dictionary.
 
         Args:
             node_path (str): The Houdini node path.
-            node_children_dict (dict): The Houdini node path.
+            child_dict (dict): The Houdini node path.
         Returns:
             NodeInfo: The created NodeInfo object.
+
+        Example:
+            >>> node_path='/mat/arnold_materialbuilder_basic/OUT_material'
+            >>> child_dict={
+                     'node_name': 'image_roughness',
+                     'node_path': '/mat/arnold_materialbuilder_basic/image_roughness',
+                     'node_type': 'arnold::image',
+                     'node_parms': []
+                                 }
+
+            >>> node_info_obj = self.create_nodeinfo_object(node_path='/mat/arnold_materialbuilder_basic/OUT_material', child_dict=child_dict)
+
         """
-        is_output_node = node_children_dict.get('is_output_node', False)
-        output_type = node_children_dict.get('output_type', None)
+        is_output_node = child_dict.get('is_output_node', False)
+        output_type = child_dict.get('output_type', None)
 
-        connection_info = node_children_dict.get('connections_dict', {})
-        connected_input_index = node_children_dict.get('connected_input_index', None)
-        connected_output_index = node_children_dict.get('connected_output_index', None)
+        connection_info = child_dict.get('connections_dict', {})
 
-        node_name: str = node_children_dict['node_name']
-        node_type: str = node_children_dict['node_type']
-        child_node_parms: list = node_children_dict.get('node_parms')
+        node_name: str = child_dict['node_name']
+        node_type: str = child_dict['node_type']
+        child_node_parms: list = child_dict.get('node_parms')
         # print(f"DEBUG: parms for node: '{node_path}': {child_node_parms}")
 
         parameters = None
         if child_node_parms:
             parameters = NodeStandardizer.standardize_shader_parameters(node_type, child_node_parms)
 
-        generic_node_type = GENERIC_NODE_TYPES.get(node_type)
+        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC.get(node_type)
 
         return NodeInfo(
             node_type=generic_node_type,
@@ -772,9 +849,7 @@ class NodeStandardizer:
             node_path=node_path,
             parameters=parameters,
             connection_info=connection_info,
-            connected_input_index=connected_input_index,
-            connected_output_index=connected_output_index,
-            child_nodes=[],
+            children_list=[],
             is_output_node=is_output_node,
             output_type=output_type if is_output_node else generic_node_type
         )
@@ -799,22 +874,14 @@ class NodeStandardizer:
             print(f"DEBUG: node_info_obj connections: {nodeinfo.print_connections()}")
 
             # Process children
-            children = node_dict.get('children', [])
-            for child_entry in children:
-                child_node_info = child_entry.get('child_node_path')
-                child_node_path = child_entry.get('input_node_path')
-                child_input_index = child_entry.get('input_node_index')
-                child_output_index = child_entry.get('output_index')
+            children_list = node_dict.get('children_list', [])
+            for child_entry in children_list:
+                child_node_path: str = child_entry['node_path']
 
                 # Recursively traverse child nodes
-                child_nodes_info = self.standardize_node_dict({child_node_path: child_node_info})
+                child_nodes_info = self.standardize_node_dict({child_node_path: child_entry})
 
-                # Assign the input index to each child node
-                for child_node in child_nodes_info:
-                    child_node.connected_input_index = child_input_index
-                    child_node.connected_output_index = child_output_index
-
-                nodeinfo.child_nodes.extend(child_nodes_info)
+                nodeinfo.children_list.extend(child_nodes_info)
 
             nodeinfo_list.append(nodeinfo)
         print(f"DEBUG: {len(nodeinfo_list)=}")
@@ -831,14 +898,14 @@ class NodeStandardizer:
                node information list.
 
         Returns:
-            (dict, dict): A tuple containing the standardized output nodes and the standardized
+            (dict, [NodeInfo]): A tuple containing the standardized output nodes and the standardized
                  node information list.
 
 
         """
-        standardized_output_nodes = self.standardize_output_dict(self.output_nodes_dict)
+        output_connections = self.standardize_output_dict(self.output_nodes_dict)
         node_info_list = self.standardize_node_dict(self.traversed_nodes_dict)
-        return standardized_output_nodes, node_info_list
+        return output_connections, node_info_list
 
 
 
@@ -859,27 +926,32 @@ class NodeRecreator:
             target_renderer (str, optional): The target renderer (default is 'arnold').
         """
         self.nodeinfo_list = nodeinfo_list
-        self.output_connections = output_connections
+        self.orig_output_connections = output_connections
         self.target_context = target_context
         self.target_renderer = target_renderer
-        self.old_new_node_map = {}  # a dict of {old_node_path:str  :  new_node_path:str}
+        self.old_new_node_map = {}  # e.g., {old_node_path:str :
+        #                                       'node_name': node.name(),
+        #                                       'node_path': node.path()
+        #                                   }
         self.reused_nodes = {}
         self.material_builder = None
-        self.created_output_nodes_dict = None  # e.g.: {'GENERIC::output_surface':{
+        self.created_output_connections = None  # e.g., {'GENERIC::output_surface':{
         #                                                  'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder1/OUT_material>,
-        #                                                  'node_path': '/mat/arnold_materialbuilder1/OUT_material'
-        #                                                                          },
+        #                                                  'node_name': 'OUT_material',
+        #                                                  'node_path': '/mat/arnold_materialbuilder1/OUT_material',
+        #                                                  },
         #                                               'GENERIC::output_displacement': {
         #                                                   'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder1/OUT_material>,
-        #                                                   'node_path': '/mat/arnold_materialbuilder1/OUT_material'
-        #                                                                                }
+        #                                                   'node_name': 'OUT_material',
+        #                                                   'node_path': '/mat/arnold_materialbuilder1/OUT_material',
+        #                                                   }
         #                                               }
 
         self.run()
 
 
     @staticmethod
-    def create_init_mtlx_shader(matnet=None):
+    def create_mtlx_init_shader(matnet=None):
         """
         Create an initial MaterialX shader in the specified network.
 
@@ -904,14 +976,59 @@ class NodeRecreator:
                                                            folder_label=folder_label, render_context=render_context)
         output_nodes = {
             'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
-                                        'node_path': subnet_node.node('surface_output').path()},
+                                        'node_name': subnet_node.node('surface_output').name(),
+                                        'node_path': subnet_node.node('surface_output').path(),
+                                        },
             'GENERIC::output_displacement': {'node': subnet_node.node('displacement_output'),
-                                             'node_path': subnet_node.node('displacement_output').path()}
+                                             'node_path': subnet_node.node('displacement_output').path(),
+                                             'node_name': subnet_node.node('displacement_output').name(),
+                                             }
         }
         return subnet_node, output_nodes
 
+    def create_mtlx_vec3_split_node(self, src_node, dest_node, src_out_parm_name, dest_in_index):
+        """
+        Creates a vec3 split node to 3 floats between 2 nodes and connects them.
+        This method is created for arnold images that have their out individual channels:r,g, or b connected to a node.
+        Args:
+            src_node: (hou.Node) e.g., a 'mtlximage' node
+            src_out_parm_name: (str) parm name on output_node e.g., "r"
+            dest_node: (hou.node) the 2nd node which will connect to the first node. e.g., mtlxstandardsurface
+            dest_in_index: (int) input index on node
+        Returns:
+            bool: True if successful, False otherwise
+        """
+        if src_out_parm_name not in ['r', 'g', 'b']:
+            print(f"WARNING: mtlx separate3c node currently only supports splitting of 'r','g','b' channels, "
+                  f"but instead it got a '{src_out_parm_name}'")
+            return False, None
+        if dest_in_index is None:
+            print(f"WARNING: dest_in_index is None '{dest_in_index}', but it should be an integer, src_node: '{src_node.name()}'")
+            return False, None
+
+        try:
+            # create a vec3 split node
+            vec3_split_node_name = f"{src_node.name()}_split_vec3"
+            vec3_split_node = self.material_builder.node(vec3_split_node_name)
+            if not vec3_split_node:
+                vec3_split_node = self.material_builder.createNode('mtlxseparate3c', f"{src_node.name()}_split_vec3")
+
+            # get which channel from the split node to connect to the output node
+            out_index = vec3_split_node.outputIndex(f"out{src_out_parm_name}")
+            if out_index == -1:
+                out_index = vec3_split_node.outputIndex(f"out{src_out_parm_name}")
+
+            vec3_split_node.setInput(0, src_node)
+            dest_node.setInput(dest_in_index, vec3_split_node, out_index)
+            print(f"INFO: created split node for '{src_node.name()}' to '{dest_node.name()}' for '{src_out_parm_name}' ")
+            return True, vec3_split_node
+
+        except Exception as e:
+            print(f"ERROR: create_mtlx_vec3_split_node, {dest_in_index=}, {vec3_split_node=}, {out_index=}, error: {e}")
+            return False, None
+
     @staticmethod
-    def create_init_arnold_shader(matnet=None):
+    def create_arnold_init_shader(matnet=None):
         """
         Create an initial Arnold shader in the specified network.
 
@@ -923,155 +1040,89 @@ class NodeRecreator:
         """
         if not matnet:
             matnet = hou.node('/mat')
+
         node_material_builder = matnet.createNode('arnold_materialbuilder')
         output_nodes = {
             'GENERIC::output_surface': {'node': node_material_builder.node('OUT_material'),
-                                        'node_path': node_material_builder.node('OUT_material').path()},
+                                        'node_name': node_material_builder.node('OUT_material').name(),
+                                        'node_path': node_material_builder.node('OUT_material').path(),
+                                        },
             'GENERIC::output_displacement': {'node': node_material_builder.node('OUT_material'),
-                                             'node_path': node_material_builder.node('OUT_material').path()}
+                                             'node_name': node_material_builder.node('OUT_material').path(),
+                                             'node_path': node_material_builder.node('OUT_material').path(),
+                                             }
         }
         return node_material_builder, output_nodes
+
+    @staticmethod
+    def create_principledshader_init_shader(matnet=None):
+        """
+        Create an initial principledshader shader in the specified network.
+
+        Args:
+            matnet (hou.Node, optional): The Houdini Material Network.
+
+        Returns:
+            Tuple[hou.Node, Dict]: The created Arnold shader node and output nodes.
+        """
+        if not matnet:
+            matnet = hou.node('/mat')
+
+        node_material_builder = matnet.createNode('principledshader::2.0')
+        output_nodes = {
+            'GENERIC::output_surface': {'node': None,
+                                        'node_name': None,
+                                        'node_path': None,
+                                        },
+            'GENERIC::output_displacement': {'node': None,
+                                             'node_name': None,
+                                             'node_path': None,
+                                             }
+        }
+        return node_material_builder, output_nodes
+
+    def create_init_shader(self, target_renderer):
+        if target_renderer == 'mtlx':
+            self.material_builder, self.created_output_connections = self.create_mtlx_init_shader(self.target_context)
+        elif target_renderer == 'arnold':
+            self.material_builder, self.created_output_connections = self.create_arnold_init_shader(self.target_context)
+        elif target_renderer == 'principledshader':
+            self.material_builder, self.created_output_connections = self.create_principledshader_init_shader(self.target_context)
+        else:
+            raise KeyError(f"Unsupported target renderer: {self.target_renderer}")
 
     def create_output_nodes(self):
         """
         Create or reuse output nodes in the target context.
         """
+        if self.target_renderer not in ['arnold', 'mtlx']:
+            return None
+
         output_node_type = OUTPUT_NODE_MAP[self.target_renderer]  # e.g. 'arnold_material' or 'subnetconnector'
 
-        for generic_output_type, output_info in self.output_connections.items():
+        for generic_output_type, output_info in self.orig_output_connections.items():
             # e.g. output_type = "GENERIC::output_surface"
             # e.g. output_info = {'node_path': '/mat/material_mtlx_ORIG/surface_output',
+            #                     'node_name': 'surface_output', ???
             #                     'connected_node_name': 'surface_output',
             #                     'connected_input_index': 0}
-            created_output_node_dict: dict = self.created_output_nodes_dict.get(generic_output_type, {})
+            created_output_node_dict: dict = self.created_output_connections.get(generic_output_type, {})
             created_output_node: hou.VopNode = created_output_node_dict.get('node')
-            created_output_node_path: hou.VopNode = created_output_node_dict.get('node_path')
             if not created_output_node:
                 raise Exception(f"This part of code is never tested!, rewrite it!")
 
-            print(f"Reusing existing output node: '{created_output_node_path}' of type: '{output_node_type}' "
+            print(f"Reusing existing output node: '{created_output_node.path()}' of type: '{output_node_type}' "
                   f"for output generic type: {generic_output_type}")
 
 
-            print(f"DEBUG: {output_info=}")
-            # print(f"DEBUG: {output_info['node_path']=}")  # '/mat/material_mtlx_ORIG/mtlxstandard_surface' TODO: THIS IS WRONG. IT SHOULD BE THE OUTPUT NODE
-            self.old_new_node_map[output_info['node_path']] = created_output_node.path()
+            print(f"DEBUG: output_info: {pprint.pformat(output_info, sort_dicts=False)}")
+            self.old_new_node_map[output_info['node_path']] = {'node_name': created_output_node.name(),
+                                                               'node_path': created_output_node.path()}
 
-            self.created_output_nodes_dict[generic_output_type]['node'] = created_output_node
-
-
-    def _create_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_nodes=None):
-        """
-        Recursively create nodes from NodeInfo objects.
-
-        Args:
-            nested_nodes_info (List[NodeInfo]): The list of NodeInfo objects.
-            processed_nodes (set, optional): A set of processed node paths.
-        """
-        if processed_nodes is None:
-            processed_nodes = set()
-        for node_info in nested_nodes_info:
-            if node_info.node_path in processed_nodes:
-                continue
-
-            # Create the node if it's not an output node
-            if node_info.node_type != 'GENERIC::output_node':
-                newly_created_node = self._create_node(node_info)
-                self.old_new_node_map[node_info.node_path] = newly_created_node.path()
-
-            processed_nodes.add(node_info.node_path)
-
-            # Recursively create child nodes
-            self._create_nodes_recursive(node_info.child_nodes, processed_nodes)
-
-
-    def _create_node(self, node_info):
-        """
-        Create a Houdini node from NodeInfo.
-
-        Args:
-            node_info (NodeInfo): The NodeInfo object containing node information.
-
-        Returns:
-            (hou.Node): The created Houdini node.
-        """
-        # print(f"DEBUG: {node_info=}")
-        new_node_type = self._convert_generic_node_type_to_renderer_node_type(node_info.node_type,
-                                                                              target_renderer=self.target_renderer)
-
-        # Check for existing nodes of the same type to reuse
-        existing_nodes = [node for node in self.material_builder.children() if
-                          node.type().name() == new_node_type and node not in self.reused_nodes.values()]
-        if existing_nodes:
-            node = existing_nodes[0]
-            print(f"Using existing node: {node.path()} of type {node.type().name()}")
-            self.apply_parameters(node, node_info.parameters)
-            self.reused_nodes[node_info.node_path] = node
-            self.old_new_node_map[node_info.node_path] = node.path()  # Ensure all nodes are mapped
-
-            return node
-
-        # Create new node if no reusable node is found
-        new_node = self.material_builder.createNode(new_node_type, node_info.node_name)
-        self.apply_parameters(new_node, node_info.parameters)
-        self.reused_nodes[node_info.node_path] = new_node
-        self.old_new_node_map[node_info.node_path] = new_node.path()  # Ensure all nodes are mapped
-        return new_node
-
-    def _set_node_inputs(self, nested_nodes_info):
-        """
-        Re-connect all created nodes.  Prefers the new `connection_info`
-        dict, but gracefully falls back to the old single-index attributes
-        while the code base is still being migrated.
-        """
-        for node_info in nested_nodes_info:
-            new_node_path = self.old_new_node_map.get(node_info.node_path)
-            new_node = hou.node(new_node_path)
-            if not new_node:
-                continue
-
-            for child in node_info.child_nodes:
-                child_old_path = child.node_path
-                child_new_path = self.old_new_node_map.get(child_old_path)
-                child_new_node = hou.node(child_new_path)
-                if not child_new_node:
-                    continue
-
-                # ----------------------------------------------------------------
-                # Prefer the new dict.  Fallback to the legacy single int.
-                # ----------------------------------------------------------------
-                input_meta = child.connection_info.get("input", {})  # new way
-                input_index = input_meta.get("index", child.connected_input_index)
-                input_parm = input_meta.get("parm")  # may be None
-
-                # If we have a parm-name, try to derive an index that is valid
-                # for the *current* renderer; otherwise keep the stored index.
-                if input_parm is not None:
-                    try:
-                        # Houdini: parm name → index
-                        input_index = new_node.inputIndex(input_parm)
-                    except Exception:
-                        print("WARNING: Could not find the parm on this node type – keep the recorded index as the best guess.")
-                        continue
-
-                if input_index is None:
-                    print(f"WARNING: No input index found for child node: '{child_new_node.path()}'")
-                    continue
-
-                try:
-                    new_node.setInput(input_index, child_new_node)
-                    print(
-                        f"DEBUG: set {new_node.path()}.input[{input_index}] "
-                        f"({input_parm}) <- {child_new_node.path()}"
-                    )
-                except Exception as exc:
-                    print(
-                        f"WARNING: could not wire {child_new_node.path()} "
-                        f"to {new_node.path()}[{input_index}]: {exc}"
-                    )
-
-            # recurse
-            self._set_node_inputs(node_info.child_nodes)
+            self.created_output_connections[generic_output_type]['node'] = created_output_node
+            self.created_output_connections[generic_output_type] = {'node': created_output_node,
+                                                                    'node_name': created_output_node.name(),
+                                                                    'node_path': created_output_node.path()}
 
     @staticmethod
     def _convert_generic_node_type_to_renderer_node_type(node_type: str, target_renderer: str):
@@ -1085,16 +1136,14 @@ class NodeRecreator:
         Returns:
             str: The renderer-specific node type.
         """
-        # print(f"DEBUG: Generic node {node_type}, converted to: {CONVERSION_MAP[self.target_renderer][node_type]}")
-        if node_type in CONVERSION_MAP[target_renderer]:
-            return CONVERSION_MAP[target_renderer][node_type]
+        # print(f"DEBUG: Generic node {node_type}, converted to: {GENERIC_NODE_TYPES_TO_REGULAR[self.target_format][node_type]}")
+        if node_type in GENERIC_NODE_TYPES_TO_REGULAR[target_renderer]:
+            return GENERIC_NODE_TYPES_TO_REGULAR[target_renderer][node_type]
         else:
-            return CONVERSION_MAP[target_renderer]['GENERIC::null']
-
-
+            return GENERIC_NODE_TYPES_TO_REGULAR[target_renderer]['GENERIC::null']
 
     @staticmethod
-    def apply_parameters(node, parameters):
+    def _apply_parameters(node, parameters):
         """
         Apply parameters to a Houdini node.
 
@@ -1115,8 +1164,7 @@ class NodeRecreator:
         for param in parameters:
             standardized_name = param.standardized_name
             if not standardized_name:
-                print(
-                    f"WARNING: Parameter '{param.name}' has no standardized name for node type '{node_type}'. Skipping.")
+                print(f"WARNING: Parameter '{param.name}' has no standardized name for node type '{node_type}'. Skipping.")
                 continue
 
             # Find the renderer-specific parameter name
@@ -1127,8 +1175,8 @@ class NodeRecreator:
                     break
 
             if not renderer_specific_name:
-                print(
-                    f"WARNING: No renderer-specific parameter found for standardized name '{standardized_name}' in node type '{node_type}'. Skipping.")
+                print(f"WARNING: No renderer-specific parameter found for standardized name '{standardized_name}'"
+                      f" in node type '{node_type}'. Skipping.")
                 continue
 
             hou_parm = node.parm(renderer_specific_name)
@@ -1138,42 +1186,158 @@ class NodeRecreator:
             else:
                 print(f"WARNING: Parm '{renderer_specific_name}' not found on node '{node.path()}'.")
 
-    def _set_output_connections(self):
+    def _create_node(self, node_info):
+        """
+        Create a Houdini node from NodeInfo.
+
+        Args:
+            node_info (NodeInfo): The NodeInfo object containing node information.
+
+        Returns:
+            (hou.Node): The created Houdini node.
+        """
+        new_node_type = self._convert_generic_node_type_to_renderer_node_type(node_info.node_type,
+                                                                              target_renderer=self.target_renderer)
+
+        # Check for existing nodes of the same type to reuse
+        existing_nodes = [node for node in self.material_builder.children() if
+                          node.type().name() == new_node_type and node not in self.reused_nodes.values()]
+        if existing_nodes:
+            node = existing_nodes[0]
+            print(f"Using existing node: {node.path()} of type {node.type().name()}")
+            self._apply_parameters(node, node_info.parameters)
+            self.reused_nodes[node_info.node_path] = node
+            self.old_new_node_map[node_info.node_path] = {'node_name': node.name(),
+                                                          'node_path': node.path()}
+
+            return node
+
+        # Create new node if no reusable node is found
+        new_node = self.material_builder.createNode(new_node_type, node_info.node_name)
+        self._apply_parameters(new_node, node_info.parameters)
+        self.reused_nodes[node_info.node_path] = new_node
+        self.old_new_node_map[node_info.node_path] = {'node_name': new_node.name(),
+                                                      'node_path': new_node.path()}
+        return new_node
+
+    def _create_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_nodes=None):
+        """
+        Recursively create nodes from NodeInfo objects.
+
+        Args:
+            nested_nodes_info (List[NodeInfo]): The list of NodeInfo objects.
+            processed_nodes (set, optional): A set of processed node paths.
+        Returns:
+            None
+        """
+        if processed_nodes is None:
+            processed_nodes = set()
+        for node_info in nested_nodes_info:
+            if node_info.node_path in processed_nodes:
+                continue
+
+            # Create the node if it's not an output node
+            if node_info.node_type != 'GENERIC::output_node':
+                newly_created_node = self._create_node(node_info)
+                # self.old_new_node_map[node_info.node_path] = newly_created_node.path()
+                self.old_new_node_map[node_info.node_path] = {'node_name': newly_created_node.name(),
+                                                              'node_path': newly_created_node.path()}
+
+            processed_nodes.add(node_info.node_path)
+
+            # Recursively create child nodes
+            self._create_nodes_recursive(node_info.children_list, processed_nodes)
+
+    def create_nodes(self, nested_nodes_info):
+        """
+        Create nodes in the target context.
+        """
+        if self.target_renderer not in ['arnold', 'mtlx']:
+            return None
+
+        self._create_nodes_recursive(nested_nodes_info)
+        return True
+
+
+    def set_output_connections(self):
         """
         Set connections for the output nodes in the recreated material.
         """
+        if self.target_renderer not in ['arnold', 'mtlx']:
+            return None
+
         renderer_output_connections = OUTPUT_CONNECTIONS_INDEX_MAP.get(self.target_renderer)
         if not renderer_output_connections:
             raise KeyError(f"Unsupported renderer: {self.target_renderer}")
 
-        for output_type, output_info in self.created_output_nodes_dict.items():
-            # e.g. output_type = 'GENERIC::output_surface'
-            # e.g. output_info = {'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder4/OUT_material>,
-            #                     'node_path': '/mat/arnold_materialbuilder4/OUT_material'}
+        # print(f"DEBUG: self.created_output_connections: {pprint.pformat(self.created_output_connections, sort_dicts=False)}")
+        # print(f"DEBUG: self.orig_output_connections: {pprint.pformat(self.orig_output_connections, sort_dicts=False)}")
 
+        # e.g. output_type = 'GENERIC::output_surface'
+        #
+        # e.g. self.created_output_connections = {'GENERIC::output_surface': {'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder2/OUT_material>,
+        #                               'node_name': 'OUT_material'},
+        #                               'node_path': '/mat/arnold_materialbuilder2/OUT_material'},
+        #                               'GENERIC::output_displacement': {'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder2/OUT_material>,
+        #                               'node_path': '/mat/arnold_materialbuilder2/OUT_material'}}
+        #
+        #
+        # DEBUG: self.orig_output_connections: {'GENERIC::output_surface': {'node_path': '/mat/arnold_materialbuilder1/OUT_material',
+        #                              'connected_node_name': 'standard_surface1',
+        #                              'connected_node_path': '/mat/arnold_materialbuilder1/standard_surface1',
+        #                              'connected_input_index': 0}}
+
+        for output_type, output_info in self.created_output_connections.items():
             output_index = renderer_output_connections[output_type]
             output_node = output_info['node']
 
             if output_type not in renderer_output_connections:
                 raise KeyError(f"{output_type=} not found in {renderer_output_connections=}")
 
+            # e.g. output_type= 'GENERIC::output_surface'
+            # e.g. self.orig_output_connections: {'GENERIC::output_surface': {'node_name': 'principledshader',
+            #                              'node_path': '/mat/principledshader',
+            #                              'connected_node_name': '',
+            #                              'connected_node_path': '',
+            #                              'connected_input_index': 0}}
+
+            # e.g. self.old_new_node_map: {'/mat/arnold_materialbuilder1/OUT_material': {'node_name': 'OUT_material',
+            #                                                          'node_path': '/mat/arnold_materialbuilder2/OUT_material'},
+            #       '/mat/arnold_materialbuilder1/standard_surface1': {'node_name': 'standard_surface1',
+            #                                                          'node_path': '/mat/arnold_materialbuilder2/standard_surface1'},
+            #       '/mat/arnold_materialbuilder1/curvature1': {'node_name': 'curvature1',
+            #                                                   'node_path': '/mat/arnold_materialbuilder2/curvature1'},
+            #       '/mat/arnold_materialbuilder1/mix_rgba1': {'node_name': 'mix_rgba1',
+            #                                                  'node_path': '/mat/arnold_materialbuilder2/mix_rgba1'},
+            #       '/mat/arnold_materialbuilder1/layer_rgba1': {'node_name': 'layer_rgba1',
+            #                                                    'node_path': '/mat/arnold_materialbuilder2/layer_rgba1'},
+            #       '/mat/arnold_materialbuilder1/image_diffuse': {'node_name': 'image_diffuse',
+            #                                                      'node_path': '/mat/arnold_materialbuilder2/image_diffuse'},
+            #       '/mat/arnold_materialbuilder1/color_correct2': {'node_name': 'color_correct2',
+            #                                                       'node_path': '/mat/arnold_materialbuilder2/color_correct2'},
+            #       '/mat/arnold_materialbuilder1/color_correct1': {'node_name': 'color_correct1',
+            #                                                       'node_path': '/mat/arnold_materialbuilder2/color_correct1'},
+            #       '/mat/arnold_materialbuilder1/range1': {'node_name': 'range1',
+            #                                               'node_path': '/mat/arnold_materialbuilder2/range1'},
+            #       '/mat/arnold_materialbuilder1/image_roughness': {'node_name': 'image_roughness',
+            #                                                        'node_path': '/mat/arnold_materialbuilder2/image_roughness'}}
+
+            # e.g. connected_node_info: {
+            #       'node_name': 'OUT_material',
+            #       'node_path': '/mat/arnold_materialbuilder1/OUT_material',
+            #       'connected_node_name': 'standard_surface1',
+            #       'connected_node_path': '/mat/arnold_materialbuilder1/standard_surface1',
+            #       'connected_input_index': 0
+            #       }
+
             # Find the connected node info from the nodeinfo_list output connections
-            connected_node_info = self.output_connections.get(output_type)
-            # e.g. self.output_connections= {'GENERIC::output_surface':
-            #                                   {'node_path': '/mat/material_mtlx_ORIG/surface_output',
-            #                                    'connected_node_name': ???,
-            #                                    'connected_input_index': 0},
-            #                                    'GENERIC::output_displacement':
-            #                                        {'node_path': '/mat/material_mtlx_ORIG/displacement_output',
-            #                                         'connected_node_name': ???,
-            #                                         'connected_input_index': 0}}
+            connected_node_info = self.orig_output_connections.get(output_type)
 
             if connected_node_info:
-                # print(f"DEBUG: connected_node_info:    \n{pprint.pformat(connected_node_info, indent=6)}")
-                old_connected_node_path = connected_node_info.get('connected_node_path')
-                new_connected_node_path = self.old_new_node_map[old_connected_node_path]
+                old_connected_node_path = connected_node_info['connected_node_path']
+                print(f"DEBUG: self.old_new_node_map: {pprint.pformat(self.old_new_node_map, sort_dicts=False)}")
                 print(f"DEBUG: {old_connected_node_path=}")
-                print(f"DEBUG: {new_connected_node_path=}")
+                new_connected_node_path = self.old_new_node_map[old_connected_node_path].get('node_path')
 
                 if new_connected_node_path and new_connected_node_path != output_node:
                     print(f"DEBUG: {output_type=}, Setting input {output_index} of {output_node.path()} "
@@ -1182,9 +1346,9 @@ class NodeRecreator:
                 else:
                     print(f"DEBUG: New node for '{output_type}' not found in old_new_node_map or is the same as the"
                           f" output node.")
-                    print(f"DEBUG: {new_connected_node_path=} {output_node.path()=}")
             else:
                 # Ensure the existing output node is mapped correctly
+                print(f"DEBUG: {output_info['node_path']=}")
                 existing_output_node = self.old_new_node_map.get(output_info['node_path'])
                 if existing_output_node:
                     self.old_new_node_map[output_info['node_path']] = existing_output_node
@@ -1193,35 +1357,183 @@ class NodeRecreator:
                 else:
                     print(f"DEBUG: No connected node info found for {output_type=}")
 
+        return True
+
+
+    def _get_new_node_from_nodeinfo(self, node_info):
+        """
+        Find the newly-created Houdini node corresponding to node_info.
+        """
+        old_path = node_info.node_path
+        mapping = self.old_new_node_map.get(old_path, {})
+        new_path = mapping.get('node_path')
+        if not new_path:
+            print(f"WARNING: Couldn't find new node for '{old_path}'.")
+            return None
+
+        node = hou.node(new_path)
+        if not node:
+            print(f"WARNING: New node path '{new_path}' does not exist in the scene.")
+            return None
+
+        return node
+
+    def _process_connections_for_node(self, src_nodeinfo, dest_node):
+        """
+        Iterate all connections for one node and wire them up (skipping output nodes).
+        """
+        for conn in src_nodeinfo.connection_info.values():
+            print(f"\nDEBUG: connecting src node: '{src_nodeinfo.node_name}[{conn['input']['node_index']}][{conn['input']['parm_name']}]' to "
+                  f"dest node: '{dest_node.name()}[{conn['output']['node_index']}][{conn['output']['parm_name']}]'")
+            src_node_name = conn['input']['node_name']
+            dest_node_name = conn['output']['node_name']
+
+            # find the source (input) node
+            src_node = self._get_input_node(src_node_name)
+            if not src_node:
+                continue
+
+            # skip wiring if this is one of our designated outputs
+            if self._is_output_node(dest_node_name):
+                print(f"WARNING: Skipping connection for '{dest_node_name}' on '{dest_node.name()}' (it's an output node).")
+                continue
+
+            # perform the actual wire
+            self._connect_pair(
+                src_node=src_node,
+                dest_node=dest_node,
+                src_parm=conn['input']['parm_name'],
+                dest_parm=conn['output']['parm_name'],
+                # src_idx=conn['input']['node_index'],
+                # dest_idx=conn['output']['node_index'],
+            )
+
+    def _get_input_node(self, node_name):
+        """
+        Look up a child of material_builder by name.
+
+        Args:
+            node_name (str): The name of the node to find in the material builder's children.
+
+        Returns:
+            hou.Node: The found child node, or None if not found.
+        """
+        path = f"{self.material_builder.path()}/{node_name}"
+        node = hou.node(path)
+        if not node:
+            print(f"WARNING: Input node '{node_name}' not found at '{path}'.")
+        return node
+
+    def _is_output_node(self, nodename):
+        """
+        Return True if `nodename` matches one of our created output nodes.
+        """
+        return any(info['node_name'] == nodename
+                   for info in self.created_output_connections.values())
+
+    def _connect_pair(self, src_node, dest_node, src_parm='', dest_parm='',
+                      src_idx=None, dest_idx=None):
+        """
+        Wire src_node.output[src_idx] into dest_node.input[<resolved index>].
+
+        Args:
+            src_node (hou.node): The source node.
+            dest_node (hou.node): The destination node.
+            src_parm (str, Optional): The source parameter name that connects to the dest_node, if not provided then use src_idx
+            dest_parm (str, Optional): The destination parameter name that will be connected to the src_node, if not provided then use dest_idx
+
+        """
+        # TODO: add a standardization parm names. e.g., 'RGBA' in arnold should be translated to 'out' in MTLX
+        if not dest_idx:
+            dest_idx = 0
+            dest_idx_by_name = dest_node.inputIndex(dest_parm)
+            if dest_idx_by_name != -1:
+                print(f"DEBUG: /////////////////// {dest_idx_by_name=}")
+                dest_idx = dest_idx_by_name
+            else:
+                print(f"WARNING: dest: '{dest_node.name()}' has no parm: '{dest_parm}', using provided index: {dest_idx}.")
+
+        if not src_idx:
+            src_idx = 0
+            src_idx_by_name = src_node.outputIndex(src_parm)
+            if src_idx_by_name != -1:
+                src_idx = src_idx_by_name
+            else:
+                print(f"WARNING: src: '{src_node.name()}' has no parm: '{src_parm}', using provided index: {src_idx}.")
+
+
+        # if it's a node that needs splitting, we split the channels
+        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_parm not in ['rgb', 'rgba']:
+            # print(f"DEBUG: {src_parm=}, {dest_parm=}, {src_idx=}, {dest_idx=}, {src_node.outputNames()=}")
+            check, _ = self.create_mtlx_vec3_split_node(src_node=src_node, dest_node=dest_node,
+                                                        src_out_parm_name=src_parm, dest_in_index=dest_idx)
+            return check
+
+
+        try:
+            dest_node.setInput(dest_idx, src_node, src_idx)
+            print(f"INFO: Connected '{src_node.name()}'[{src_idx}] → '{dest_node.name()}'[{dest_idx}].")
+            return True
+        except Exception as e:
+            print(f"WARNING: Failed to connect '{src_node.name()}'[{src_idx}] to '{dest_node.name()}'[{dest_idx}]: {e}")
+            return False
+
+    def set_node_connections(self, nodeinfo_list, parent_node=None):
+        """
+        Top-level entry: recurse over a list of NodeInfo and wire them up.
+        """
+        if not nodeinfo_list:
+            print("WARNING: Empty node list, nothing to connect.")
+            return
+
+        for i, node_info in enumerate(nodeinfo_list):
+            current_node = parent_node or self._get_new_node_from_nodeinfo(node_info)
+            if not current_node:
+                continue
+
+            if not node_info.connection_info:
+                print(f"WARNING: '{current_node.name()}': No Input Connections found. Skipping.")
+            else:
+                # actual connection logic:
+                self._process_connections_for_node(node_info, current_node)
+                # set current_node to be the parent (dest_node) for recursive iteration)
+                current_node = self._get_new_node_from_nodeinfo(node_info)
+
+            # recurse into *its* children, passing *that* new node
+            if node_info.children_list:
+                self.set_node_connections(node_info.children_list, current_node)
+
     def run(self):
         """
         Recreate the nodes in the target context based on the material data.
         """
-        # Create the initial shader network based on the target renderer
-        if self.target_renderer == 'mtlx':
-            self.material_builder, self.created_output_nodes_dict = self.create_init_mtlx_shader(self.target_context)
-        elif self.target_renderer == 'arnold':
-            self.material_builder, self.created_output_nodes_dict = self.create_init_arnold_shader(self.target_context)
-        else:
-            raise Exception(f"Unsupported target renderer: {self.target_renderer}")
+        # create initial shader network:
+        self.create_init_shader(self.target_renderer)
+        # print(f"{self.material_builder=}, {self.standardizer.output_nodes_dict=}, {self.created_output_connections=}")
 
-        # print(f"{self.material_builder=}, {self.standardizer.output_nodes_dict=}, {self.created_output_nodes_dict=}")
-
-        # Create output nodes first
-        print(f"DEBUG: STARTING create_output_nodes()....")
+        # Create output nodes first:
+        print(f"INFO: STARTING create_output_nodes()....")
         self.create_output_nodes()
+        print(f"INFO: DONE create_output_nodes()....")
 
-        # Proceed with node creation and input setting
-        print(f"\n\n\nDEBUG: STARTING _create_all_nodes()....")
-        self._create_nodes_recursive(self.nodeinfo_list)
-        # print(f"DEBUG: self.old_new_node_map: \n", pprint.pformat(self.old_new_node_map, indent=4, sort_dicts=False))
+        # Create Child nodes:
+        print(f"\n\n\nINFO: STARTING _create_all_nodes()....")
+        self.create_nodes(self.nodeinfo_list)
+        print(f"INFO: DONE _create_all_nodes()....")
 
-        print(f"\n\n\nDEBUG: STARTING _set_node_inputs()....")
-        print(f"DEBUG: {len(self.nodeinfo_list)=}, {type(self.nodeinfo_list)=}")
-        self._set_node_inputs(self.nodeinfo_list)
+        # connect output nodes to child nodes:
+        print(f"\n\n\nINFO: STARTING _set_output_connections()....")
+        self.set_output_connections()
+        print(f"INFO: DONE _set_output_connections()....")
 
-        print(f"\n\n\nDEBUG: STARTING _set_output_connections()....")
-        self._set_output_connections()
+        # connect child nodes to each other:
+        print(f"\n\n\nINFO: STARTING _set_node_inputs()....")
+        # print(f"DEBUG: self.old_new_node_map: {pprint.pformat(self.old_new_node_map, sort_dicts=False)}")
+        print(f"DEBUG: {len(self.nodeinfo_list)=}")
+        self.set_node_connections(self.nodeinfo_list)
+        print(f"INFO: DONE _set_node_inputs()....")
+
+
 
 
 
@@ -1238,20 +1550,21 @@ def get_material_type(materialbuilder_node):
     """
     material_type = None
 
-    if materialbuilder_node.type().name() == 'arnold_materialbuilder':
+    materialbuilder_type = materialbuilder_node.type().name()
+    if materialbuilder_type == 'arnold_materialbuilder':
         material_type = 'arnold'
-    elif materialbuilder_node.type().name() == 'subnet':
+    elif materialbuilder_type == 'subnet':
         for child_node in materialbuilder_node.children():
             if 'mtlx' in child_node.type().name():
                 material_type = 'mtlx'
                 break
-    elif materialbuilder_node.type().name() == 'principledshader::2.0':
+    elif materialbuilder_type == 'principledshader::2.0':
         material_type = 'principledshader'
 
     return material_type
 
 
-def run(input_material_builder_node, target_context, target_renderer='arnold'):
+def run(input_material_builder_node, target_context, target_format='mtlx'):
     """
     Run the material conversion process for the selected node.
 
@@ -1259,16 +1572,17 @@ def run(input_material_builder_node, target_context, target_renderer='arnold'):
         input_material_builder_node (hou.Node): The selected Houdini shading network,
                                                 e.g. arnold materialbuilder or mtlx materialbuilder.
         target_context (hou.Node): The target Houdini context node.
-        target_renderer (str, optional): The target renderer (default is 'mtlx').
+        target_format (str, optional): The target renderer (default is 'mtlx').
     """
     material_type = get_material_type(input_material_builder_node)
     if not material_type:
-        raise Exception(f"Couldn't determine Input material type, currently only Arnold and MTLX supported!")
+        print(f"Couldn't determine Input material type, "
+              f"currently only Arnold, MTLX and Principled Shader are supported!")
+        return None
 
     print("NodeTraverser() START----------------------")
     traverser = NodeTraverser(material_type=material_type)
     nested_nodes_dict, output_nodes_dict = traverser.run(input_material_builder_node)
-    # print(f"DEBUG: nested_nodes_dict: ", pprint.pformat(nested_nodes_dict))
     print(f"DEBUG: traverser.output_nodes_dict: ", pprint.pformat(output_nodes_dict))
     print(f"DEBUG: material_type: ", material_type)
     print(f"DEBUG: input_material_builder_node: ", input_material_builder_node)
@@ -1282,25 +1596,25 @@ def run(input_material_builder_node, target_context, target_renderer='arnold'):
         material_type=material_type,
         input_material_builder_node=input_material_builder_node
     )
-    standardized_output_nodes, node_info_list = standardizer.run()
+    output_connections, node_info_list = standardizer.run()
 
     for x in node_info_list:
         print(f"DEBUG: node_info_list: {x=}\n\n")
-    print(f"DEBUG: standardized_output_nodes: {pprint.pformat(standardized_output_nodes, sort_dicts=False)}\n")
+    print(f"DEBUG: standardized_output_nodes: {pprint.pformat(output_connections, sort_dicts=False)}\n")
     print(f"DEBUG: {target_context.path()=}")
-    print(f"DEBUG: {target_renderer=}")
+    print(f"DEBUG: {target_format=}")
     print("NodeStandardizer() Finished----------------------\n\n\n")
 
 
     print("NodeRecreator() START----------------------")
     recreator = NodeRecreator(
         nodeinfo_list=node_info_list,
-        output_connections=standardized_output_nodes,
+        output_connections=output_connections,
         target_context=target_context,
-        target_renderer=target_renderer
+        target_renderer=target_format
     )
     print("NodeRecreator() Finished----------------------\n\n\n")
-    print(f"Material conversion complete. Converted material from '{material_type}' to '{target_renderer}'.")
+    print(f"Material conversion complete. Converted material from '{material_type}' to '{target_format}'.")
 
     """
     TODO:
@@ -1325,21 +1639,9 @@ def test():
     material_type = 'arnold'
     input_material_builder_node = 'arnold_materialbuilder1'
 
-    output_nodes = {
-        'surface':
-            {'connected_input_index': 0,
-             'connected_node_name': 'standard_surface1',
-             'connected_node_path': '/mat/arnold_materialbuilder1/standard_surface1',
-             'generic_type': 'GENERIC::output_surface',
-             'node_name': 'OUT_material',
-             'node_path': '/mat/arnold_materialbuilder1/OUT_material'
-             }
-    }
-
-    # node_tree = utils_io.load_node_tree_json(f"{TEMP_DIR}/example_material_tree.json")
-    node_tree = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_material_tree.json")
+    node_tree = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_node_tree.json")
+    output_nodes = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_output_tree.json")
     # output_nodes_dict = utils_io.load_node_tree_json("example_output_nodes.json")  # if stored separately
-    # print(pprint.pformat(node_tree, sort_dicts=False))
 
     standardizer = NodeStandardizer(
         traversed_nodes_dict=node_tree,
@@ -1347,7 +1649,8 @@ def test():
         material_type=material_type,
         input_material_builder_node=input_material_builder_node
     )
-    print(f"DEBUG: {standardizer.node_info_list=}")
+
+    # print(f"DEBUG: {standardizer.node_info_list=}")
     return standardizer
 
 

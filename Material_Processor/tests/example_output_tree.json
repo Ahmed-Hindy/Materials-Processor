@@ -1,0 +1,10 @@
+{
+    "surface": {
+        "node_name": "OUT_material",
+        "node_path": "/mat/arnold_materialbuilder_basic/OUT_material",
+        "connected_node_name": "standard_surface",
+        "connected_node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+        "connected_input_index": 0,
+        "generic_type": "GENERIC::output_surface"
+    }
+}
