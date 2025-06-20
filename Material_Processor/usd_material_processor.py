@@ -105,12 +105,25 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
 # for connections frommaterial prim to stdsurface prim
 OUT_PRIM_DICT = {
     'arnold': {
-        'src': 'arnold:surface',
-        'dest': 'surface'
+        'GENERIC::output_surface': {
+            'src': 'arnold:surface',
+            'dest': 'surface'
+        },
+        'GENERIC::output_displacement': {
+            'src': 'arnold:displacement',
+            'dest': 'displacement'
+        },
+
     },
     'mtlx': {
-        'src': 'out',
-        'dest': 'mtlx:surface',
+        'GENERIC::output_surface': {
+            'src': 'out',
+            'dest': 'mtlx:surface',
+        },
+        'GENERIC::output_displacement': {
+            'src': 'out',
+            'dest': 'mtlx:displacement',
+        },
     }
 }
 
@@ -378,30 +391,6 @@ class USDMaterialRecreator:
         self.run()
 
 
-    def create_output_materials(self):
-        """
-        Define a UsdShade.Material for each generic output.
-        """
-        self.created_out_primpaths = []
-        for generic_output, out_dict in self.orig_output_connections.items():
-            # DEBUG: generic_output='GENERIC::output_surface'
-            # DEBUG: out_dict: {'node_name': 'OUT_material',
-            #                       'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
-            #                       'connected_node_name': 'standard_surface',
-            #                       'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
-            #                       'connected_input_index': 0
-            #                  }
-            # DEBUG: self.material_name = 'arnold_materialbuilder_basic'
-
-
-            mat_primname = self.material_name
-            mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{mat_primname}")
-            mat_usdshade = UsdShade.Material.Define(self.stage, Sdf.Path(mat_primpath))
-
-            self.created_out_primpaths.append(mat_primpath)
-            self.old_new_map[out_dict['node_path']] = mat_primpath.pathString
-
-
     def _create_shader_id(self, shader, generic_type):
         mapping = GENERIC_NODE_TYPES_TO_REGULAR_USD.get(generic_type, {})
         # print(f"DEBUG: {shader=} {generic_type=}")
@@ -424,7 +413,7 @@ class USDMaterialRecreator:
             parm_orig_name: str    = param.name
             parm_generic_name: str = std_parm_map.get(parm_orig_name)
             parm_new_name = [key for key, val in std_parm_map.items() if val == parm_generic_name][0]
-            print(f"DEBUG: {node_type=}, {parm_orig_name=}, {parm_generic_name=}, {parm_new_name=}")
+            # print(f"DEBUG: {node_type=}, {parm_orig_name=}, {parm_generic_name=}, {parm_new_name=}")
             if not parm_generic_name:
                 continue  # skip unsupported params
 
@@ -447,6 +436,29 @@ class USDMaterialRecreator:
             inp = shader.CreateInput(parm_new_name, type_name)
             inp.Set(val)
 
+
+    def create_material_prim(self):
+        """
+        Define a UsdShade.Material for each generic output.
+        """
+        self.created_out_primpaths = []
+        for generic_output, out_dict in self.orig_output_connections.items():
+            # DEBUG: generic_output='GENERIC::output_surface'
+            # DEBUG: out_dict: {'node_name': 'OUT_material',
+            #                       'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
+            #                       'connected_node_name': 'standard_surface',
+            #                       'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
+            #                       'connected_input_index': 0
+            #                  }
+            # DEBUG: self.material_name = 'arnold_materialbuilder_basic'
+
+
+            mat_primname = self.material_name
+            mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{mat_primname}")
+            mat_usdshade = UsdShade.Material.Define(self.stage, Sdf.Path(mat_primpath))
+
+            self.created_out_primpaths.append(mat_primpath)
+            self.old_new_map[out_dict['node_path']] = mat_primpath.pathString
 
 
     def create_child_shaders(self, nodeinfo_list):
@@ -485,7 +497,10 @@ class USDMaterialRecreator:
 
             # DEBUG: node_info.node_path = '/mat/arnold_materialbuilder_basic/standard_surface'
 
-            for conn in nodeinfo.connection_info.values():
+            for conn_index, conn in nodeinfo.connection_info.items():
+                self.connection_tasks.append((conn, nodeinfo.node_path))
+
+                # DEBUG: conn_index = 'connection_1
                 # DEBUG: conn: {'input':
                 #                  {'node_name': 'standard_surface',
                 #                   'node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
@@ -497,7 +512,6 @@ class USDMaterialRecreator:
                 #                    'node_index': 0,
                 #                    'parm_name': 'surface'}
                 #              }
-                self.connection_tasks.append((conn, nodeinfo.node_path))
 
             if nodeinfo.children_list:
                 self.create_child_shaders(nodeinfo.children_list)
@@ -530,11 +544,21 @@ class USDMaterialRecreator:
         mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{self.material_name}")
         mat_usdshade = UsdShade.Material.Get(self.stage, mat_primpath)
 
-        for conn, parent_path in self.connection_tasks:
-            src_path = self.old_new_map[conn['input']['node_path']]
-            dst_path = self.old_new_map[conn['output']['node_path']]
-            src_parm = conn['input']['parm_name']
-            dst_parm = conn['output']['parm_name']
+        for generic_output, out_dict in self.orig_output_connections.items():
+            # DEBUG: generic_output='GENERIC::output_surface'
+            # DEBUG: out_dict: {'node_name': 'OUT_material',
+            #                       'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
+            #                       'connected_node_name': 'standard_surface',
+            #                       'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
+            #                       'connected_input_index': 0,
+            #                       'connected_input_name': 'surface',
+            #                       'connected_output_name': 'shader',
+            #                  }
+            # DEBUG: self.material_name = 'arnold_materialbuilder_basic'
+            src_path = self.old_new_map[out_dict['connected_node_path']]
+            dst_path = self.old_new_map[out_dict['node_path']]
+            src_parm = out_dict['connected_output_name']
+            dst_parm = out_dict['connected_input_name']
             if dst_path not in [x.pathString for x in self.created_out_primpaths]:
                 continue
 
@@ -543,7 +567,8 @@ class USDMaterialRecreator:
 
             src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
 
-            mat_usdshade.CreateOutput(OUT_PRIM_DICT[self.target_renderer]['dest'], Sdf.ValueTypeNames.Token).ConnectToSource(src_api.ConnectableAPI(), OUT_PRIM_DICT[self.target_renderer]['src'])
+            mat_usdshade.CreateOutput(OUT_PRIM_DICT[self.target_renderer][generic_output]['dest'], Sdf.ValueTypeNames.Token).ConnectToSource(
+                src_api.ConnectableAPI(), OUT_PRIM_DICT[self.target_renderer][generic_output]['src'])
 
 
     def set_shader_connections(self):
@@ -1174,7 +1199,7 @@ class USDMaterialRecreator:
         UsdGeom.Scope.Define(self.stage, Sdf.Path(self.parent_scope_path))
 
         # 2. create output material prims
-        self.create_output_materials()
+        self.create_material_prim()
         print(f"FINISHED _create_output_materials()")
 
         # 3. create child shader prims
@@ -1193,7 +1218,7 @@ class USDMaterialRecreator:
 
 
 
-def test(stage, mat_node):
+def test(stage, mat_node, target_renderer="mtlx"):
     import hou
 
 
@@ -1212,6 +1237,6 @@ def test(stage, mat_node):
     """
 
 
-    USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer="mtlx")
+    USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer=material_type)
 
 

@@ -39,15 +39,17 @@ class NodeInfo:
         children_list (List['NodeInfo']): A list of child nodes connected to this node.
         is_output_node (bool): Whether this node is an output node.
         output_type (Optional[str]): The type of output, e.g., 'surface', 'displacement', etc.
+        position (Optional[int, int]): Position of the node in the material network.
     """
     node_type: str
     node_name: str
     node_path: str
     parameters: List[NodeParameter]
-    connection_info: Dict[str, Dict[str, Any]] = field(default_factory=dict)  # {"input": {"index": int, "parm": str}, "output": {...}}
-    children_list: List['NodeInfo'] = field(default_factory=list)
+    connection_info: dict[str, dict[str, Any]] = field(default_factory=dict)  # {"input": {"index": int, "parm": str}, "output": {...}}
+    children_list: list['NodeInfo'] = field(default_factory=list)
     is_output_node: bool = False
     output_type: Optional[str] = None
+    position: Optional[list[float, float]] = None
 
 
 

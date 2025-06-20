@@ -360,6 +360,7 @@ class NodeTraverser:
         Returns:
             Dict[str, Dict]: A dictionary representing the node tree with additional metadata.
         """
+        node_pos = node.position()
         # Check if this node is an output node
         is_output_node = False
         output_type = None
@@ -378,6 +379,7 @@ class NodeTraverser:
             'node_name': node.name(),
             'node_path': node.path(),
             'node_type': node.type().name(),
+            'node_position': (node_pos[0], node_pos[1]),
             'node_parms': self._convert_parms_to_dict(node.parms()),
             'connections_dict': connections_dict,
             'children_list': []
@@ -428,7 +430,9 @@ class NodeTraverser:
         for connection in connections:
             connected_input = connection.inputNode()
             connected_input_index = connection.outputIndex()
+            connected_input_name = connection.outputName()
             connected_output_index = connection.inputIndex()
+            connected_output_name = connection.inputName()
             if connected_output_index == 0:
                 output_nodes['surface'] = {
                     # 'node': arnold_output,
@@ -437,6 +441,8 @@ class NodeTraverser:
                     'connected_node_name': connected_input.name(),
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
                     'generic_type': 'GENERIC::output_surface'
                 }
             elif connected_output_index == 1:
@@ -446,6 +452,8 @@ class NodeTraverser:
                     'connected_node_name': connected_input.name(),
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
                     'generic_type': 'GENERIC::output_displacement'
                 }
         return output_nodes
@@ -469,16 +477,20 @@ class NodeTraverser:
             for connection in connections:
                 connected_input = connection.inputNode()
                 connected_input_index = connection.outputIndex()
+                connected_input_name = connection.outputName()
+                connected_output_name = connection.inputName()
                 connected_output_index = connection.inputIndex()
-            parmname = output_node.parm('parmname').eval()
-            if parmname in ['surface', 'displacement']:
-                output_nodes[parmname] = {
-                    'node_name': output_node.name(),
-                    'node_path': output_node.path(),
-                    'connected_node_name': connected_input.name(),
-                    'connected_node_path': connected_input.path(),
-                    'connected_input_index': connected_input_index
-                }
+                parmname = output_node.parm('parmname').eval()
+                if parmname in ['surface', 'displacement']:
+                    output_nodes[parmname] = {
+                        'node_name': output_node.name(),
+                        'node_path': output_node.path(),
+                        'connected_node_name': connected_input.name(),
+                        'connected_node_path': connected_input.path(),
+                        'connected_input_index': connected_input_index,
+                        'connected_input_name': connected_input_name,
+                        'connected_output_name': connected_output_name,
+                    }
         return output_nodes
 
     def _detect_principled_output_nodes(self, parent_node):
@@ -550,6 +562,7 @@ class NodeTraverser:
                 "node_name": "OUT_material",
                 "node_path": f"{node.path()}/OUT_material",
                 "node_type": "arnold_material",
+                "node_position": (0,0),
                 "node_parms": [],
                 "connections_dict": {},
                 "children_list": [
@@ -557,6 +570,7 @@ class NodeTraverser:
                         "node_name": "standard_surface",
                         "node_path": f"{node.path()}/standard_surface",
                         "node_type": "arnold::standard_surface",
+                        "node_position": (-3, 0),
                         "node_parms": [],
                         "connections_dict": {
                             "connection_0": {
@@ -585,6 +599,7 @@ class NodeTraverser:
                 "node_name": "image_diffuse",
                 "node_path": f"{node.path()}/image_diffuse",
                 "node_type": "arnold::image",
+                "node_position": (-6, 0),
                 'node_parms': [
                     {'name': 'filename', 'value': node.parm('basecolor_texture').eval()},
                 ],
@@ -702,7 +717,9 @@ class NodeStandardizer:
                 'node_path': value['node_path'],
                 'connected_node_name': value['connected_node_name'],
                 'connected_node_path': value['connected_node_path'],
-                'connected_input_index': value['connected_input_index']
+                'connected_input_index': value['connected_input_index'],
+                'connected_input_name': value['connected_input_name'],
+                'connected_output_name': value['connected_output_name'],
             }
         return output_connections
 
@@ -762,26 +779,28 @@ class NodeStandardizer:
 
         connection_info = child_dict.get('connections_dict', {})
 
-        node_name: str = child_dict['node_name']
-        node_type: str = child_dict['node_type']
+        child_node_name: str = child_dict['node_name']
+        child_node_type: str = child_dict['node_type']
         child_node_parms: list = child_dict.get('node_parms')
+        child_node_pos: list = child_dict.get('node_position')
         # print(f"DEBUG: parms for node: '{node_path}': {child_node_parms}")
 
         parameters = None
         if child_node_parms:
-            parameters = NodeStandardizer.standardize_shader_parameters(node_type, child_node_parms)
+            parameters = self.standardize_shader_parameters(child_node_type, child_node_parms)
 
-        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC.get(node_type)
+        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC.get(child_node_type)
 
         return NodeInfo(
             node_type=generic_node_type,
-            node_name=node_name,
+            node_name=child_node_name,
             node_path=node_path,
             parameters=parameters,
             connection_info=connection_info,
             children_list=[],
             is_output_node=is_output_node,
-            output_type=output_type if is_output_node else generic_node_type
+            output_type=output_type if is_output_node else generic_node_type,
+            position=child_node_pos
         )
 
     def standardize_node_dict(self, node_dict: Dict):
@@ -1169,7 +1188,11 @@ class NodeRecreator:
             # Create the node if it's not an output node
             if node_info.node_type != 'GENERIC::output_node':
                 newly_created_node = self._create_node(node_info)
-                # self.old_new_node_map[node_info.node_path] = newly_created_node.path()
+
+                # move node to original position:
+                if node_info.position:
+                    newly_created_node.setPosition(node_info.position)
+
                 self.old_new_node_map[node_info.node_path] = {'node_name': newly_created_node.name(),
                                                               'node_path': newly_created_node.path()}
 
@@ -1393,8 +1416,8 @@ class NodeRecreator:
 
 
         # if it's a node that needs splitting, we split the channels
-        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_parm not in ['rgb', 'rgba']:
-            # print(f"DEBUG: {src_parm=}, {dest_parm=}, {src_idx=}, {dest_idx=}, {src_node.outputNames()=}")
+        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_parm not in ['rgb', 'rgba', 'out']:
+            print(f"DEBUG: {src_parm=}")
             check, _ = self.create_mtlx_vec3_split_node(src_node=src_node, dest_node=dest_node,
                                                         src_out_parm_name=src_parm, dest_in_index=dest_idx)
             return check
