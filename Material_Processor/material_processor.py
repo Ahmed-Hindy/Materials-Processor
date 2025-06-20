@@ -706,76 +706,6 @@ class NodeStandardizer:
             }
         return output_connections
 
-    @staticmethod
-    def standardize_custom_tree(custom_node_tree, material_name):
-        """
-        Manually create a standardized tree from custom tree dict with node names, paths, generic types, and parameters.
-
-        Args:
-            custom_node_tree (Dict): The custom tree provided by the user with node names, generic types, parameters, and connections.
-            material_name (str): The name of the material.
-
-        Returns:
-            MaterialData: The created MaterialData object.
-        """
-
-        def traverse_tree(tree: Dict, parent_input_index=None) -> List[NodeInfo]:
-            """
-            Recursively traverse the custom node tree and return a list of NodeInfo objects.
-
-            Args:
-                tree (Dict): Custom node tree as a dictionary with node names, generic types, parameters, and connections.
-                parent_input_index (int, optional): The index of the connected input node, if any.
-
-            Returns:
-                List[NodeInfo]: A list of NodeInfo objects representing the standardized tree.
-            """
-            node_info_list = []
-
-            for node_name, node_data in tree.items():
-                # Extract generic node type and parameters
-                generic_node_type = node_data['generic_type']
-                is_output_node = 'output' in generic_node_type
-                parameters = NodeStandardizer.standardize_shader_parameters(generic_node_type,
-                                                                            node_data.get('parameters', []))
-                connections = node_data.get('connections', {})
-                input_index = node_data.get('input_node_index', None)
-
-                print(f"Processing node: {node_name}, type: {generic_node_type}, input_index: {input_index}")
-
-                # Create NodeInfo for the current node
-                node_info = NodeInfo(
-                    node_type=generic_node_type,
-                    node_name=node_name,
-                    node_path=node_name,
-                    is_output_node=is_output_node,
-                    output_type=generic_node_type if is_output_node else None,
-                    parameters=parameters,
-                    children_list=[]
-                )
-
-                # Recursively process child nodes (connections)
-                child_nodes_info = traverse_tree(connections, parent_input_index=input_index)
-                node_info.children_list.extend(child_nodes_info)
-                node_info_list.append(node_info)
-
-            return node_info_list
-
-        # Start traversing the custom tree to generate the nodes info list
-        nodes_info_list = traverse_tree(custom_node_tree)
-
-        # For simplicity, output_connections can be derived from output nodes
-        output_connections = {}
-        for node in nodes_info_list:
-            if node.is_output_node:
-                output_connections[node.output_type] = node
-
-        # Create and return the MaterialData object with the processed nodes
-        return MaterialData(
-            material_name=material_name,
-            nodeinfo_list=nodes_info_list,
-            output_connections=output_connections
-        )
 
     @staticmethod
     def standardize_shader_parameters(node_type, parms):
@@ -871,7 +801,7 @@ class NodeStandardizer:
             # print("node_info", node_info, "\n")
 
             nodeinfo = self.create_nodeinfo_object(node_path, node_dict)
-            print(f"DEBUG: node_info_obj connections: {nodeinfo.print_connections()}")
+            # print(f"DEBUG: node_info_obj connections: {nodeinfo.print_connections()}")
 
             # Process children
             children_list = node_dict.get('children_list', [])
@@ -884,7 +814,7 @@ class NodeStandardizer:
                 nodeinfo.children_list.extend(child_nodes_info)
 
             nodeinfo_list.append(nodeinfo)
-        print(f"DEBUG: {len(nodeinfo_list)=}")
+        # print(f"DEBUG: {len(nodeinfo_list)=}")
         return nodeinfo_list
 
     def run(self):
@@ -904,8 +834,8 @@ class NodeStandardizer:
 
         """
         output_connections = self.standardize_output_dict(self.output_nodes_dict)
-        node_info_list = self.standardize_node_dict(self.traversed_nodes_dict)
-        return output_connections, node_info_list
+        nodeinfo_list = self.standardize_node_dict(self.traversed_nodes_dict)
+        return output_connections, nodeinfo_list
 
 
 
@@ -1564,16 +1494,8 @@ def get_material_type(materialbuilder_node):
     return material_type
 
 
-def run(input_material_builder_node, target_context, target_format='mtlx'):
-    """
-    Run the material conversion process for the selected node.
 
-    Args:
-        input_material_builder_node (hou.Node): The selected Houdini shading network,
-                                                e.g. arnold materialbuilder or mtlx materialbuilder.
-        target_context (hou.Node): The target Houdini context node.
-        target_format (str, optional): The target renderer (default is 'mtlx').
-    """
+def ingest_material(input_material_builder_node):
     material_type = get_material_type(input_material_builder_node)
     if not material_type:
         print(f"Couldn't determine Input material type, "
@@ -1583,9 +1505,16 @@ def run(input_material_builder_node, target_context, target_format='mtlx'):
     print("NodeTraverser() START----------------------")
     traverser = NodeTraverser(material_type=material_type)
     nested_nodes_dict, output_nodes_dict = traverser.run(input_material_builder_node)
-    print(f"DEBUG: traverser.output_nodes_dict: ", pprint.pformat(output_nodes_dict))
-    print(f"DEBUG: material_type: ", material_type)
-    print(f"DEBUG: input_material_builder_node: ", input_material_builder_node)
+    # DEBUG: traverser.output_nodes_dict: {'surface': {'connected_input_index': 0,
+    #                                                  'connected_node_name': 'standard_surface',
+    #                                                  'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
+    #                                                  'generic_type': 'GENERIC::output_surface',
+    #                                                  'node_name': 'OUT_material',
+    #                                                  'node_path': '/mat/arnold_materialbuilder_basic/OUT_material'
+    #                                                  }
+    #                                     }
+    # DEBUG: material_type: 'arnold'
+    # DEBUG: input_material_builder_node: 'arnold_materialbuilder_basic'
     print("NodeTraverser() Finished----------------------\n\n\n")
 
 
@@ -1596,19 +1525,41 @@ def run(input_material_builder_node, target_context, target_format='mtlx'):
         material_type=material_type,
         input_material_builder_node=input_material_builder_node
     )
-    output_connections, node_info_list = standardizer.run()
+    output_connections, nodeinfo_list = standardizer.run()
 
-    for x in node_info_list:
-        print(f"DEBUG: node_info_list: {x=}\n\n")
-    print(f"DEBUG: standardized_output_nodes: {pprint.pformat(output_connections, sort_dicts=False)}\n")
-    print(f"DEBUG: {target_context.path()=}")
-    print(f"DEBUG: {target_format=}")
+    for nodeinfo in nodeinfo_list:
+        print(f"DEBUG: nodeinfo: {nodeinfo=}\n")
+
+    # DEBUG: standardized_output_nodes: {'GENERIC::output_surface':
+    #                                       {'node_name': 'OUT_material',
+    #                                           'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
+    #                                           'connected_node_name': 'standard_surface',
+    #                                           'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
+    #                                           'connected_input_index': 0
+    #                                       }
+    #                                   }
+    # DEBUG: target_context.path()='/mat'
+    # DEBUG: target_format='mtlx'
     print("NodeStandardizer() Finished----------------------\n\n\n")
+    return material_type, nodeinfo_list, output_connections
+
+
+def run(input_material_builder_node, target_context, target_format='mtlx'):
+    """
+    Run the material conversion process for the selected node.
+
+    Args:
+        input_material_builder_node (hou.Node): The selected Houdini shading network,
+                                                e.g. arnold materialbuilder or mtlx materialbuilder.
+        target_context (hou.Node): The target Houdini context node.
+        target_format (str, optional): The target renderer (default is 'mtlx').
+    """
+    material_type, nodeinfo_list, output_connections = ingest_material(input_material_builder_node)
 
 
     print("NodeRecreator() START----------------------")
     recreator = NodeRecreator(
-        nodeinfo_list=node_info_list,
+        nodeinfo_list=nodeinfo_list,
         output_connections=output_connections,
         target_context=target_context,
         target_renderer=target_format
