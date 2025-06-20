@@ -98,7 +98,7 @@ OUTPUT_NODE_MAP = {
 """
 standardization dict for parameters. {<orig_parm_name>: <generic_name>}. Any other node type will be filtered out.
 """
-STANDARDIZED_PARAM_NAMES = {
+REGULAR_PARAM_NAMES_TO_GENERIC = {
     # mtlx parms
     'mtlxstandard_surface': {
         'base': 'base',
@@ -719,7 +719,7 @@ class NodeStandardizer:
         Returns:
             List[NodeParameter]: A list of filtered and standardized node parameters.
         """
-        standardized_names = STANDARDIZED_PARAM_NAMES.get(node_type)
+        standardized_names = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type)
 
         if not standardized_names:
             print(f"WARNING: node_type: {node_type} not in STANDARDIZED_PARAM_NAMES dict")
@@ -729,7 +729,7 @@ class NodeStandardizer:
             NodeParameter(
                 name=param['name'],
                 value=param['value'],
-                standardized_name=standardized_names.get(param['name'])
+                generic_name=standardized_names.get(param['name'])
             )
             for param in parms if param['name'] in standardized_names
         ]
@@ -1086,13 +1086,13 @@ class NodeRecreator:
             return
 
         node_type = node.type().name()
-        node_specific_dict = STANDARDIZED_PARAM_NAMES.get(node_type, {})
+        node_specific_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {})
         if not node_specific_dict:
             print(f"WARNING: No parameter mappings found for node type: {node_type}")
             return
 
         for param in parameters:
-            standardized_name = param.standardized_name
+            standardized_name = param.generic_name
             if not standardized_name:
                 print(f"WARNING: Parameter '{param.name}' has no standardized name for node type '{node_type}'. Skipping.")
                 continue

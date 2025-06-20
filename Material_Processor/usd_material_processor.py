@@ -11,11 +11,11 @@ from typing import List, Optional
 from pxr import Usd, UsdGeom, UsdShade, Sdf, Gf
 
 from Material_Processor.material_classes import MaterialData
-from Material_Processor.material_processor import ingest_material
+from Material_Processor import material_processor
 
 
 
-GENERIC_USD_MAPPING = {
+GENERIC_NODE_TYPES_TO_REGULAR_USD = {
     'GENERIC::standard_surface': {
         'prim_type': 'Shader',
         'info_id': {
@@ -36,15 +36,14 @@ GENERIC_USD_MAPPING = {
         'prim_type': 'Shader',
         'info_id': {
             'arnold': 'arnold:range',
-            'mtlx_color3': 'ND_range_color3',
-            'mtlx_float':  'ND_range_float',
+            'mtlx': 'ND_range_color3',
         },
     },
     'GENERIC::color_correct': {
         'prim_type': 'Shader',
         'info_id': {
             'arnold': 'arnold:color_correct',
-            'mtlx_color3': 'ND_colorcorrect_color3',
+            'mtlx': 'ND_colorcorrect_color3',
         },
     },
     'GENERIC::curvature': {
@@ -103,7 +102,17 @@ GENERIC_USD_MAPPING = {
     },
 }
 
-
+# for connections frommaterial prim to stdsurface prim
+OUT_PRIM_DICT = {
+    'arnold': {
+        'src': 'arnold:surface',
+        'dest': 'surface'
+    },
+    'mtlx': {
+        'src': 'out',
+        'dest': 'mtlx:surface',
+    }
+}
 
 
 
@@ -394,19 +403,32 @@ class USDMaterialRecreator:
 
 
     def _create_shader_id(self, shader, generic_type):
-        mapping = GENERIC_USD_MAPPING.get(generic_type, {})
+        mapping = GENERIC_NODE_TYPES_TO_REGULAR_USD.get(generic_type, {})
+        # print(f"DEBUG: {shader=} {generic_type=}")
         shader_id = mapping['info_id'][self.target_renderer]
         if shader_id:
             shader.CreateIdAttr(shader_id)
             return True
         return False
 
-    def _set_shader_parameters(self, shader: UsdShade.Shader, parameters):
+    def _set_shader_parameters(self, shader: UsdShade.Shader, node_type: str, parameters):
         """
-        Apply standardized parameters to a USD shader prim.
+        Apply standardized parameters to a USD shader prim for the target renderer.
+        Uses REGULAR_PARAM_NAMES_TO_GENERIC to map original Hou/MTLX/Ai parm names to generic names,
+        then maps generic names to renderer-specific USD input names via GENERIC_NODE_TYPES_TO_REGULAR_USD.
         """
+        # look up standardized mapping for this node type
+        std_parm_map = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {})
+
         for param in parameters:
-            # determine USD type from Python value
+            parm_orig_name: str    = param.name
+            parm_generic_name: str = std_parm_map.get(parm_orig_name)
+            parm_new_name = [key for key, val in std_parm_map.items() if val == parm_generic_name][0]
+            print(f"DEBUG: {node_type=}, {parm_orig_name=}, {parm_generic_name=}, {parm_new_name=}")
+            if not parm_generic_name:
+                continue  # skip unsupported params
+
+            # determine the proper type
             val = param.value
             if isinstance(val, bool):
                 type_name = Sdf.ValueTypeNames.Bool
@@ -417,21 +439,14 @@ class USDMaterialRecreator:
             elif isinstance(val, tuple):
                 length = len(val)
                 if all(isinstance(x, float) for x in val):
-                    if length == 2:
-                        type_name = Sdf.ValueTypeNames.Float2
-                    elif length == 3:
-                        type_name = Sdf.ValueTypeNames.Float3
-                    elif length == 4:
-                        type_name = Sdf.ValueTypeNames.Float4
-                    else:
-                        type_name = Sdf.ValueTypeNames.Float
+                    type_name = getattr(Sdf.ValueTypeNames, f"Float{length}", Sdf.ValueTypeNames.Float)
                 else:
                     type_name = Sdf.ValueTypeNames.Token
             else:
                 type_name = Sdf.ValueTypeNames.Token
-
-            inp = shader.CreateInput(param.standardized_name, type_name)
+            inp = shader.CreateInput(parm_new_name, type_name)
             inp.Set(val)
+
 
 
     def create_child_shaders(self, nodeinfo_list):
@@ -439,24 +454,30 @@ class USDMaterialRecreator:
         Recursively define shader prims for each nodeinfo (excluding output nodes).
         """
         # DEBUG: self.created_out_primpaths=[Sdf.Path('/Materials/OUT_material')]
-        for node_info in nodeinfo_list:
-            if node_info.node_type == 'GENERIC::output_node':
+        for nodeinfo in nodeinfo_list:
+            if nodeinfo.node_type == 'GENERIC::output_node':
                 # still recurse into children of output nodes
-                if node_info.children_list:
-                    self.create_child_shaders(node_info.children_list)
+                if nodeinfo.children_list:
+                    self.create_child_shaders(nodeinfo.children_list)
+                continue
+            elif nodeinfo.node_type == None:
+                if nodeinfo.children_list:
+                    self.create_child_shaders(nodeinfo.children_list)
                 continue
 
-            new_prim_path = node_info.node_name.replace('/', '_')
+
+            new_prim_path = nodeinfo.node_name.replace('/', '_')
             # DEBUG: self.created_out_primpaths[0].pathString='/Materials/OUT_material'
             shader_primpath = f"{self.created_out_primpaths[0].pathString}/{new_prim_path}"
             shader = UsdShade.Shader.Define(self.stage, Sdf.Path(shader_primpath))
-            self._create_shader_id(shader, node_info.node_type)
+            self._create_shader_id(shader, nodeinfo.node_type)
 
 
             # set parameters
-            self._set_shader_parameters(shader, node_info.parameters)
+            regular_node_type: str = material_processor.GENERIC_NODE_TYPES_TO_REGULAR[self.target_renderer].get(nodeinfo.node_type, {})
+            self._set_shader_parameters(shader, regular_node_type, nodeinfo.parameters)
 
-            self.old_new_map[node_info.node_path] = shader.GetPath().pathString
+            self.old_new_map[nodeinfo.node_path] = shader.GetPath().pathString
 
             # collect connections for later wiring
             # for _ in node_info.connection_info.values():
@@ -464,7 +485,7 @@ class USDMaterialRecreator:
 
             # DEBUG: node_info.node_path = '/mat/arnold_materialbuilder_basic/standard_surface'
 
-            for conn in node_info.connection_info.values():
+            for conn in nodeinfo.connection_info.values():
                 # DEBUG: conn: {'input':
                 #                  {'node_name': 'standard_surface',
                 #                   'node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
@@ -476,10 +497,10 @@ class USDMaterialRecreator:
                 #                    'node_index': 0,
                 #                    'parm_name': 'surface'}
                 #              }
-                self.connection_tasks.append((conn, node_info.node_path))
+                self.connection_tasks.append((conn, nodeinfo.node_path))
 
-            if node_info.children_list:
-                self.create_child_shaders(node_info.children_list)
+            if nodeinfo.children_list:
+                self.create_child_shaders(nodeinfo.children_list)
 
             # print(f"DEBUG: self.connection_tasks: {pprint.pformat(self.connection_tasks, sort_dicts=False)}")
             # DEBUG: self.connection_tasks: [({'input': {'node_name': 'standard_surface',
@@ -522,7 +543,7 @@ class USDMaterialRecreator:
 
             src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
 
-            mat_usdshade.CreateOutput("arnold:surface", Sdf.ValueTypeNames.Token).ConnectToSource(src_api.ConnectableAPI(), "surface")
+            mat_usdshade.CreateOutput(OUT_PRIM_DICT[self.target_renderer]['dest'], Sdf.ValueTypeNames.Token).ConnectToSource(src_api.ConnectableAPI(), OUT_PRIM_DICT[self.target_renderer]['src'])
 
 
     def set_shader_connections(self):
@@ -1176,7 +1197,7 @@ def test(stage, mat_node):
     import hou
 
 
-    material_type, nodeinfo_list, output_connections = ingest_material(mat_node)
+    material_type, nodeinfo_list, output_connections = material_processor.ingest_material(mat_node)
     print("/////////////////////////////////////////////")
     print("/////////////////////////////////////////////")
     print("/////////////////////////////////////////////")
@@ -1191,6 +1212,6 @@ def test(stage, mat_node):
     """
 
 
-    USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections)
+    USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer="mtlx")
 
 

@@ -15,15 +15,15 @@ class NodeParameter:
     Attributes:
         name (str): The name of the parameter.
         value (any): The value of the parameter.
-        standardized_name (Optional[str]): A standardized name for the parameter, if applicable.
+        generic_name (Optional[str]): A standardized name for the parameter, if applicable.
     """
     name: str
     value: any
-    standardized_name: Optional[str] = None  # Add a standardized name attribute
+    generic_name: Optional[str] = None  # Add a standardized name attribute
 
     def __str__(self):
         return f""
-        # return f"NodeParameter(name={self.name}, value={self.value}, standardized_name={self.standardized_name})"
+        # return f"NodeParameter(name={self.name}, value={self.value}, generic_name={self.generic_name})"
 
 @dataclass
 class NodeInfo:
