@@ -1360,6 +1360,9 @@ def test(stage, mat_node, target_renderer="mtlx"):
 
 
     material_type, nodeinfo_list, output_connections = material_processor.ingest_material(mat_node)
+    if not (material_type and nodeinfo_list and output_connections):
+        return
+
     print("/////////////////////////////////////////////")
     print("/////////////////////////////////////////////")
     print("/////////////////////////////////////////////")
