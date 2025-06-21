@@ -1,3 +1,7 @@
+"""
+copyright Ahmed Hindy. Please mention the original author if you used any part of this code
+This module processes material nodes in Houdini, extracting and converting shader parameters and textures.
+"""
 import logging
 from importlib import reload
 from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
