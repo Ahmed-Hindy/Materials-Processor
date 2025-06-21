@@ -102,28 +102,39 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     # mtlx parms
     'mtlxstandard_surface': {
         'base': 'base',
+        'base_color': 'base_color',
         'base_colorr': 'base_colorr',
         'base_colorg': 'base_colorg',
         'base_colorb': 'base_colorb',
         'diffuse_roughness': 'diffuse_roughness',
         'metalness': 'metalness',
         'specular': 'specular',
+        'specular_color': 'specular_color',
         'specular_colorr': 'specular_colorr',
         'specular_colorg': 'specular_colorg',
         'specular_colorb': 'specular_colorb',
         'specular_roughness': 'specular_roughness',
         'specular_IOR': 'specular_IOR',
+        'coat': 'coat',
+        'coat_color':  'coat_color',
+        'coat_colorr': 'coat_colorr',
+        'coat_colorg': 'coat_colorg',
+        'coat_colorb': 'coat_colorb',
+        'coat_roughness': 'coat_roughness',
         'transmission': 'transmission',
+        'transmission_color': 'transmission_color',
         'transmission_colorr': 'transmission_colorr',
         'transmission_colorg': 'transmission_colorg',
         'transmission_colorb': 'transmission_colorb',
         'subsurface': 'subsurface',
         'subsurface_color': 'subsurface_color',
         'emission': 'emission',
+        'emission_color': 'emission_color',
         'emission_colorr': 'emission_colorr',
         'emission_colorg': 'emission_colorg',
         'emission_colorb': 'emission_colorb',
         'opacity': 'opacity',
+        'normal': 'normal',
         'normalx': 'normalx',
         'normaly': 'normaly',
         'normalz': 'normalz',
@@ -331,15 +342,15 @@ class NodeTraverser:
     @staticmethod
     def _convert_parms_to_dict(parms_list):
         """
-        Convert a list of hou.Parm objects to a list of dictionaries with name and value.
+        Convert a list of hou.ParmTemplate objects to a list of dictionaries with name and value.
 
         Args:
-            parms_list (List[hou.Parm]): The list of hou.Parm objects.
+            parms_list (List[hou.ParmTemplate]): The list of hou.ParmTemplate objects.
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries with parameter names and values.
         Examples:
-            >>> parms_dict = self._convert_parms_to_dict(parms_list=[node.parm('filename'), node.parm('reload')])
+            >>> parms_dict = self._convert_parms_to_dict(parms_list=node.parmTemplates())
             >>> print(parms_dict)
              [
              {'name': 'filename', value': 'F:/Assets 3D/Kitbash3D_old/Kitbash3D_Spaceship_battle_2/KB3DTextures/2k/KB3D_SBT_AtlasSpaceLCD_roughness.png'},
@@ -380,7 +391,7 @@ class NodeTraverser:
             'node_path': node.path(),
             'node_type': node.type().name(),
             'node_position': (node_pos[0], node_pos[1]),
-            'node_parms': self._convert_parms_to_dict(node.parms()),
+            'node_parms': self._convert_parms_to_dict(node.parmTuples()),
             'connections_dict': connections_dict,
             'children_list': []
         }
@@ -741,6 +752,8 @@ class NodeStandardizer:
         if not standardized_names:
             print(f"WARNING: node_type: {node_type} not in STANDARDIZED_PARAM_NAMES dict")
             return []
+
+        # if a parameter isn't created successfully, check that it exists correctly in STANDARDIZED_PARAM_NAMES dict!
 
         node_parameters = [
             NodeParameter(
@@ -1550,8 +1563,8 @@ def ingest_material(input_material_builder_node):
     )
     output_connections, nodeinfo_list = standardizer.run()
 
-    for nodeinfo in nodeinfo_list:
-        print(f"DEBUG: nodeinfo: {nodeinfo=}\n")
+    # for nodeinfo in nodeinfo_list:
+    #     print(f"DEBUG: nodeinfo: {nodeinfo=}\n")
 
     # DEBUG: standardized_output_nodes: {'GENERIC::output_surface':
     #                                       {'node_name': 'OUT_material',

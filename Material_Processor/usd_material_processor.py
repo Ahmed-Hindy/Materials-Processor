@@ -406,6 +406,9 @@ class USDMaterialRecreator:
         Uses REGULAR_PARAM_NAMES_TO_GENERIC to map original Hou/MTLX/Ai parm names to generic names,
         then maps generic names to renderer-specific USD input names via GENERIC_NODE_TYPES_TO_REGULAR_USD.
         """
+        # if not parameters:
+        #     return
+
         # look up standardized mapping for this node type
         std_parm_map = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {})
 
@@ -419,22 +422,38 @@ class USDMaterialRecreator:
 
             # determine the proper type
             val = param.value
-            if isinstance(val, bool):
+
+            if isinstance(val, tuple) and len(val) == 1:
+                val = val[0]
+
+            if isinstance(val, tuple):
+                length = len(val)
+                if all(isinstance(x, float) for x in val):
+                    type_name = getattr(Sdf.ValueTypeNames, f"Float{length}", Sdf.ValueTypeNames.Float)
+                elif all(isinstance(x, int) for x in val):
+                    type_name = getattr(Sdf.ValueTypeNames, f"Int{length}", Sdf.ValueTypeNames.Int)
+                else:
+                    print(f"///WARNING: {parm_new_name}.{val=} is not a tuple of all floats or ints, but {type(val)=}")
+                    type_name = Sdf.ValueTypeNames.Token
+            elif isinstance(val, bool):
                 type_name = Sdf.ValueTypeNames.Bool
             elif isinstance(val, int):
                 type_name = Sdf.ValueTypeNames.Int
             elif isinstance(val, float):
                 type_name = Sdf.ValueTypeNames.Float
-            elif isinstance(val, tuple):
-                length = len(val)
-                if all(isinstance(x, float) for x in val):
-                    type_name = getattr(Sdf.ValueTypeNames, f"Float{length}", Sdf.ValueTypeNames.Float)
-                else:
-                    type_name = Sdf.ValueTypeNames.Token
+            elif isinstance(val, str):
+                type_name = Sdf.ValueTypeNames.String
             else:
+                print(f"///WARNING: {parm_new_name}.{val=} is unknown, {type(val)=}")
                 type_name = Sdf.ValueTypeNames.Token
+
             inp = shader.CreateInput(parm_new_name, type_name)
-            inp.Set(val)
+            # print(f"DEBUG: {parm_new_name=}, {val=}")
+
+            try:
+                inp.Set(val)
+            except Exception as e:
+                print(f"ERROR: failed to set input '{parm_new_name}' to '{val}', {e=}")
 
 
     def create_material_prim(self):
@@ -490,10 +509,6 @@ class USDMaterialRecreator:
             self._set_shader_parameters(shader, regular_node_type, nodeinfo.parameters)
 
             self.old_new_map[nodeinfo.node_path] = shader.GetPath().pathString
-
-            # collect connections for later wiring
-            # for _ in node_info.connection_info.values():
-            #     print(f"DEBUG: node_info.connection_info.values(): {pprint.pformat(_, sort_dicts=False)}")
 
             # DEBUG: node_info.node_path = '/mat/arnold_materialbuilder_basic/standard_surface'
 
@@ -562,8 +577,8 @@ class USDMaterialRecreator:
             if dst_path not in [x.pathString for x in self.created_out_primpaths]:
                 continue
 
-            print(f"INFO:  Output detected: '{dst_path}' ")
-            print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
+            # print(f"INFO:  Output detected: '{dst_path}' ")
+            # print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
 
             src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
 
@@ -584,7 +599,7 @@ class USDMaterialRecreator:
             src_parm = conn['input']['parm_name']
             dst_parm = conn['output']['parm_name']
             if dst_path in [x.pathString for x in self.created_out_primpaths]:
-                print(f"WARNING:  Output detected: '{dst_path}' ")
+                # print(f"WARNING:  Output detected: '{dst_path}' ")
                 continue
 
             # print(f"DEBUG: self.old_new_map: {pprint.pformat(self.old_new_map, sort_dicts=False)}")
@@ -592,12 +607,10 @@ class USDMaterialRecreator:
             # print(f"DEBUG: {parent_path=}")
             # print(f"DEBUG: {src_path=}")
             # print(f"DEBUG: {dst_path=}///\n")
-            print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
+            # print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
 
             src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
             dst_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(dst_path)))
-            # src_api.CreateOutput("arnold:surface", Sdf.ValueTypeNames.Token).ConnectToSource(
-            #     dst_api.ConnectableAPI(), "surface")
             dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
             dst_api.GetInput(dst_parm).ConnectToSource(src_api.ConnectableAPI(), conn['input']['parm_name'])
 
