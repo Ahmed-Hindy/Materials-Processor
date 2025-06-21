@@ -3,6 +3,7 @@ Copyright Ahmed Hindy. Please mention the author if you found any part of this c
 
 """
 import os
+import traceback
 import json
 from importlib import reload
 import pprint
@@ -406,19 +407,23 @@ class USDMaterialRecreator:
         Uses REGULAR_PARAM_NAMES_TO_GENERIC to map original Hou/MTLX/Ai parm names to generic names,
         then maps generic names to renderer-specific USD input names via GENERIC_NODE_TYPES_TO_REGULAR_USD.
         """
-        # if not parameters:
-        #     return
+        if not parameters:
+            print(f"WARNING: No parameters found for shader: {shader.GetPath().pathString}")
+            return
 
         # look up standardized mapping for this node type
-        std_parm_map = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {})
+        std_parm_map: dict = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC[node_type]
 
         for param in parameters:
-            parm_orig_name: str    = param.name
-            parm_generic_name: str = std_parm_map.get(parm_orig_name)
-            parm_new_name = [key for key, val in std_parm_map.items() if val == parm_generic_name][0]
-            # print(f"DEBUG: {node_type=}, {parm_orig_name=}, {parm_generic_name=}, {parm_new_name=}")
-            if not parm_generic_name:
+            # we have the generic parm name stored in: 'param.generic_name',
+            # now let's find the new parm name suitable for the shader prim.
+            parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
+
+            if not parm_new_name:
+                print(f"WARNING: Skipping parm: '{node_type=}'.'{param.generic_name=}'")
                 continue  # skip unsupported params
+
+            parm_new_name = parm_new_name[0]
 
             # determine the proper type
             val = param.value
@@ -433,7 +438,7 @@ class USDMaterialRecreator:
                 elif all(isinstance(x, int) for x in val):
                     type_name = getattr(Sdf.ValueTypeNames, f"Int{length}", Sdf.ValueTypeNames.Int)
                 else:
-                    print(f"///WARNING: {parm_new_name}.{val=} is not a tuple of all floats or ints, but {type(val)=}")
+                    print(f"WARNING: {parm_new_name}.{val=} is not a tuple of all floats or ints, but {type(val)=}")
                     type_name = Sdf.ValueTypeNames.Token
             elif isinstance(val, bool):
                 type_name = Sdf.ValueTypeNames.Bool
@@ -444,7 +449,7 @@ class USDMaterialRecreator:
             elif isinstance(val, str):
                 type_name = Sdf.ValueTypeNames.String
             else:
-                print(f"///WARNING: {parm_new_name}.{val=} is unknown, {type(val)=}")
+                print(f"WARNING: {parm_new_name}.{val=} is unknown, {type(val)=}")
                 type_name = Sdf.ValueTypeNames.Token
 
             inp = shader.CreateInput(parm_new_name, type_name)
@@ -590,8 +595,8 @@ class USDMaterialRecreator:
         """
         Connect child shader prims based on stored connection_tasks.
         """
-        print(f"DEBUG: {self.orig_output_connections=}")
-        print(f"DEBUG: {self.created_out_primpaths=}")
+        # print(f"DEBUG: {self.orig_output_connections=}")
+        # print(f"DEBUG: {self.created_out_primpaths=}")
         for conn, parent_path in self.connection_tasks:
             # conn has input and output entries
             src_path = self.old_new_map[conn['input']['node_path']]
@@ -1249,7 +1254,8 @@ def test(stage, mat_node, target_renderer="mtlx"):
     DEBUG: orig_output_connections={'GENERIC::output_surface': {'node_name': 'OUT_material', 'node_path': '/mat/arnold_materialbuilder_basic/OUT_material', 'connected_node_name': 'standard_surface', 'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface', 'connected_input_index': 0}}
     """
 
-
-    USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer=material_type)
-
+    try:
+        USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer=target_renderer)
+    except:
+        traceback.print_exc()
 

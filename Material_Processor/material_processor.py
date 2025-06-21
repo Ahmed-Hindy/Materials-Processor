@@ -693,19 +693,6 @@ class NodeStandardizer:
 
 
     @staticmethod
-    def convert_parms_to_dict(parms_list):
-        """
-        Convert a list of hou.Parm objects to a list of dictionaries with name and value.
-
-        Args:
-            parms_list (List[hou.Parm]): The list of hou.Parm objects.
-
-        Returns:
-            List[Dict[str, Any]]: A list of dictionaries with parameter names and values.
-        """
-        return [{'name': p.name(), 'value': p.eval()} for p in parms_list]
-
-    @staticmethod
     def standardize_output_dict(output_nodes_dict):
         """
         Standardize a dictionary of output node connection metadata.
