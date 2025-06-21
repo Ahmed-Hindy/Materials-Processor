@@ -132,10 +132,28 @@ OUT_PRIM_DICT = {
 
 class USDShadersIngest:
     """
-    [WIP] this will ingest usd stage, traverse it for all usdPreview materials.
+    Ingest USD materials from a stage and extract texture data.
+
+    This will traverse all UsdShade.Material prims in a LOP stage, find
+    any UsdPreviewSurface networks, collect file‐texture paths, and
+    record which scene prims each material is bound to.
+
+    Attributes:
+        stage (Usd.Stage): The USD stage to ingest.
+        mat_context (hou.Node): Houdini /mat context for any downstream use.
+        found_usdpreview_mats (List[UsdShade.Material]): Materials found.
+        materialdata_list (List[MaterialData]): Collected MaterialData objects.
     """
     import hou
+
     def __init__(self, stage=None, mat_context=None):
+        """Initialize the ingester and immediately run the ingest pass.
+
+        Args:
+            stage (Usd.Stage, optional): The USD stage. If None, grabs the
+                LOP stage from the first selected LOP node.
+            mat_context (hou.Node, optional): The Houdini /mat context.
+        """
         self.stage = stage or (hou.selectedNodes()[0].stage() if hou.selectedNodes() else None)
         if not self.stage:
             raise ValueError("Please select a LOP node.")
@@ -150,8 +168,13 @@ class USDShadersIngest:
 
     def _get_connected_file_path(self, shader_input):
         """
-        Recursively follow shader input connections to find the actual file path.
-        :param shader_input: <pxr.UsdShade.Input object>. which we get from <UsdShade.Shader object>.GetInput('file')
+        Walk upstream on a shader input until you hit an asset path.
+
+        Args:
+            shader_input (UsdShade.Input): A file‐type input to trace.
+
+        Returns:
+            Sdf.AssetPath or None: The resolved FilePath attribute.
         """
         connection = shader_input.GetConnectedSource()
         while connection:
@@ -166,11 +189,16 @@ class USDShadersIngest:
 
     def _collect_texture_data(self, shader, material_data: MaterialData, path: List[str], connected_param: str):
         """
-        Collects texture data from a given shader.
-        :param shader: <UsdShade.Shader object> e.g. Usd.Prim(</scene/material/_03_Base/UsdPreviewSurface/ShaderUsdPreviewSurface>)
-        :param material_data: MaterialData object containing material name and textures
-        :param path: list representing the traversal path.
-        :param connected_param: connected parameter name.
+        Collect one texture sample and store it in MaterialData.
+
+        Recursively called only when encountering a UsdUVTexture prim.
+        Populates `material_data.textures[connected_param]`.
+
+        Args:
+            shader (UsdShade.Shader): The texture shader prim.
+            material_data (MaterialData): Where to record the result.
+            path (List[str]): Traversal history of shader IDs.
+            connected_param (str): The parent USDPreviewSurface param name.
         """
         shader_prim = shader.GetPrim()
         shader_info_id = shader_prim.GetAttribute('info:id').Get()
@@ -208,12 +236,18 @@ class USDShadersIngest:
 
     def _traverse_shader_network(self, shader, material_data: MaterialData, path=None, connected_param="") -> None:
         """
-        Main traversal function. Will modify passed 'material'.
-        :param shader: <UsdShade.Shader object> e.g. Usd.Prim(</root/material/_03_Base/UsdPreviewSurface/ShaderUsdPreviewSurface>)
-        :param material_data: MaterialData object containing material name and textures
-        :param path: left empty when run from outside.
-        :param connected_param: left empty when run from outside.
+        Recursively traverse a UsdPreviewSurface network.
+
+        Walks upstream from each input of UsdPreviewSurface, calls
+        `_collect_texture_data` when hitting UVTextures.
+
+        Args:
+            shader (UsdShade.Shader): Current shader prim in network.
+            material_data (MaterialData): Data accumulator.
+            path (List[str], optional): History of shader IDs.
+            connected_param (str, optional): The texture slot on the preview shader.
         """
+        ...
         if path is None:
             path = []
         if shader is None:
@@ -240,9 +274,15 @@ class USDShadersIngest:
 
     def _find_usd_preview_surface_shader(self, usdshade_material: UsdShade.Material) -> Optional[UsdShade.Shader]:
         """
-        :param usdshade_material: UsdShade.Material prim
-        :return: UsdShade.Shader prim of type 'UsdPreviewSurface' inside the material if found.
-        """
+        Locate the UsdPreviewSurface shader inside a UsdShade.Material.
+
+         Args:
+             usdshade_material (UsdShade.Material): A material prim.
+
+         Returns:
+             Optional[UsdShade.Shader]: The first UsdPreviewSurface shader found,
+             or None if none exists.
+         """
         for shader_output in usdshade_material.GetOutputs():
             connection = shader_output.GetConnectedSource()
             if not connection:
@@ -256,8 +296,13 @@ class USDShadersIngest:
 
     def _get_all_materials_from_stage(self, stage) -> List[UsdShade.Material]:
         """
-        :param stage: Usd.Stage object
-        :return: list of UsdShade.Material of all found material prims in stage.
+        Gather all UsdShade.Material prims in the stage.
+
+        Args:
+            stage (Usd.Stage): The stage to scan.
+
+        Returns:
+            List[UsdShade.Material]: All found Material prims.
         """
         for prim in stage.Traverse():
             if not prim.IsA(UsdShade.Material):
@@ -269,11 +314,14 @@ class USDShadersIngest:
     @staticmethod
     def _get_primitives_assigned_to_material(stage, usdshade_material:  UsdShade.Material, material_data: MaterialData) -> None:
         """
-        Adds all primitives that have the given material assigned to them into the nodeinfo_list.
+        Compute which scene prims are bound to a given material.
 
-        :param stage: Usd.Stage object
-        :param usdshade_material: UsdShade.Material type primitive on stage
-        :param material_data: MaterialData instance containing the material name and textures
+        Populates `material_data.prims_assigned_to_material`.
+
+        Args:
+            stage (Usd.Stage): The stage to search.
+            usdshade_material (UsdShade.Material): The material to query.
+            material_data (MaterialData): Object to fill.
         """
         if not isinstance(material_data, MaterialData):
             raise ValueError(f"nodeinfo_list is not a <MaterialData> object, instead it's a {type(material_data)}.")
@@ -296,8 +344,13 @@ class USDShadersIngest:
 
     def create_materialdata_object(self, usdshade_material: UsdShade.Material) -> MaterialData:
         """
-        Find the UsdPreviewSurface shader and start traversal from its inputs
-        :return: MaterialData object with collected texture data
+        Instantiate a MaterialData for a given UsdShade.Material.
+
+        Args:
+            usdshade_material (UsdShade.Material): The USD material prim.
+
+        Returns:
+            MaterialData: A fresh data container.
         """
         material_name = usdshade_material.GetPath().name
         material_path = usdshade_material.GetPrim().GetPath().pathString
@@ -308,8 +361,11 @@ class USDShadersIngest:
 
     def _standardize_textures_format(self, material_data: MaterialData) -> None:
         """
-        Standardizes nodeinfo_list.textures dictionary variable.
-        :param material_data: MaterialData object.
+        Normalize texture keys to a standard set (albedo, roughness, etc.).
+
+        Args:
+            material_data (MaterialData): The data object whose `textures`
+                dict will be rewritten.
         """
         standardized_textures = {}
         for texture_type, texture_info in material_data.textures.items():
@@ -331,14 +387,20 @@ class USDShadersIngest:
         material_data.textures = standardized_textures
 
     def _save_textures_to_file(self, materials: List[MaterialData], file_path: str):
-        """Pretty print the texture data list to a text file."""
+        """
+        Write out collected MaterialData to a JSON file.
+
+        Args:
+            materials (List[MaterialData]): The list to serialize.
+            file_path (str): Destination path on disk.
+        """
         with open(file_path, 'w') as file:
             json.dump([material.__dict__ for material in materials], file, indent=4, default=lambda o: o.__dict__)
             print(f"Texture data successfully written to {file_path}")
 
     def run(self):
         """
-        ingests usd stage finding all usdPreview materials.
+        Entry point: ingest all materials & extract their textures.
         """
         ## INGESTING:
         self.found_usdpreview_mats = self._get_all_materials_from_stage(self.stage)
@@ -363,18 +425,39 @@ class USDShadersIngest:
 
 class USDMaterialRecreator:
     """
-       Recreate material networks as USD ShadeMaterial primitives on a USD stage.
+    Recreate Houdini-style material networks as UsdShade primitives.
 
-       Mimics Houdini NodeRecreator.run():
-         - initialize a builder (UsdShade.Material)
-         - create output shaders
-         - create child shader prims
-         - wire up output connections
-         - wire up inter-shader connections
-       """
+    This mimics Houdini’s node-builder flow:
+      1. Create a UsdShade.Material prim for each output node.
+      2. Create all intermediate UsdShade.Shader prims.
+      3. Wire up their parameters.
+      4. Connect outputs into the collect-material prim.
+      5. Connect inter-shader links.
+
+    Attributes:
+        stage (Usd.Stage): The USD stage to write into.
+        material_name (str): Name of the collect-material prim.
+        nodeinfo_list (List[NodeInfo]): Generic network description.
+        orig_output_connections (Dict): Mapping of GENERIC outputs to upstream info.
+        parent_scope_path (str): Root scope for new materials.
+        target_renderer (str): One of ['arnold', 'mtlx', 'usdpreview'].
+        old_new_map (Dict[str,str]): Map old Houdini node paths to new Usd prim paths.
+        connection_tasks (List): Pending inter-shader connection tuples.
+    """
 
     def __init__(self, stage: Usd.Stage, material_name, nodeinfo_list, output_connections,
                  parent_scope_path: str = "/materials", target_renderer: str = "arnold"):
+        """
+        Initialize and immediately run the network rebuild.
+
+        Args:
+            stage (Usd.Stage): The USD stage to populate.
+            material_name (str): The Houdini builder’s name.
+            nodeinfo_list (List[NodeInfo]): Flattened generic node descriptions.
+            output_connections (Dict): Output-to-upstream mapping from ingest.
+            parent_scope_path (str): Root scope path for new materials.
+            target_renderer (str): 'arnold', 'mtlx', or 'usdpreview'.
+        """
         self.stage = stage
         self.material_name = material_name
         self.nodeinfo_list = nodeinfo_list
@@ -393,6 +476,16 @@ class USDMaterialRecreator:
 
 
     def _create_shader_id(self, shader, generic_type):
+        """
+        Assign the correct USD info:id on a shader prim.
+
+        Args:
+            shader (UsdShade.Shader): The shader prim to tag.
+            generic_type (str): A GENERIC:: type key.
+
+        Returns:
+            bool: True if an ID was found and set, False otherwise.
+        """
         mapping = GENERIC_NODE_TYPES_TO_REGULAR_USD.get(generic_type, {})
         # print(f"DEBUG: {shader=} {generic_type=}")
         shader_id = mapping['info_id'][self.target_renderer]
@@ -403,9 +496,20 @@ class USDMaterialRecreator:
 
     def _set_shader_parameters(self, shader: UsdShade.Shader, node_type: str, parameters):
         """
-        Apply standardized parameters to a USD shader prim for the target renderer.
-        Uses REGULAR_PARAM_NAMES_TO_GENERIC to map original Hou/MTLX/Ai parm names to generic names,
-        then maps generic names to renderer-specific USD input names via GENERIC_NODE_TYPES_TO_REGULAR_USD.
+        Map generic parameters over to renderer-specific USD inputs.
+
+        This:
+          1) Uses REGULAR_PARAM_NAMES_TO_GENERIC to canonicalize incoming names.
+          2) Finds the USD input names in GENERIC_NODE_TYPES_TO_REGULAR_USD[node_type]['info_id'].
+          3) Creates and sets each UsdShade.Input with the proper Sdf.ValueTypeNames.
+
+        Args:
+            shader (UsdShade.Shader): The USD shader prim.
+            node_type (str): The renderer node type key (e.g. 'arnold::image').
+            parameters (List[Parameter]): List of standardized Parameter objects.
+
+        Raises:
+            KeyError: If node_type is not found in the parameter-name mapping.
         """
         if not parameters:
             print(f"WARNING: No parameters found for shader: {shader.GetPath().pathString}")
@@ -463,7 +567,9 @@ class USDMaterialRecreator:
 
     def create_material_prim(self):
         """
-        Define a UsdShade.Material for each generic output.
+        Define the collect-Material prim(s) at `<parent_scope>/<material_name>`.
+
+        Populates self.old_new_map for each Houdini output node.
         """
         self.created_out_primpaths = []
         for generic_output, out_dict in self.orig_output_connections.items():
@@ -487,7 +593,10 @@ class USDMaterialRecreator:
 
     def create_child_shaders(self, nodeinfo_list):
         """
-        Recursively define shader prims for each nodeinfo (excluding output nodes).
+        Recursively define all intermediate UsdShade.Shader prims.
+
+        Args:
+            nodeinfo_list (List[NodeInfo]): Generic node info hierarchy.
         """
         # DEBUG: self.created_out_primpaths=[Sdf.Path('/Materials/OUT_material')]
         for nodeinfo in nodeinfo_list:
@@ -622,9 +731,13 @@ class USDMaterialRecreator:
 
     def detect_if_transmissive(self, material_name):
         """
-        detects if a material should have transmission or not based on material name,
-        if a material has "glass" in its name, then transmission should be on!
-        :rtype: bool
+        Heuristically detect if a material should enable transmission.
+
+        Args:
+            material_name (str): The name of the material (e.g. contains 'glass').
+
+        Returns:
+            bool: True if transmissive keywords are present.
         """
         transmissive_matnames_list = ['glass', 'glas']
         is_transmissive = any(substring in material_name.lower() for substring in transmissive_matnames_list)
@@ -1211,7 +1324,13 @@ class USDMaterialRecreator:
 
     def run(self):
         """
-        Main entry: replicate NodeRecreator.run() flow
+        Main entry: replicate Houdini NodeRecreator.run() flow:
+
+          1. Ensure parent scope exists.
+          2. Create collect-Material prim(s).
+          3. Create all child shader prims.
+          4. Wire outputs into the collect-Material.
+          5. Wire inter-shader connections.
         """
         # 1. create parent scope exists
         UsdGeom.Scope.Define(self.stage, Sdf.Path(self.parent_scope_path))

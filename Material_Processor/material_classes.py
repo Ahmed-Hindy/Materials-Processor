@@ -33,9 +33,9 @@ class NodeInfo:
     Attributes:
         node_type (str): The type of the node.
         node_name (str): The name of the node.
+        node_path (str): The path for the node.
         parameters (List[NodeParameter]): A list of parameters associated with the node.
-        node_path (str): The path to the node within the network.
-        # connected_input_index (Optional[int]): The index of the input this node is connected to, if any.
+        connection_info: (dict[str, dict[str, Any]]): a dictionary for node connection information.
         children_list (List['NodeInfo']): A list of child nodes connected to this node.
         is_output_node (bool): Whether this node is an output node.
         output_type (Optional[str]): The type of output, e.g., 'surface', 'displacement', etc.
@@ -51,16 +51,6 @@ class NodeInfo:
     output_type: Optional[str] = None
     position: Optional[list[float, float]] = None
 
-
-
-    # def __str__(self):
-    #     output_print = "Not Output"
-    #     if self.is_output_node:
-    #         output_print = f"IS_OUTPUT_NODE = {self.is_output_node}, output_type = {self.output_type})"
-    #
-    #     return(f"NodeInfo(node_type={self.node_type}, node_name={self.node_name}, "
-    #            f"node_path={self.node_path}, connected_input_index={self.connected_input_index}, "
-    #            f"{output_print}, children_list=\n        {self.children_list} -->\n")
 
     def __repr__(self):
         output_print = ""
@@ -87,7 +77,6 @@ class MaterialData:
     Attributes:
         material_name (str): The name of the material.
         material_path (Optional[str]): The path to the material within the network.
-        textures (Dict[str, TextureInfo]): A dictionary of texture information associated with the material.
         nodeinfo_list (List[NodeInfo]): A list of nodes that make up the material network.
         output_connections (Dict[str, Optional[NodeInfo]]): A dictionary of output connections for the material.
     """
