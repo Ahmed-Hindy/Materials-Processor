@@ -35,15 +35,25 @@ except:
 REGULAR_NODE_TYPES_TO_GENERIC = {
     # arnold nodes:
     'arnold::standard_surface': 'GENERIC::standard_surface',
+    'arnold:standard_surface': 'GENERIC::standard_surface',
     'arnold::image': 'GENERIC::image',
+    'arnold:image': 'GENERIC::image',
     'arnold::range': 'GENERIC::range',
+    'arnold:range': 'GENERIC::range',
     'arnold::color_correct': 'GENERIC::color_correct',
+    'arnold:color_correct': 'GENERIC::color_correct',
     'arnold::curvature': 'GENERIC::curvature',
+    'arnold:curvature': 'GENERIC::curvature',
     'arnold::mix_rgba': 'GENERIC::mix_rgba',
+    'arnold:mix_rgba': 'GENERIC::mix_rgba',
     'arnold::mix_layer': 'GENERIC::mix_layer',
+    'arnold:mix_layer': 'GENERIC::mix_layer',
     'arnold::layer_rgba': 'GENERIC::layer_rgba',
+    'arnold:layer_rgba': 'GENERIC::layer_rgba',
     'arnold::ramp_rgb::2': 'GENERIC::ramp_rgb',
+    'arnold:ramp_rgb::2': 'GENERIC::ramp_rgb',
     'arnold::ramp_float::2': 'GENERIC::ramp_float',
+    'arnold:ramp_float::2': 'GENERIC::ramp_float',
     'arnold_material': 'GENERIC::output_node',
 
     # mtlx nodes:
@@ -176,7 +186,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     },
 
     # arnold parms:
-    'arnold::standard_surface': {
+    'arnold:standard_surface': {
         'base': 'base',
         'base_color': 'base_color',
         'base_colorr': 'base_colorr',
@@ -205,24 +215,24 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'emission_colorb': 'emission_colorb',
         'opacity': 'opacity'
     },
-    'arnold::image': {
+    'arnold:image': {
         'filename': 'filename'
     },
-    'arnold::color_correct': {
+    'arnold:color_correct': {
         'gamma': 'gamma',
         'hue_shift': 'hue',
         'saturation': 'saturation',
         'contrast': 'contrast',
         'exposure': 'exposure',
     },
-    'arnold::range': {
+    'arnold:range': {
         'input_min': 'inlow',
         'input_max': 'inhigh',
         'gamma': 'gamma',
         'output_min': 'outlow',
         'output_max': 'outhigh',
     },
-    'arnold::mix_rgba': {
+    'arnold:mix_rgba': {
         # 'signature': 'signature',
         'input1r': 'fg_color3r',
         'input1g': 'fg_color3g',
@@ -234,7 +244,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     },
 
     # principled shader 2.0:
-    'principledshader::2.0': {
+    'principledshader:2.0': {
         'basecolor': 'base_color',
         'metallic': 'metalness',
         'rough': 'specular_roughness',
@@ -280,17 +290,169 @@ class NodeTraverser:
     Class for traversing Houdini nodes to extract their connections and output nodes.
     """
 
-    def __init__(self, material_type: str) -> None:
+    def __init__(self, material_node, material_type):
         """
         Initialize the NodeTraverser with the specified material type.
 
         Args:
             material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
         """
+        self.material_node = material_node
         self.material_type = material_type
         self.output_nodes = {}
 
-    def _detect_node_connections(self, node, parent_node):
+
+    @staticmethod
+    def _detect_arnold_output_nodes(material_node):
+        """
+        Detect Arnold output nodes in the node tree.
+
+        Args:
+            material_node (hou.Node): The parent Houdini node.
+
+        Returns:
+            Dict: A dictionary of detected Arnold output nodes.
+        """
+        arnold_output = None
+        for child in material_node.children():
+            if child.type().name() == 'arnold_material':
+                arnold_output = child
+                break
+        if not arnold_output:
+            raise Exception(f"No Output Node detected for Arnold Material")
+
+        output_nodes = {}
+        connections = arnold_output.inputConnections()
+        for connection in connections:
+            connected_input = connection.inputNode()
+            connected_input_index = connection.outputIndex()
+            connected_input_name = connection.outputName()
+            connected_output_index = connection.inputIndex()
+            connected_output_name = connection.inputName()
+            if connected_output_index == 0:
+                output_nodes['surface'] = {
+                    # 'node': arnold_output,
+                    'node_name': arnold_output.name(),
+                    'node_path': arnold_output.path(),
+                    'connected_node_name': connected_input.name(),
+                    'connected_node_path': connected_input.path(),
+                    'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
+                    'generic_type': 'GENERIC::output_surface'
+                }
+            elif connected_output_index == 1:
+                output_nodes['displacement'] = {
+                    'node_name': arnold_output.name(),
+                    'node_path': arnold_output.path(),
+                    'connected_node_name': connected_input.name(),
+                    'connected_node_path': connected_input.path(),
+                    'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
+                    'generic_type': 'GENERIC::output_displacement'
+                }
+        return output_nodes
+
+    @staticmethod
+    def _detect_mtlx_output_nodes(material_node):
+        """
+        Detect MaterialX output nodes in the node tree.
+
+        Args:
+            material_node (hou.Node): The parent Houdini node.
+
+        Returns:
+            Dict: A dictionary of detected MaterialX output nodes.
+        """
+        output_nodes = {}
+        output_nodes_list = [child for child in material_node.children() if child.type().name() == 'subnetconnector']
+
+        for output_node in output_nodes_list:
+            connections = output_node.inputConnections()
+            for connection in connections:
+                connected_input = connection.inputNode()
+                connected_input_index = connection.outputIndex()
+                connected_input_name = connection.outputName()
+                connected_output_name = connection.inputName()
+                connected_output_index = connection.inputIndex()
+                output_type = output_node.parm('parmname').eval()
+                if output_type not in ['surface', 'displacement']:
+                    print(f"WARNING: Unknown MaterialX output type '{output_node.name()}/{output_type}' detected, skipping.")
+                    continue
+
+                output_nodes[output_type] = {
+                    'node_name': output_node.name(),
+                    'node_path': output_node.path(),
+                    'connected_node_name': connected_input.name(),
+                    'connected_node_path': connected_input.path(),
+                    'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
+                }
+        return output_nodes
+
+    @staticmethod
+    def _detect_principled_output_nodes(material_node):
+        """
+        Detect Principled Shader output nodes in the node tree.
+
+        Returns:
+            Dict: A dictionary with the single 'surface' output connection,
+                  mirroring Arnold's structure so downstream code works unchanged.
+
+        """
+        return {
+            "surface": {
+                "node_name": "OUT_material",
+                "node_path": f"{material_node.path()}/OUT_material",
+                "connected_node_name": "standard_surface",
+                "connected_node_path": f"{material_node.path()}/standard_surface",
+                "connected_input_index": 0,
+                "generic_type": "GENERIC::output_surface"
+            }
+        }
+
+    def create_output_dict(self, material_node, material_type: str):
+        """
+        Detect output nodes in the node tree based on the material type.
+
+        Args:
+            material_node (hou.VopNode): The Houdini material node.
+            material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
+
+        Returns:
+            Dict: A dictionary of detected output nodes.
+
+        Examples:
+            >>> output_dict = self.create_output_dict(material_node=hou.node('/mat/arnold_materialbuilder_basic'), material_type='arnold')
+            >>> print(output_dict)
+            {'surface':
+                {'node_name': 'OUT_material',
+                 'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
+                 'connected_node_name': 'standard_surface',
+                 'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
+                 'connected_input_index': 0,
+                 'connected_input_name': 'surface',
+                 'connected_output_name': 'shader',
+                 'generic_type': 'GENERIC::output_surface'
+                 }
+             }
+        """
+        print(f"detect_output_nodes START for {material_node.path()}")
+        if material_type == 'arnold':
+            output_nodes = self._detect_arnold_output_nodes(material_node)
+        elif material_type == 'mtlx':
+            output_nodes = self._detect_mtlx_output_nodes(material_node)
+        elif material_type == 'principledshader':
+            output_nodes = self._detect_principled_output_nodes(material_node)
+        else:
+            raise KeyError(f"Unsupported renderer: {material_type=}")
+        return output_nodes
+
+
+    @staticmethod
+    def _detect_node_connections(node, parent_node):
         """
         Detect and extract the output connections of a given node, including input and output connections.
 
@@ -316,10 +478,20 @@ class NodeTraverser:
                     }
                 }
         """
+        print(f"DEBUG: parent_node.name(): {parent_node.name() if parent_node else 'None'},   node.name(): {node.name()}")
+        # e.g. prints:
+        # DEBUG: parent_node.name(): None,                  node.name(): 'surface_output'
+        # DEBUG: parent_node.name(): surface_output,        node.name(): 'mtlxstandard_surface'
+        # DEBUG: parent_node.name(): mtlxstandard_surface,  node.name(): 'image_diffuse'
+        # DEBUG: parent_node.name(): mtlxstandard_surface,  node.name(): 'image_roughness'
+        # DEBUG: parent_node.name(): None,                  node.name(): 'displacement_output'
+        # DEBUG: parent_node.name(): displacement_output,   node.name(): 'mtlxdisplacement1'
+        # DEBUG: parent_node.name(): mtlxdisplacement1,     node.name(): 'image_disp'
+
 
         connections_dict = {}
         for i, connection in enumerate(node.outputConnections()):
-            # we only want to get the output connections of the parent node. We don't want all connections to all nodes
+            # We only want to get the output connections of the parent node. We don't want all connections to all nodes
             if connection.outputNode().name() != parent_node.name():
                 continue
 
@@ -376,17 +548,6 @@ class NodeTraverser:
         Returns:
             Dict[str, Dict]: A dictionary representing the node tree with additional metadata.
         """
-        node_pos = node.position()
-        # Check if this node is an output node
-        is_output_node = False
-        output_type = None
-        for output_name, output_data in self.output_nodes.items():
-            output_data_node = hou.node(output_data['node_path'])
-            if output_data_node == node:
-                is_output_node = True
-                output_type = output_name
-                break
-
         # get a dict with all input and output connections related to the node
         connections_dict = self._detect_node_connections(node, parent_node)
 
@@ -395,16 +556,12 @@ class NodeTraverser:
             'node_name': node.name(),
             'node_path': node.path(),
             'node_type': node.type().name(),
-            'node_position': (node_pos[0], node_pos[1]),
+            'node_position': (node.position()[0], node.position()[1]),
             'node_parms': self._convert_parms_to_dict(node.parmTuples()),
             'connections_dict': connections_dict,
             'children_list': []
         }
-        if is_output_node:
-            node_dict.update({
-                'is_output_node': is_output_node,
-                'output_type': output_type,
-            })
+
         if not node.inputs():
             return {node.path(): node_dict}
 
@@ -420,150 +577,6 @@ class NodeTraverser:
             )
 
         return {node.path(): node_dict}
-
-
-    @staticmethod
-    def _detect_arnold_output_nodes(parent_node):
-        """
-        Detect Arnold output nodes in the node tree.
-
-        Args:
-            parent_node (hou.Node): The parent Houdini node.
-
-        Returns:
-            Dict: A dictionary of detected Arnold output nodes.
-        """
-        arnold_output = None
-        for child in parent_node.children():
-            if child.type().name() == 'arnold_material':
-                arnold_output = child
-                break
-        if not arnold_output:
-            raise Exception(f"No Output Node detected for Arnold Material")
-
-        output_nodes = {}
-        connections = arnold_output.inputConnections()
-        for connection in connections:
-            connected_input = connection.inputNode()
-            connected_input_index = connection.outputIndex()
-            connected_input_name = connection.outputName()
-            connected_output_index = connection.inputIndex()
-            connected_output_name = connection.inputName()
-            if connected_output_index == 0:
-                output_nodes['surface'] = {
-                    # 'node': arnold_output,
-                    'node_name': arnold_output.name(),
-                    'node_path': arnold_output.path(),
-                    'connected_node_name': connected_input.name(),
-                    'connected_node_path': connected_input.path(),
-                    'connected_input_index': connected_input_index,
-                    'connected_input_name': connected_input_name,
-                    'connected_output_name': connected_output_name,
-                    'generic_type': 'GENERIC::output_surface'
-                }
-            elif connected_output_index == 1:
-                output_nodes['displacement'] = {
-                    'node_name': arnold_output.name(),
-                    'node_path': arnold_output.path(),
-                    'connected_node_name': connected_input.name(),
-                    'connected_node_path': connected_input.path(),
-                    'connected_input_index': connected_input_index,
-                    'connected_input_name': connected_input_name,
-                    'connected_output_name': connected_output_name,
-                    'generic_type': 'GENERIC::output_displacement'
-                }
-        return output_nodes
-
-    @staticmethod
-    def _detect_mtlx_output_nodes(parent_node):
-        """
-        Detect MaterialX output nodes in the node tree.
-
-        Args:
-            parent_node (hou.Node): The parent Houdini node.
-
-        Returns:
-            Dict: A dictionary of detected MaterialX output nodes.
-        """
-        output_nodes = {}
-        output_nodes_list = [child for child in parent_node.children() if child.type().name() == 'subnetconnector']
-
-        for output_node in output_nodes_list:
-            connections = output_node.inputConnections()
-            for connection in connections:
-                connected_input = connection.inputNode()
-                connected_input_index = connection.outputIndex()
-                connected_input_name = connection.outputName()
-                connected_output_name = connection.inputName()
-                connected_output_index = connection.inputIndex()
-                parmname = output_node.parm('parmname').eval()
-                if parmname in ['surface', 'displacement']:
-                    output_nodes[parmname] = {
-                        'node_name': output_node.name(),
-                        'node_path': output_node.path(),
-                        'connected_node_name': connected_input.name(),
-                        'connected_node_path': connected_input.path(),
-                        'connected_input_index': connected_input_index,
-                        'connected_input_name': connected_input_name,
-                        'connected_output_name': connected_output_name,
-                    }
-        return output_nodes
-
-    def _detect_principled_output_nodes(self, parent_node):
-        """
-        Detect Principled Shader output nodes in the node tree.
-
-        Returns:
-            Dict: A dictionary with the single 'surface' output connection,
-                  mirroring Arnold's structure so downstream code works unchanged.
-
-        """
-        return {
-            "surface": {
-                "node_name": "OUT_material",
-                "node_path": f"{parent_node.path()}/OUT_material",
-                "connected_node_name": "standard_surface",
-                "connected_node_path": f"{parent_node.path()}/standard_surface",
-                "connected_input_index": 0,
-                "generic_type": "GENERIC::output_surface"
-            }
-        }
-
-    def detect_output_nodes(self, parent_node, material_type: str):
-        """
-        Detect output nodes in the node tree based on the material type.
-
-        Args:
-            parent_node (hou.Node): The parent Houdini node.
-            material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
-
-        Returns:
-            Dict: A dictionary of detected output nodes.
-
-        Examples:
-            >>> output_dict = self.detect_output_nodes(parent_node=hou.node('/mat/arnold_materialbuilder_basic'), material_type='arnold')
-            >>> print(output_dict)
-            {'surface':
-                {'node_name': 'OUT_material',
-                 'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
-                 'connected_node_name': 'standard_surface',
-                 'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
-                 'connected_input_index': 0,
-                 'generic_type': 'GENERIC::output_surface'
-                 }
-             }
-        """
-        print(f"detect_output_nodes START for {parent_node.path()}")
-        if material_type == 'arnold':
-            output_nodes = self._detect_arnold_output_nodes(parent_node)
-        elif material_type == 'mtlx':
-            output_nodes = self._detect_mtlx_output_nodes(parent_node)
-        elif material_type == 'principledshader':
-            output_nodes = self._detect_principled_output_nodes(parent_node)
-        else:
-            raise KeyError(f"Unsupported renderer: {material_type=}")
-        return output_nodes
-
 
     def _build_principled_entry(self, node):
         """
@@ -641,32 +654,23 @@ class NodeTraverser:
         return entry
 
 
-    def run(self, parent_node):
+    def run(self):
         """
         Traverse the children nodes of a parent node to extract the node tree and detect output nodes.
         For PrincipledShader, build a one-node tree instead of recursing.
+        Returns:
+            (Dict, Dict): 2 Dictionaries, First for the node dict and Second for the Output Dict.
         """
         # first, get an output_nodes_dict
-        output_tree = self.detect_output_nodes(parent_node, self.material_type)
+        output_tree = self.create_output_dict(self.material_node, self.material_type)
 
         # for principled, short-circuit to produce a one-node tree + identical output map
         if self.material_type == 'principledshader':
-            node_tree = self._build_principled_entry(parent_node)
-            output_tree = self.detect_output_nodes(parent_node, self.material_type)
-
+            node_tree = self._build_principled_entry(self.material_node)
         else:
-            # otherwise, fall back to existing child-recursion logic:
-            output_nodes_list = []
-            for child in parent_node.children():
-                if all(child not in o.inputs() for o in parent_node.children()):
-                    output_nodes_list.append(child)
-
             node_tree = {}
-            for out in output_nodes_list:
-                node_tree.update(self._traverse_recursively_node_tree(out))
-
-        utils_io.dump_dict_to_json(output_tree, f"{TEMP_DIR}/example_output_tree.json")
-        utils_io.dump_dict_to_json(node_tree,      f"{TEMP_DIR}/example_node_tree.json")
+            for output_type, output_dict in output_tree.items():
+                node_tree.update(self._traverse_recursively_node_tree(hou.node(output_dict['node_path'])))
 
         return node_tree, output_tree
 
@@ -677,8 +681,7 @@ class NodeStandardizer:
     Class for standardizing Shader nodes and creating MaterialData Class.
     """
 
-    def __init__(self, traversed_nodes_dict, output_nodes_dict, material_type,
-                 input_material_builder_node):
+    def __init__(self, traversed_nodes_dict, output_nodes_dict, material_type):
         """
         Initialize the NodeStandardizer with the traverse tree and output nodes.
 
@@ -686,12 +689,13 @@ class NodeStandardizer:
             traversed_nodes_dict (Dict): The nested node dictionary from NodeTraverser.
             output_nodes_dict (Dict): The detected output nodes from NodeTraverser.
             material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
-            input_material_builder_node (hou.Node): The input material builder node.
         """
         self.traversed_nodes_dict = traversed_nodes_dict
         self.output_nodes_dict = output_nodes_dict
         self.material_type = material_type
-        self.input_material_builder_node = input_material_builder_node
+
+        utils_io.dump_dict_to_json(self.traversed_nodes_dict, f"{TEMP_DIR}/traversed_nodes_dict.json")
+        utils_io.dump_dict_to_json(self.output_nodes_dict, f"{TEMP_DIR}/output_nodes_dict.json")
 
         # self.run()
 
@@ -720,7 +724,7 @@ class NodeStandardizer:
                 'node_path': value['node_path'],
                 'connected_node_name': value['connected_node_name'],
                 'connected_node_path': value['connected_node_path'],
-                'connected_input_index': value['connected_input_index'],
+                'connected_input_index': value.get('connected_input_index'),
                 'connected_input_name': value['connected_input_name'],
                 'connected_output_name': value['connected_output_name'],
             }
@@ -739,9 +743,9 @@ class NodeStandardizer:
         Returns:
             List[NodeParameter]: A list of filtered and standardized node parameters.
         """
-        generic_parm_names = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type)
+        generic_parm_names = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
         if not generic_parm_names:
-            print(f"WARNING: node_type: {node_type} doesn't have a generic parameters mapping.")
+            print(f"WARNING: No generic parameters mapping was found for nodetype: '{node_type}'.")
             return []
 
         nodeParameter_list = []
@@ -799,6 +803,8 @@ class NodeStandardizer:
             parameters = self.standardize_shader_parameters(child_node_type, child_node_parms)
 
         generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC.get(child_node_type)
+        if not generic_node_type:
+            print(f"WARNING: No generic type was found for node type: '{child_node_type}'")
 
         return NodeInfo(
             node_type=generic_node_type,
@@ -1136,7 +1142,7 @@ class NodeRecreator:
             return
 
         node_type = node.type().name()
-        node_specific_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {})
+        node_specific_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'), {})
         if not node_specific_dict:
             print(f"WARNING: No parameter mappings found for node type: {node_type}")
             return
@@ -1556,27 +1562,31 @@ def get_material_type(materialbuilder_node):
 
 
 
-def ingest_material(input_material_builder_node):
+def ingest_material(material_node):
     try:
-        material_type = get_material_type(input_material_builder_node)
+        material_type = get_material_type(material_node)
         if not material_type:
             print(f"Couldn't determine Input material type, "
                   f"currently only Arnold, MTLX and Principled Shader are supported!")
             return None
 
         print("NodeTraverser() START----------------------")
-        traverser = NodeTraverser(material_type=material_type)
-        nested_nodes_dict, output_nodes_dict = traverser.run(input_material_builder_node)
-        # DEBUG: traverser.output_nodes_dict: {'surface': {'connected_input_index': 0,
-        #                                                  'connected_node_name': 'standard_surface',
-        #                                                  'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
-        #                                                  'generic_type': 'GENERIC::output_surface',
-        #                                                  'node_name': 'OUT_material',
-        #                                                  'node_path': '/mat/arnold_materialbuilder_basic/OUT_material'
-        #                                                  }
-        #                                     }
+        traverser = NodeTraverser(material_node, material_type=material_type)
+        nested_nodes_dict, output_nodes_dict = traverser.run()
+        # DEBUG: traverser.output_nodes_dict: {
+        #     "surface": {
+        #         "node_name": "OUT_material",
+        #         "node_path": "/mat/arnold_materialbuilder_basic/OUT_material",
+        #         "connected_node_name": "standard_surface",
+        #         "connected_node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+        #         "connected_input_index": 0,
+        #         "connected_input_name": "surface",
+        #         "connected_output_name": "shader",
+        #         "generic_type": "GENERIC::output_surface"
+        #     }
+        # }
         # DEBUG: material_type: 'arnold'
-        # DEBUG: input_material_builder_node: 'arnold_materialbuilder_basic'
+        # DEBUG: material_node: 'arnold_materialbuilder_basic'
         print("NodeTraverser() Finished----------------------\n\n\n")
 
 
@@ -1585,7 +1595,6 @@ def ingest_material(input_material_builder_node):
             traversed_nodes_dict=nested_nodes_dict,
             output_nodes_dict=output_nodes_dict,
             material_type=material_type,
-            input_material_builder_node=input_material_builder_node
         )
         nodeinfo_list, output_connections = standardizer.run()
 
@@ -1653,7 +1662,6 @@ def test():
     """
     target_renderer = 'mtlx'
     material_type = 'arnold'
-    input_material_builder_node = 'arnold_materialbuilder1'
 
     node_tree = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_node_tree.json")
     output_nodes = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_output_tree.json")
@@ -1663,7 +1671,6 @@ def test():
         traversed_nodes_dict=node_tree,
         output_nodes_dict=output_nodes,
         material_type=material_type,
-        input_material_builder_node=input_material_builder_node
     )
 
     # print(f"DEBUG: {standardizer.node_info_list=}")
