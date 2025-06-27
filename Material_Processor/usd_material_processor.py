@@ -133,6 +133,13 @@ GENERIC_OUTPUT_TYPES = {
     'displacement': 'GENERIC::output_displacement',
 }
 
+_TYPE_CASTERS = {
+    'int': int,
+    'float': float,
+    'bool': lambda v: v.lower() in ('true', '1'),
+    'str': str,
+    'tuple': tuple,
+}
 
 
 
@@ -224,31 +231,37 @@ class USDTraverser:
         return output_nodes
 
     @staticmethod
-    def _detect_node_connections(shader, parent_node):
+    def _detect_node_connections(shader, parent_shader):
         """
         """
+        if parent_shader is not None:
+            shader_outputs = shader.GetInputs()
+        else:
+            shader_outputs = shader.GetOutputs()
+
+        if not shader_outputs:
+            print(f"WARNING: No Outputs!")
+            return {}
+
         shader_prim = shader.GetPrim()
         shader_primname = shader_prim.GetName()
-        print(f"DEBUG: shader: {shader_primname}, parent_node: {parent_node.GetName() if parent_node else None}")
 
         connections_dict = {}
-        for out in shader.GetOutputs():
-            # baseName may include renderer prefix, e.g. "arnold:surface"
+        for out in shader_outputs:
             out_basename = out.GetBaseName()
-            base = out.GetBaseName().split(':')[-1]
             sources: tuple[list[UsdShade.ConnectionSourceInfo]] = out.GetConnectedSources()
             for i, source in enumerate(sources):
+                if not source:
+                    continue
+
                 for ii, srcInfo in enumerate(source):
-                    # print(f"DEBUG: {len(sources)=}, {len(source)=}, [{i}][{ii}]")
-                    srcInfo  # type: UsdShade.ConnectionSourceInfo
-                    srcAPI = srcInfo.source  # type: UsdShade.ConnectableAPI
-                    srcName = srcInfo.sourceName  # type: str               # e.g. "shader"
+                    srcAPI  = srcInfo.source      # type: UsdShade.ConnectableAPI
+                    srcName = srcInfo.sourceName  # type: str                     # e.g. "shader"
                     srcType = srcInfo.sourceType  # type: UsdShade.AttributeType  # e.g. pxr.UsdShade.AttributeType.Output
                     src_prim = srcAPI.GetPrim()
-                    # print(f"DEBUG: connection from: '{src_prim.GetName()}[{srcName}]' -> "
-                    #       f"'{mat_name}[{base}]'\n")
+                    src_shader = UsdShade.Shader(src_prim)
 
-                    connections_dict.update({f"connection_{i}": {
+                    connections_dict.update({f"connection_{ii}": {
                             "input": {
                                 "node_name": src_prim.GetPrim().GetName(),
                                 "node_path": src_prim.GetPath().pathString,
@@ -264,7 +277,6 @@ class USDTraverser:
                         }
                     })
 
-        print(f"DEBUG: connections_dict: {pprint.pformat(connections_dict, sort_dicts=False)}\n")
         return connections_dict
 
 
@@ -325,8 +337,12 @@ class USDTraverser:
             (Dict[str: str])
         """
 
-        out = [{'name': self._normalize_attribute_names(attrib.GetName()),
-                'value': self._normalize_attribute_values(attrib.Get())} for attrib in attribute_list]
+        out = [{
+            'name': self._normalize_attribute_names(attrib.GetName()),
+            'value': self._normalize_attribute_values(attrib.Get()),
+            'type': type(self._normalize_attribute_values(attrib.Get())).__name__
+        } for attrib in attribute_list]
+
         # print(f"DEBUG: out: {pprint.pformat(out, sort_dicts=False)}")
 
         return out
@@ -353,13 +369,14 @@ class USDTraverser:
             }
         """
         shader_prim = shader.GetPrim()
+        shader_name = shader_prim.GetName()
         # get a dict with all input and output connections related to the node
         connections_dict = self._detect_node_connections(shader, parent_shader)
 
         # Initialize the node's dictionary with metadata
-        print(f"DEBUG: shader_primpath: {shader_prim.GetPath().pathString}, id: {shader_prim.GetAttribute('info:id').Get()}")
+        # print(f"DEBUG: shader_prim: {shader_name}, id: '{shader_prim.GetAttribute('info:id').Get()}'")
         node_dict = {
-            'node_name': shader_prim.GetName(),
+            'node_name': shader_name,
             'node_path': shader_prim.GetPath().pathString,
             'node_type': self._get_shader_infoId_attrib(shader),
             'node_position': None,
@@ -368,24 +385,33 @@ class USDTraverser:
             'children_list': []
         }
 
-        shader_outputs = shader.GetOutputs()
+        if parent_shader is not None:
+            shader_outputs = shader.GetInputs()
+            print(f"DEBUG: Getting Inputs!")
+        else:
+            shader_outputs = shader.GetOutputs()
+            print(f"DEBUG: Getting Outputs!")
+
         if not shader_outputs:
+            print(f"WARNING: No Outputs!")
             return {shader_prim.path(): node_dict}
 
         for out in shader_outputs:
             sources: tuple[list[UsdShade.ConnectionSourceInfo]] = out.GetConnectedSources()
             for i, source in enumerate(sources):
+                if not source:
+                    continue
+
                 for ii, srcInfo in enumerate(source):
-                    # print(f"DEBUG: {len(sources)=}, {len(source)=}, [{i}][{ii}]")
                     srcAPI = srcInfo.source  # type: UsdShade.ConnectableAPI
-                    srcName = srcInfo.sourceName  # type: str               # e.g. "shader"
+                    srcName = srcInfo.sourceName  # type: str                     # e.g. "shader"
                     srcType = srcInfo.sourceType  # type: UsdShade.AttributeType  # e.g. pxr.UsdShade.AttributeType.Output
                     src_prim = srcAPI.GetPrim()
                     src_shader = UsdShade.Shader(src_prim)
 
                     # Recursively get child nodes
-                    print(f"DEBUG: recursing into: '{src_prim.GetName()}'")
-                    input_node_dict = self._traverse_recursively_node_tree(src_shader, shader_prim)
+                    print(f"DEBUG: recursing into: '{src_prim.GetName()}' with parent: '{shader_name}'")
+                    input_node_dict = self._traverse_recursively_node_tree(src_shader, shader)
                     node_dict['children_list'].append(
                         input_node_dict[src_prim.GetPath().pathString]
                     )
@@ -401,8 +427,8 @@ class USDTraverser:
 
         Returns:
             Tuple[
-              Dict[str, dict],  # nested_nodes_dict keyed by material path
-              Dict[str, dict]   # output_nodes_dict
+              Dict[str, dict], # nested_nodes_dict keyed by material path
+              Dict[str, dict]  # output_nodes_dict
             ]
         """
         # 1) find all outputs
@@ -413,6 +439,7 @@ class USDTraverser:
             output_prim = self.stage.GetPrimAtPath(output_dict['node_path'])
             output_shader = UsdShade.Shader(output_prim)
             node_tree.update(self._traverse_recursively_node_tree(output_shader))
+            print(f"DEBUG: Done Traversing!\n\n\n")
 
         return node_tree, output_tree
 
@@ -555,30 +582,34 @@ class USDMaterialRecreator:
 
             # determine the proper type
             val = param.value
+            val_generic_type = param.generic_type
+            val_type = _TYPE_CASTERS.get(val_generic_type)
 
-            if isinstance(val, tuple) and len(val) == 1:
+            if isinstance(val_type, tuple) and len(val_type) == 1:
                 val = val[0]
 
-            if isinstance(val, tuple):
+            if val_type == tuple:
                 length = len(val)
                 if all(isinstance(x, float) for x in val):
                     type_name = getattr(Sdf.ValueTypeNames, f"Float{length}", Sdf.ValueTypeNames.Float)
                 elif all(isinstance(x, int) for x in val):
                     type_name = getattr(Sdf.ValueTypeNames, f"Int{length}", Sdf.ValueTypeNames.Int)
                 else:
-                    print(f"WARNING: {parm_new_name}.{val=} is not a tuple of all floats or ints, but {type(val)=}")
+                    print(f"WARNING: {parm_new_name}.{val_type=} is not a tuple of all floats or ints, but {type(val[0])=}")
                     type_name = Sdf.ValueTypeNames.Token
-            elif isinstance(val, bool):
+            elif  val_type == bool:
                 type_name = Sdf.ValueTypeNames.Bool
-            elif isinstance(val, int):
+            elif val_type == int:
                 type_name = Sdf.ValueTypeNames.Int
-            elif isinstance(val, float):
+            elif val_type == float:
                 type_name = Sdf.ValueTypeNames.Float
-            elif isinstance(val, str):
+            elif val_type == str:
                 type_name = Sdf.ValueTypeNames.String
             else:
-                print(f"WARNING: {parm_new_name}.{val=} is unknown, {type(val)=}")
-                type_name = Sdf.ValueTypeNames.Token
+                print(f"WARNING: parm: '{parm_new_name}' of type: '{val_type}' is unsupported")
+                continue
+
+                # type_name = Sdf.ValueTypeNames.Token
 
             inp = shader.CreateInput(parm_new_name, type_name)
             # print(f"DEBUG: {parm_new_name=}, {val=}")
@@ -727,8 +758,6 @@ class USDMaterialRecreator:
         """
         Connect child shader prims based on stored connection_tasks.
         """
-        # print(f"DEBUG: {self.orig_output_connections=}")
-        # print(f"DEBUG: {self.created_out_primpaths=}")
         for conn, parent_path in self.connection_tasks:
             # conn has input and output entries
             src_path = self.old_new_map[conn['input']['node_path']]
@@ -736,7 +765,7 @@ class USDMaterialRecreator:
             src_parm = conn['input']['parm_name']
             dst_parm = conn['output']['parm_name']
             if dst_path in [x.pathString for x in self.created_out_primpaths]:
-                # print(f"WARNING:  Output detected: '{dst_path}' ")
+                print(f"WARNING:  Output detected: '{dst_path}' ")
                 continue
 
             # print(f"DEBUG: self.old_new_map: {pprint.pformat(self.old_new_map, sort_dicts=False)}")
@@ -744,12 +773,12 @@ class USDMaterialRecreator:
             # print(f"DEBUG: {parent_path=}")
             # print(f"DEBUG: {src_path=}")
             # print(f"DEBUG: {dst_path=}///\n")
-            # print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
+            print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
 
             src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
             dst_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(dst_path)))
             dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
-            dst_api.GetInput(dst_parm).ConnectToSource(src_api.ConnectableAPI(), conn['input']['parm_name'])
+            dst_api.GetInput(dst_parm).ConnectToSource(src_api.ConnectableAPI(), src_parm)
 
 
     def detect_if_transmissive(self, material_name):
@@ -1372,7 +1401,7 @@ class USDMaterialRecreator:
 
         # 5. set up inter-shader connections
         self.set_shader_connections()
-        print(f"FINISHED _set_shader_connections()")
+        print(f"FINISHED set_shader_connections()")
 
 
 

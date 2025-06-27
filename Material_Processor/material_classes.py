@@ -19,7 +19,8 @@ class NodeParameter:
     """
     name: str
     value: any
-    generic_name: Optional[str] = None  # Add a standardized name attribute
+    generic_name: Optional[str] = None
+    generic_type: Optional[str] = None
 
     def __str__(self):
         return f""

@@ -534,7 +534,7 @@ class NodeTraverser:
              {'name': 'reload', 'value': '0'}
              ]
         """
-        return [{'name': p.name(), 'value': p.eval()} for p in parms_list]
+        return [{'name': p.name(), 'value': p.eval(), 'type': type(p.eval()).__name__} for p in parms_list]
 
     def _traverse_recursively_node_tree(self, node, parent_node=None):
         """
@@ -760,7 +760,8 @@ class NodeStandardizer:
             nodeParameter_list.append(NodeParameter(
                 name=param['name'],
                 value=value,
-                generic_name=generic_parm_names.get(param['name'])
+                generic_name=generic_parm_names.get(param['name']),
+                generic_type=param['type'],
             ))
 
         return nodeParameter_list
