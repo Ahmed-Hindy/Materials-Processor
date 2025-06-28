@@ -65,6 +65,12 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
     'mtlxdisplacement': 'GENERIC::displacement',
     'subnetconnector': 'GENERIC::output_node',
 
+    # mtlx usd prims infoId:
+    'ND_standard_surface_surfaceshader': 'GENERIC::standard_surface',
+    'ND_image_float': 'GENERIC::image',
+    'ND_image_color3': 'GENERIC::image',
+    'ND_displacement_float': 'GENERIC::displacement',
+
     'null': 'GENERIC::null',
 }
 
@@ -83,6 +89,7 @@ GENERIC_NODE_TYPES_TO_REGULAR = {
                 'GENERIC::mix_rgba': 'arnold::mix_rgba',
                 'GENERIC::mix_layer': 'arnold::mix_layer',
                 'GENERIC::layer_rgba': 'arnold::layer_rgba',
+                'GENERIC::displacement': 'null',
                 'GENERIC::null': 'null',
             },
             'mtlx': {
@@ -185,34 +192,58 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'scale': 'scale',
     },
 
-    # arnold parms:
-    'arnold:standard_surface': {
+    # usd prims infoId:
+    'ND_standard_surface_surfaceshader': {
         'base': 'base',
         'base_color': 'base_color',
-        'base_colorr': 'base_colorr',
-        'base_colorg': 'base_colorg',
-        'base_colorb': 'base_colorb',
         'diffuse_roughness': 'diffuse_roughness',
         'metalness': 'metalness',
         'specular': 'specular',
         'specular_color': 'specular_color',
-        'specular_colorr': 'specular_colorr',
-        'specular_colorg': 'specular_colorg',
-        'specular_colorb': 'specular_colorb',
         'specular_roughness': 'specular_roughness',
         'specular_IOR': 'specular_IOR',
+        'coat': 'coat',
+        'coat_color': 'coat_color',
+        'coat_roughness': 'coat_roughness',
         'transmission': 'transmission',
         'transmission_color': 'transmission_color',
-        'transmission_colorr': 'transmission_colorr',
-        'transmission_colorg': 'transmission_colorg',
-        'transmission_colorb': 'transmission_colorb',
         'subsurface': 'subsurface',
         'subsurface_color': 'subsurface_color',
         'emission': 'emission',
         'emission_color': 'emission_color',
-        'emission_colorr': 'emission_colorr',
-        'emission_colorg': 'emission_colorg',
-        'emission_colorb': 'emission_colorb',
+        'opacity': 'opacity',
+        'normal': 'normal',
+        'thin_walled': 'thin_walled',
+    },
+    'ND_image_float': {
+        'signature': 'signature',
+        'file': 'filename',
+    },
+    'ND_image_color3': {
+        'signature': 'signature',
+        'file': 'filename',
+    },
+    'ND_displacement_float': {
+        'displacement': 'displacement',
+        'scale': 'scale',
+    },
+
+    # arnold parms:
+    'arnold:standard_surface': {
+        'base': 'base',
+        'base_color': 'base_color',
+        'diffuse_roughness': 'diffuse_roughness',
+        'metalness': 'metalness',
+        'specular': 'specular',
+        'specular_color': 'specular_color',
+        'specular_roughness': 'specular_roughness',
+        'specular_IOR': 'specular_IOR',
+        'transmission': 'transmission',
+        'transmission_color': 'transmission_color',
+        'subsurface': 'subsurface',
+        'subsurface_color': 'subsurface_color',
+        'emission': 'emission',
+        'emission_color': 'emission_color',
         'opacity': 'opacity'
     },
     'arnold:image': {
@@ -263,9 +294,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'coat': 'coat',
         'coatrough': 'coat_roughness',
         'coatior': 'coat_IOR',
-        'coatcolorr': 'coat_colorr',
-        'coatcolorg': 'coat_colorg',
-        'coatcolorb': 'coat_colorb'
+        'coatcolor': 'coat_color',
     }
 }
 
@@ -534,7 +563,28 @@ class NodeTraverser:
              {'name': 'reload', 'value': '0'}
              ]
         """
-        return [{'name': p.name(), 'value': p.eval(), 'type': type(p.eval()).__name__} for p in parms_list]
+        parms_dict_list = []
+        for p in parms_list:
+            p_name = p.name()
+            p_value = p.eval()
+            if not p_value:
+                continue
+
+            p_value_type = type(p_value).__name__
+            if p_value_type == 'tuple':
+                p_value_type = type(p_value[0]).__name__
+                p_value_length = len(p_value)
+                p_value_type += str(p_value_length)
+
+            parms_dict = {
+                'name': p_name,
+                'value': p_value,
+                'type': p_value_type,
+            }
+
+            parms_dict_list.append(parms_dict)
+
+        return parms_dict_list
 
     def _traverse_recursively_node_tree(self, node, parent_node=None):
         """
@@ -750,17 +800,22 @@ class NodeStandardizer:
 
         nodeParameter_list = []
         for param in parms:
-            if param['name'] not in generic_parm_names:
-                continue
+            # if param['name'] not in generic_parm_names:
+            #     continue
 
             value = param['value']
             if isinstance(value, tuple) and len(value) == 1:
                 value = value[0]
 
+            if param.get('generic_name'):
+                generic_name = param.get('generic_name')
+            else:
+                generic_name = generic_parm_names.get(param['name'])
+
             nodeParameter_list.append(NodeParameter(
-                name=param['name'],
+                # name=param['name'],
                 value=value,
-                generic_name=generic_parm_names.get(param['name']),
+                generic_name=generic_name,
                 generic_type=param['type'],
             ))
 

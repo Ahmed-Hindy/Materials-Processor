@@ -17,8 +17,8 @@ class NodeParameter:
         value (any): The value of the parameter.
         generic_name (Optional[str]): A standardized name for the parameter, if applicable.
     """
-    name: str
-    value: any
+    name: Optional[str] = None  # no longer used and should be removed
+    value: Optional[any] = None
     generic_name: Optional[str] = None
     generic_type: Optional[str] = None
 
