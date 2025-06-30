@@ -69,6 +69,8 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
     'ND_standard_surface_surfaceshader': 'GENERIC::standard_surface',
     'ND_image_float': 'GENERIC::image',
     'ND_image_color3': 'GENERIC::image',
+    'ND_colorcorrect_color3': 'GENERIC::color_correct',
+    'ND_range_float': 'GENERIC::range',
     'ND_displacement_float': 'GENERIC::displacement',
 
     'null': 'GENERIC::null',
@@ -219,9 +221,27 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'signature': 'signature',
         'file': 'filename',
     },
+    'ND_range_float': {
+        'in': 'in',
+        'inhigh': 'inhigh',
+        'inlow': 'inlow',
+        'outhigh': 'outhigh',
+        'outlow': 'outlow',
+    },
     'ND_image_color3': {
         'signature': 'signature',
         'file': 'filename',
+    },
+    'ND_colorcorrect_color3': {
+        'contrast': 'contrast',
+        'contrastpivot': 'contrastpivot',
+        'exposure': 'exposure',
+        'gain': 'gain',
+        'gamma': 'gamma',
+        'hue': 'hue',
+        'in': 'in',
+        'lift': 'lift',
+        'saturation': 'saturation',
     },
     'ND_displacement_float': {
         'displacement': 'displacement',
@@ -299,15 +319,15 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 }
 
 OUTPUT_CONNECTIONS_INDEX_MAP = {
-            'arnold': {
-                'GENERIC::output_surface': 0,
-                'GENERIC::output_displacement': 1
-            },
-            'mtlx': {
-                'GENERIC::output_surface': 0,
-                'GENERIC::output_displacement': 0
-            }
-        }
+    'arnold': {
+        'GENERIC::output_surface': 0,
+        'GENERIC::output_displacement': 1
+    },
+    'mtlx': {
+        'GENERIC::output_surface': 0,
+        'GENERIC::output_displacement': 0
+    }
+}
 
 ##########################################################################################
 
@@ -813,10 +833,9 @@ class NodeStandardizer:
                 generic_name = generic_parm_names.get(param['name'])
 
             nodeParameter_list.append(NodeParameter(
-                # name=param['name'],
-                value=value,
                 generic_name=generic_name,
                 generic_type=param['type'],
+                value=value,
             ))
 
         return nodeParameter_list
@@ -1205,7 +1224,7 @@ class NodeRecreator:
 
         for param in parameters:
             if not param.generic_name:
-                print(f"WARNING: Parameter '{param.name}' has no generic name for node type '{node_type}'. Skipping.")
+                print(f"WARNING: Parameter '{param.generic_name}' has no generic name for node type '{node_type}'. Skipping.")
                 continue
 
             # Find the renderer-specific parameter name

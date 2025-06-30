@@ -17,14 +17,13 @@ class NodeParameter:
         value (any): The value of the parameter.
         generic_name (Optional[str]): A standardized name for the parameter, if applicable.
     """
-    name: Optional[str] = None  # no longer used and should be removed
-    value: Optional[any] = None
+    # name: Optional[str] = None  # no longer used and should be removed
     generic_name: Optional[str] = None
     generic_type: Optional[str] = None
+    value: Optional[any] = None
 
     def __str__(self):
-        return f""
-        # return f"NodeParameter(name={self.name}, value={self.value}, generic_name={self.generic_name})"
+        return f"NodeParameter(name={self.name}, value={self.value}, generic_name={self.generic_name})"
 
 @dataclass
 class NodeInfo:

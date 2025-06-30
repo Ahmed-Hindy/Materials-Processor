@@ -138,12 +138,20 @@ GENERIC_OUTPUT_TYPES = {
     'displacement': 'GENERIC::output_displacement',
 }
 
-_TYPE_CASTERS = {
+CONV_DICT = {
+    'mtlx': 'subnetconnector',
+    'arnold': 'arnold_shader',
+}
+
+SKIPPED_ATTRIBS = ['info:id', 'info:implementationSource', 'outputs:out']
+
+_ATTRIB_TYPE_CASTERS = {
     'int': int,
     'float': float,
     'bool': lambda v: v.lower() in ('true', '1'),
     'str': str,
     'tuple': tuple,
+    'AssetPath': str,
 }
 
 
@@ -302,22 +310,22 @@ class USDTraverser:
         if shader_infoId:
             return shader_infoId
 
-        conv_dict = {
-            'mtlx': 'subnetconnector',
-            'arnold': 'arnold_shader',
-        }
-        return conv_dict[self.material_type]
+        return CONV_DICT[self.material_type]
 
-    def _normalize_attribute_names(self, attribute_name):
+    def _normalize_attribute_names(self, attribute_name, node_type):
         """
 
         """
         leading_strs = ['arnold:', 'inputs:']
         for leading_str in leading_strs:
             if attribute_name.startswith(leading_str):
-                return attribute_name.split(leading_str, 1)[1]
+                attribute_name = attribute_name.split(leading_str, 1)[1]
 
-        return attribute_name
+        generic_name = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {}).get(attribute_name)
+        if not generic_name:
+            print(f"WARNING: no generic name found for attribute: '{attribute_name}', with node_type: '{node_type}'")
+            generic_name = attribute_name
+        return generic_name
 
     def _normalize_attribute_values(self, attribute_val):
         """
@@ -358,23 +366,37 @@ class USDTraverser:
         # 5) Anything else → fallback to str()
         return p_value_type
 
-    def _convert_parms_to_dict(self, attribute_list):
+    def _convert_parms_to_dict(self, attribute_list, node_type):
         """
         Args:
             attribute_list (List[pxr.Usd.Attribute]): list of Usd Attributes
         Returns:
             (Dict[str: str])
         """
+        if node_type == CONV_DICT[self.material_type]:
+            return [{
+                'generic_name': None,
+                'value': None,
+                'type': None,
+            }]
 
-        out = [{
-            'generic_name': self._normalize_attribute_names(attrib.GetName()),
-            'value': self._normalize_attribute_values(attrib.Get()),
-            'type': self._normalize_attribute_types(attrib.Get())
-        } for attrib in attribute_list]
+        attrib_dict_list = []
+        for attrib in attribute_list:
+            attrib_name = attrib.GetName()
 
-        # print(f"DEBUG: out: {pprint.pformat(out, sort_dicts=False)}")
+            # skip attributes that don't need to be captured.
+            if attrib_name in SKIPPED_ATTRIBS:
+                continue
 
-        return out
+            attrib_dict = {
+                'generic_name': self._normalize_attribute_names(attrib_name, node_type),
+                'value': self._normalize_attribute_values(attrib.Get()),
+                'type': self._normalize_attribute_types(attrib.Get()),
+            }
+
+            attrib_dict_list.append(attrib_dict)
+
+        return attrib_dict_list
 
 
 
@@ -399,14 +421,14 @@ class USDTraverser:
         """
         shader_prim = shader.GetPrim()
         shader_name = shader_prim.GetName()
+        node_type = self._get_shader_infoId_attrib(shader)
 
-        # print(f"DEBUG: shader_prim: {shader_name}, id: '{shader_prim.GetAttribute('info:id').Get()}'")
         node_dict = {
             'node_name': shader_name,
             'node_path': shader_prim.GetPath().pathString,
-            'node_type': self._get_shader_infoId_attrib(shader),
+            'node_type': node_type,
             'node_position': None,
-            'node_parms': self._convert_parms_to_dict(shader_prim.GetAttributes()),
+            'node_parms': self._convert_parms_to_dict(shader_prim.GetAttributes(), node_type),
             'connections_dict': {},
             'children_list': [],
         }
@@ -437,7 +459,7 @@ class USDTraverser:
                     src_prim = srcAPI.GetPrim()
                     src_shader = UsdShade.Shader(src_prim)
 
-                    print(f"DEBUG: {shader_name=}, {parent_shader=}, {src_prim.GetName()=}")
+                    # print(f"DEBUG: {shader_name=}, {parent_shader=}, {src_prim.GetName()=}")
 
                     # Recursively get child nodes
                     input_node_dict = self._traverse_recursively_node_tree(src_shader, parent_shader=shader, is_root=False)
@@ -595,7 +617,7 @@ class USDMaterialRecreator:
             KeyError: If node_type is not found in the parameter-name mapping.
         """
         if not parameters:
-            print(f"WARNING: No parameters found for shader: {shader.GetPath().pathString}")
+            print(f"WARNING: No parameters found for shader: '{shader.GetPath().pathString}'")
             return
 
         # look up standardized mapping for this node type
@@ -610,7 +632,7 @@ class USDMaterialRecreator:
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
 
             if not parm_new_name:
-                print(f"WARNING: Skipping parm: '{node_type=}'.'{param.generic_name=}'")
+                # print(f"WARNING: Skipping parm: '{node_type=}'.'{param.generic_name=}'")
                 continue  # skip unsupported params
 
             parm_new_name = parm_new_name[0]
@@ -620,13 +642,13 @@ class USDMaterialRecreator:
 
             val_generic_type = param.generic_type
 
-            print(f"DEBUG: {param=}")
+            print(f"DEBUG: {param=}, {parm_new_name=}")
             val_generic_type_str, val_len = split_trailing_number(val_generic_type)
             # print(f"DEBUG: {val_generic_type=}  -> '{val_generic_type_str}[{val_len}]'")
-            val_type = _TYPE_CASTERS.get(val_generic_type_str)
+            val_type = _ATTRIB_TYPE_CASTERS.get(val_generic_type_str)
 
             if not val_type:
-                print(f"WARNING: parm: '{parm_new_name}' has no type!")
+                print(f"WARNING: parm: '{parm_new_name}' has no type!, {val_generic_type_str=}")
                 continue
 
             if isinstance(val_type, tuple) and len(val_type) == 1:
@@ -792,7 +814,7 @@ class USDMaterialRecreator:
             src_parm = conn['input']['parm_name']
             dst_parm = conn['output']['parm_name']
             if dst_path in [x.pathString for x in self.created_out_primpaths]:
-                print(f"WARNING:  Output detected: '{dst_path}' ")
+                # print(f"WARNING:  Output detected: '{dst_path}' ")
                 continue
 
             print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
@@ -1414,22 +1436,27 @@ class USDMaterialRecreator:
         UsdGeom.Scope.Define(self.stage, Sdf.Path(self.parent_scope_path))
 
         # 2. create output material prims
+        print(f"INFO: STARTING create_material_prim()....")
         self.create_material_prim()
-        print(f"FINISHED _create_output_materials()")
+        print(f"INFO: FINISHED create_material_prim()")
 
         # 3. create child shader prims
         print(f"DEBUG: {self.created_out_primpaths=}")
         print(f"DEBUG: {self.old_new_map=}")
+
+        print(f"INFO: STARTING create_child_shaders()....")
         self.create_child_shaders(self.nodeinfo_list)
-        print(f"FINISHED _create_child_shaders()")
+        print(f"INFO: FINISHED _create_child_shaders()")
 
         # 4. set up output connections
+        print(f"INFO: STARTING set_output_connections()....")
         self.set_output_connections()
-        print(f"FINISHED _set_output_connections()")
+        print(f"INFO: FINISHED _set_output_connections()")
 
         # 5. set up inter-shader connections
+        print(f"INFO: STARTING set_shader_connections()....")
         self.set_shader_connections()
-        print(f"FINISHED set_shader_connections()")
+        print(f"INFO: FINISHED set_shader_connections()")
 
 
 
