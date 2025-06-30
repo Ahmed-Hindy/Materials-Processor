@@ -623,6 +623,7 @@ class USDMaterialRecreator:
             return
 
         # look up standardized mapping for this node type
+        node_type = node_type.replace('::', ':')
         std_parm_map: dict = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type)
         if not std_parm_map:
             print(f"WARNING: No generic parameter mappings found for node type: '{node_type}'")
@@ -1525,7 +1526,7 @@ def test(stage, mat_node, target_renderer="mtlx"):
 
     try:
         USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer=target_renderer)
-    except:
+    except Exception:
         traceback.print_exc()
 
 
