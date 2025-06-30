@@ -143,7 +143,11 @@ CONV_DICT = {
     'arnold': 'arnold_shader',
 }
 
-SKIPPED_ATTRIBS = ['info:id', 'info:implementationSource', 'outputs:out']
+SKIPPED_ATTRIBS = [
+    'info:id',
+    'info:implementationSource',
+    'outputs:out'
+]
 
 _ATTRIB_TYPE_CASTERS = {
     'int': int,
@@ -325,6 +329,7 @@ class USDTraverser:
         if not generic_name:
             print(f"WARNING: no generic name found for attribute: '{attribute_name}', with node_type: '{node_type}'")
             generic_name = attribute_name
+
         return generic_name
 
     def _normalize_attribute_values(self, attribute_val):
@@ -492,7 +497,6 @@ class USDTraverser:
             output_prim = self.stage.GetPrimAtPath(output_dict['node_path'])
             output_shader = UsdShade.Shader(output_prim)
             node_tree.update(self._traverse_recursively_node_tree(output_shader))
-            print(f"DEBUG: Done Traversing!\n\n\n")
 
         return node_tree, output_tree
 
@@ -573,8 +577,6 @@ class USDMaterialRecreator:
         self.material_map = {}
         # maps old node paths to new prim paths
         self.old_new_map = {}
-        # will hold connections for final wiring
-        self.connection_tasks = []
 
         self.created_out_primpaths = []
 
@@ -621,18 +623,23 @@ class USDMaterialRecreator:
             return
 
         # look up standardized mapping for this node type
-        std_parm_map: dict = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
+        std_parm_map: dict = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type)
         if not std_parm_map:
-            print(f"WARNING: Node type: '{node_type}' not found in REGULAR_PARAM_NAMES_TO_GENERIC dictionary!")
+            print(f"WARNING: No generic parameter mappings found for node type: '{node_type}'")
             return
 
         for param in parameters:
-            # we have the generic parm name stored in: 'param.generic_name',
-            # now let's find the new parm name suitable for the shader prim.
+            # DEBUG: param=NodeParameter(generic_name='base_color', generic_type='float3', value=(0.800000011920929, 0.800000011920929, 0.800000011920929))
+            if not param.generic_name:
+                print(f"WARNING: Parameter '{param.generic_name}' has no generic name for node type '{node_type}'. Skipping.")
+                continue
+
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
+            # DEBUG: parm_new_name=['base_color']
 
             if not parm_new_name:
-                # print(f"WARNING: Skipping parm: '{node_type=}'.'{param.generic_name=}'")
+                print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
+                      f" for node type '{node_type}'. Skipping.")
                 continue  # skip unsupported params
 
             parm_new_name = parm_new_name[0]
@@ -642,9 +649,8 @@ class USDMaterialRecreator:
 
             val_generic_type = param.generic_type
 
-            print(f"DEBUG: {param=}, {parm_new_name=}")
+
             val_generic_type_str, val_len = split_trailing_number(val_generic_type)
-            # print(f"DEBUG: {val_generic_type=}  -> '{val_generic_type_str}[{val_len}]'")
             val_type = _ATTRIB_TYPE_CASTERS.get(val_generic_type_str)
 
             if not val_type:
@@ -754,15 +760,12 @@ class USDMaterialRecreator:
                 self._create_shader_id(shader, nodeinfo.node_type)
 
                 # set parameters
-                print(f"DEBUG: {nodeinfo.node_type=}, {self.target_renderer=}")
+                # DEBUG: nodeinfo.node_type='GENERIC::standard_surface'
                 regular_node_type: str = material_processor.GENERIC_NODE_TYPES_TO_REGULAR[self.target_renderer].get(nodeinfo.node_type, '')
                 self._set_shader_parameters(shader, regular_node_type, nodeinfo.parameters)
 
                 # store it in the 'old_new_map' dict
                 self.old_new_map[nodeinfo.node_path] = shader.GetPath().pathString
-
-                for conn_index, conn in nodeinfo.connection_info.items():
-                    self.connection_tasks.append((conn, nodeinfo.node_path))
 
             # recurse into children:
             if nodeinfo.children_list:
@@ -801,32 +804,40 @@ class USDMaterialRecreator:
                 src_api.ConnectableAPI(), OUT_PRIM_DICT[self.target_renderer][generic_output]['src'])
 
 
-    def set_shader_connections(self):
+    def set_shader_connections(self, nodeinfo_list):
         """
         Connect child shader prims based on stored connection_tasks.
         """
-        for conn, parent_path in self.connection_tasks:
-            # conn has input and output entries
-            # src_name = self.old_new_map[conn['input']['node_name']]
-            src_path = self.old_new_map[conn['input']['node_path']]
-            # dst_name = self.old_new_map[conn['output']['node_name']]
-            dst_path = self.old_new_map[conn['output']['node_path']]
-            src_parm = conn['input']['parm_name']
-            dst_parm = conn['output']['parm_name']
-            if dst_path in [x.pathString for x in self.created_out_primpaths]:
-                # print(f"WARNING:  Output detected: '{dst_path}' ")
-                continue
+        for nodeinfo in nodeinfo_list:
 
-            print(f"Connecting prims: src: '{src_path}[{src_parm}]' to dest: '{dst_path}[{dst_parm}]'")
+            for conn_index, conn in nodeinfo.connection_info.items():
+                parent_path = nodeinfo.node_path
 
-            src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
-            dst_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(dst_path)))
-            try:
-                dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
-                # errors out if the prim is a null.
-                dst_api.GetInput(dst_parm).ConnectToSource(src_api.ConnectableAPI(), src_parm)
-            except Exception as e:
-                print(f"ERROR: , Failed to set Connection: '{src_path}' -> '{dst_path}', probably a prim is null.")
+                # conn has input and output entries
+                # src_name = self.old_new_map[conn['input']['node_name']]
+                src_path = self.old_new_map[conn['input']['node_path']]
+                # dst_name = self.old_new_map[conn['output']['node_name']]
+                dst_path = self.old_new_map[conn['output']['node_path']]
+                src_parm = conn['input']['parm_name']
+                dst_parm = conn['output']['parm_name']
+                if dst_path in [x.pathString for x in self.created_out_primpaths]:
+                    print(f"WARNING:  Output detected: '{dst_path}' ")
+                    continue
+
+                print(f"Connecting prims: src: '{src_path}[{src_parm}]' ->: '{dst_path}[{dst_parm}]'")
+
+                src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
+                dst_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(dst_path)))
+                try:
+                    dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
+                    # errors out if the prim is a null.
+                    dst_api.GetInput(dst_parm).ConnectToSource(src_api.ConnectableAPI(), src_parm)
+                except Exception as e:
+                    print(f"ERROR: , Failed to set Connection: '{src_path}' -> '{dst_path}', probably a prim is null.")
+
+            # recurse into children:
+            if nodeinfo.children_list:
+                self.set_shader_connections(nodeinfo.children_list)
 
 
     def detect_if_transmissive(self, material_name):
@@ -1438,25 +1449,27 @@ class USDMaterialRecreator:
         # 2. create output material prims
         print(f"INFO: STARTING create_material_prim()....")
         self.create_material_prim()
-        print(f"INFO: FINISHED create_material_prim()")
+        print(f"INFO: FINISHED create_material_prim()\n\n\n")
+
+        print(f"DEBUG: {self.created_out_primpaths=}")
+        print(f"DEBUG: 1 {self.old_new_map=}\n")
 
         # 3. create child shader prims
-        print(f"DEBUG: {self.created_out_primpaths=}")
-        print(f"DEBUG: {self.old_new_map=}")
-
         print(f"INFO: STARTING create_child_shaders()....")
         self.create_child_shaders(self.nodeinfo_list)
-        print(f"INFO: FINISHED _create_child_shaders()")
+        print(f"INFO: FINISHED _create_child_shaders()\n\n\n")
 
         # 4. set up output connections
         print(f"INFO: STARTING set_output_connections()....")
         self.set_output_connections()
-        print(f"INFO: FINISHED _set_output_connections()")
+        print(f"INFO: FINISHED _set_output_connections()\n\n\n")
+
+        print(f"DEBUG: 2 {self.old_new_map=}\n")
 
         # 5. set up inter-shader connections
         print(f"INFO: STARTING set_shader_connections()....")
-        self.set_shader_connections()
-        print(f"INFO: FINISHED set_shader_connections()")
+        self.set_shader_connections(self.nodeinfo_list)
+        print(f"INFO: FINISHED set_shader_connections()\n\n\n")
 
 
 

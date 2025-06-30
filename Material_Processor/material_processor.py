@@ -123,41 +123,25 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     'mtlxstandard_surface': {
         'base': 'base',
         'base_color': 'base_color',
-        'base_colorr': 'base_colorr',
-        'base_colorg': 'base_colorg',
-        'base_colorb': 'base_colorb',
         'diffuse_roughness': 'diffuse_roughness',
         'metalness': 'metalness',
         'specular': 'specular',
         'specular_color': 'specular_color',
-        'specular_colorr': 'specular_colorr',
-        'specular_colorg': 'specular_colorg',
-        'specular_colorb': 'specular_colorb',
         'specular_roughness': 'specular_roughness',
         'specular_IOR': 'specular_IOR',
+        'specular_anisotropy': 'specular_anisotropy',
+        'specular_rotation': 'specular_rotation',
         'coat': 'coat',
         'coat_color':  'coat_color',
-        'coat_colorr': 'coat_colorr',
-        'coat_colorg': 'coat_colorg',
-        'coat_colorb': 'coat_colorb',
         'coat_roughness': 'coat_roughness',
         'transmission': 'transmission',
         'transmission_color': 'transmission_color',
-        'transmission_colorr': 'transmission_colorr',
-        'transmission_colorg': 'transmission_colorg',
-        'transmission_colorb': 'transmission_colorb',
         'subsurface': 'subsurface',
         'subsurface_color': 'subsurface_color',
         'emission': 'emission',
         'emission_color': 'emission_color',
-        'emission_colorr': 'emission_colorr',
-        'emission_colorg': 'emission_colorg',
-        'emission_colorb': 'emission_colorb',
         'opacity': 'opacity',
         'normal': 'normal',
-        'normalx': 'normalx',
-        'normaly': 'normaly',
-        'normalz': 'normalz',
         'thin_walled': 'thin_walled',
     },
     'mtlximage': {
@@ -168,8 +152,10 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'hue': 'hue',
         'saturation': 'saturation',
         'gamma': 'gamma',
+        'lift': 'lift',
         'gain': 'gain',
         'contrast': 'contrast',
+        'contrastpivot': 'contrastpivot',
         'exposure': 'exposure',
     },
     'mtlxrange': {
@@ -194,6 +180,8 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'scale': 'scale',
     },
 
+
+
     # usd prims infoId:
     'ND_standard_surface_surfaceshader': {
         'base': 'base',
@@ -204,6 +192,8 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'specular_color': 'specular_color',
         'specular_roughness': 'specular_roughness',
         'specular_IOR': 'specular_IOR',
+        'specular_anisotropy': 'specular_anisotropy',
+        'specular_rotation': 'specular_rotation',
         'coat': 'coat',
         'coat_color': 'coat_color',
         'coat_roughness': 'coat_roughness',
@@ -223,8 +213,17 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     },
     'ND_range_float': {
         'in': 'in',
-        'inhigh': 'inhigh',
         'inlow': 'inlow',
+        'inhigh': 'inhigh',
+        'gamma': 'gamma',
+        'outhigh': 'outhigh',
+        'outlow': 'outlow',
+    },
+    'ND_range_color3': {
+        'in': 'in',
+        'inlow': 'inlow',
+        'inhigh': 'inhigh',
+        'gamma': 'gamma',
         'outhigh': 'outhigh',
         'outlow': 'outlow',
     },
@@ -247,6 +246,8 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'displacement': 'displacement',
         'scale': 'scale',
     },
+
+
 
     # arnold parms:
     'arnold:standard_surface': {
@@ -597,7 +598,7 @@ class NodeTraverser:
                 p_value_type += str(p_value_length)
 
             parms_dict = {
-                'name': p_name,
+                'generic_name': p_name,
                 'value': p_value,
                 'type': p_value_type,
             }
@@ -820,20 +821,12 @@ class NodeStandardizer:
 
         nodeParameter_list = []
         for param in parms:
-            # if param['name'] not in generic_parm_names:
-            #     continue
-
             value = param['value']
             if isinstance(value, tuple) and len(value) == 1:
                 value = value[0]
 
-            if param.get('generic_name'):
-                generic_name = param.get('generic_name')
-            else:
-                generic_name = generic_parm_names.get(param['name'])
-
             nodeParameter_list.append(NodeParameter(
-                generic_name=generic_name,
+                generic_name=param['generic_name'],
                 generic_type=param['type'],
                 value=value,
             ))
@@ -1217,9 +1210,9 @@ class NodeRecreator:
             return
 
         node_type = node.type().name()
-        node_specific_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'), {})
-        if not node_specific_dict:
-            print(f"WARNING: No parameter mappings found for node type: {node_type}")
+        std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'), {})
+        if not std_parm_map:
+            print(f"WARNING: No generic parameter mappings found for node type: '{node_type}'")
             return
 
         for param in parameters:
@@ -1228,17 +1221,14 @@ class NodeRecreator:
                 continue
 
             # Find the renderer-specific parameter name
-            parm_new_name = None
-            for key, value in node_specific_dict.items():
-                if value == param.generic_name:
-                    parm_new_name = key
-                    break
+            parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
 
             if not parm_new_name:
                 print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
                       f" for node type '{node_type}'. Skipping.")
                 continue
 
+            parm_new_name = parm_new_name[0]
             hou_parm = node.parmTuple(parm_new_name)
             # print(f"DEBUG: {hou_parm.name()=}, {param.value=}")
             if hou_parm is not None:
@@ -1586,22 +1576,22 @@ class NodeRecreator:
         # Create output nodes first:
         print(f"INFO: STARTING create_output_nodes()....")
         self.create_output_nodes()
-        print(f"INFO: DONE create_output_nodes()....")
+        print(f"INFO: DONE create_output_nodes()....\n\n\n")
 
         # Create Child nodes:
-        print(f"\n\n\nINFO: STARTING create_shader_nodes()....")
+        print(f"INFO: STARTING create_shader_nodes()....")
         self.create_shader_nodes(self.nodeinfo_list)
         print(f"INFO: DONE create_shader_nodes()....")
 
         # connect child nodes to each other:
-        print(f"\n\n\nINFO: STARTING _set_node_inputs()....")
+        print(f"INFO: STARTING _set_node_inputs()....")
         self.set_node_connections(self.nodeinfo_list)
-        print(f"INFO: DONE _set_node_inputs()....")
+        print(f"INFO: DONE _set_node_inputs()....\n\n\n")
 
         # connect output nodes to child nodes:
-        print(f"\n\n\nINFO: STARTING _set_output_connections()....")
+        print(f"INFO: STARTING _set_output_connections()....")
         self.set_output_connections()
-        print(f"INFO: DONE _set_output_connections()....")
+        print(f"INFO: DONE _set_output_connections()....\n\n\n")
 
 
 
@@ -1645,7 +1635,7 @@ def ingest_material(material_node):
                   f"currently only Arnold, MTLX and Principled Shader are supported!")
             return None
 
-        print("NodeTraverser() START----------------------")
+        print("INFO: NodeTraverser() START----------------------")
         traverser = NodeTraverser(material_node, material_type=material_type)
         nested_nodes_dict, output_nodes_dict = traverser.run()
         # DEBUG: traverser.output_nodes_dict: {
@@ -1662,10 +1652,10 @@ def ingest_material(material_node):
         # }
         # DEBUG: material_type: 'arnold'
         # DEBUG: material_node: 'arnold_materialbuilder_basic'
-        print("NodeTraverser() Finished----------------------\n\n\n")
+        print("INFO: NodeTraverser() Finished----------------------\n\n\n")
 
 
-        print("NodeStandardizer() START----------------------")
+        print("INFO: NodeStandardizer() START----------------------")
         standardizer = NodeStandardizer(
             traversed_nodes_dict=nested_nodes_dict,
             output_nodes_dict=output_nodes_dict,
@@ -1686,7 +1676,7 @@ def ingest_material(material_node):
         #                                   }
         # DEBUG: target_context.path()='/mat'
         # DEBUG: target_format='mtlx'
-        print("NodeStandardizer() Finished----------------------\n\n\n")
+        print("INFO: NodeStandardizer() Finished----------------------\n\n\n")
 
         return material_type, nodeinfo_list, output_connections
 
