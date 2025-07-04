@@ -7,7 +7,7 @@ from importlib import reload
 from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
                                QTextEdit, QListWidget, QMenuBar, QMenu, QAction, QMessageBox, QDialog, QCheckBox,
                                QComboBox)
-from PySide2 import QtCore, QtGui
+from PySide2 import QtCore
 
 from Material_Processor import material_processor
 

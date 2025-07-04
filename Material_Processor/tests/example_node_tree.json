@@ -3,6 +3,10 @@
         "node_name": "OUT_material",
         "node_path": "/mat/arnold_materialbuilder_basic/OUT_material",
         "node_type": "arnold_material",
+        "node_position": [
+            0.975514,
+            6.59195e-17
+        ],
         "node_parms": [],
         "connections_dict": {},
         "children_list": [
@@ -10,486 +14,598 @@
                 "node_name": "standard_surface",
                 "node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
                 "node_type": "arnold::standard_surface",
+                "node_position": [
+                    -2.43151,
+                    2.77556e-17
+                ],
                 "node_parms": [
                     {
-                        "name": "base_group",
-                        "value": 0
+                        "generic_name": "base_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "base",
-                        "value": 0.399
+                        "generic_name": "base",
+                        "value": [
+                            0.399
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "base_colorr",
-                        "value": 0.800000011920929
+                        "generic_name": "base_color",
+                        "value": [
+                            0.5,
+                            0.800000011920929,
+                            0.800000011920929
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "base_colorg",
-                        "value": 0.800000011920929
+                        "generic_name": "diffuse_roughness",
+                        "value": [
+                            0.361
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "base_colorb",
-                        "value": 0.800000011920929
+                        "generic_name": "metalness",
+                        "value": [
+                            0.316
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "diffuse_roughness",
-                        "value": 0.361
+                        "generic_name": "specular_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "metalness",
-                        "value": 0.316
+                        "generic_name": "specular",
+                        "value": [
+                            0.315
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "specular_group",
-                        "value": 0
+                        "generic_name": "specular_color",
+                        "value": [
+                            0.2,
+                            1.8,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "specular",
-                        "value": 0.315
+                        "generic_name": "specular_roughness",
+                        "value": [
+                            0.20000000298023224
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "specular_colorr",
-                        "value": 0.2
+                        "generic_name": "specular_IOR",
+                        "value": [
+                            1.12
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "specular_colorg",
-                        "value": 1.8
+                        "generic_name": "specular_anisotropy",
+                        "value": [
+                            0.099
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "specular_colorb",
-                        "value": 1.0
+                        "generic_name": "specular_rotation",
+                        "value": [
+                            0.037
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "specular_roughness",
-                        "value": 0.20000000298023224
+                        "generic_name": "transmission_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "specular_IOR",
-                        "value": 1.12
+                        "generic_name": "transmission",
+                        "value": [
+                            0.057
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "specular_anisotropy",
-                        "value": 0.099
+                        "generic_name": "transmission_color",
+                        "value": [
+                            0.4,
+                            1.0,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "specular_rotation",
-                        "value": 0.037
+                        "generic_name": "transmission_depth",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "transmission_group",
-                        "value": 0
+                        "generic_name": "transmission_scatter",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "transmission",
-                        "value": 0.057
+                        "generic_name": "transmission_scatter_anisotropy",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "transmission_colorr",
-                        "value": 0.4
+                        "generic_name": "transmission_dispersion",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "transmission_colorg",
-                        "value": 1.0
+                        "generic_name": "transmission_extra_roughness",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "transmission_colorb",
-                        "value": 1.0
+                        "generic_name": "transmit_aovs",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "transmission_depth",
-                        "value": 19.6
+                        "generic_name": "dielectric_priority",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "transmission_scatterr",
-                        "value": 0.0
+                        "generic_name": "subsurface_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "transmission_scatterg",
-                        "value": 0.8
+                        "generic_name": "subsurface_type",
+                        "value": [
+                            "randomwalk"
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "transmission_scatterb",
-                        "value": 0.0
+                        "generic_name": "subsurface",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "transmission_scatter_anisotropy",
-                        "value": 0.0
+                        "generic_name": "subsurface_color",
+                        "value": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "transmission_dispersion",
-                        "value": 0.0
+                        "generic_name": "subsurface_radius",
+                        "value": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "transmission_extra_roughness",
-                        "value": 0.0
+                        "generic_name": "subsurface_scale",
+                        "value": [
+                            1.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "transmit_aovs",
-                        "value": 0
+                        "generic_name": "subsurface_anisotropy",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "dielectric_priority",
-                        "value": 0
+                        "generic_name": "coat_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "subsurface_group",
-                        "value": 0
+                        "generic_name": "coat",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "subsurface_type",
-                        "value": "randomwalk"
+                        "generic_name": "coat_color",
+                        "value": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "subsurface",
-                        "value": 0.0
+                        "generic_name": "coat_roughness",
+                        "value": [
+                            0.10000000149011612
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "subsurface_colorr",
-                        "value": 1.0
+                        "generic_name": "coat_IOR",
+                        "value": [
+                            1.5
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "subsurface_colorg",
-                        "value": 1.0
+                        "generic_name": "coat_anisotropy",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "subsurface_colorb",
-                        "value": 1.0
+                        "generic_name": "coat_rotation",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "subsurface_radiusr",
-                        "value": 1.0
+                        "generic_name": "coat_normal",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "subsurface_radiusg",
-                        "value": 1.0
+                        "generic_name": "coat_affect_color",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "subsurface_radiusb",
-                        "value": 1.0
+                        "generic_name": "coat_affect_roughness",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "subsurface_scale",
-                        "value": 1.0
+                        "generic_name": "thin_film_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "subsurface_anisotropy",
-                        "value": 0.0
+                        "generic_name": "thin_film_thickness",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "coat_group",
-                        "value": 0
+                        "generic_name": "thin_film_IOR",
+                        "value": [
+                            1.5
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "coat",
-                        "value": 0.0
+                        "generic_name": "sheen_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "coat_colorr",
-                        "value": 1.0
+                        "generic_name": "sheen",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "coat_colorg",
-                        "value": 1.0
+                        "generic_name": "sheen_color",
+                        "value": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "coat_colorb",
-                        "value": 1.0
+                        "generic_name": "sheen_roughness",
+                        "value": [
+                            0.30000001192092896
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "coat_roughness",
-                        "value": 0.10000000149011612
+                        "generic_name": "emission_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "coat_IOR",
-                        "value": 1.5
+                        "generic_name": "emission",
+                        "value": [
+                            0.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "coat_anisotropy",
-                        "value": 0.0
+                        "generic_name": "emission_color",
+                        "value": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "coat_rotation",
-                        "value": 0.0
+                        "generic_name": "geometry_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "coat_normalx",
-                        "value": 0.0
+                        "generic_name": "opacity",
+                        "value": [
+                            1.0,
+                            1.0,
+                            1.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "coat_normaly",
-                        "value": 0.0
+                        "generic_name": "normal",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "coat_normalz",
-                        "value": 0.0
+                        "generic_name": "tangent",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "coat_affect_color",
-                        "value": 0.0
+                        "generic_name": "thin_walled",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "coat_affect_roughness",
-                        "value": 0.0
+                        "generic_name": "aov_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "thin_film_group",
-                        "value": 0
+                        "generic_name": "aov_id1",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "thin_film_thickness",
-                        "value": 0.0
+                        "generic_name": "id1",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "thin_film_IOR",
-                        "value": 1.5
+                        "generic_name": "aov_id2",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "sheen_group",
-                        "value": 0
+                        "generic_name": "id2",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "sheen",
-                        "value": 0.0
+                        "generic_name": "aov_id3",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "sheen_colorr",
-                        "value": 1.0
+                        "generic_name": "id3",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "sheen_colorg",
-                        "value": 1.0
+                        "generic_name": "aov_id4",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "sheen_colorb",
-                        "value": 1.0
+                        "generic_name": "id4",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "sheen_roughness",
-                        "value": 0.30000001192092896
+                        "generic_name": "aov_id5",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "emission_group",
-                        "value": 0
+                        "generic_name": "id5",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "emission",
-                        "value": 0.0
+                        "generic_name": "aov_id6",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "emission_colorr",
-                        "value": 1.0
+                        "generic_name": "id6",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "emission_colorg",
-                        "value": 1.0
+                        "generic_name": "aov_id7",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "emission_colorb",
-                        "value": 1.0
+                        "generic_name": "id7",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "geometry_group",
-                        "value": 0
+                        "generic_name": "aov_id8",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     },
                     {
-                        "name": "opacityr",
-                        "value": 1.0
+                        "generic_name": "id8",
+                        "value": [
+                            0.0,
+                            0.0,
+                            0.0
+                        ],
+                        "type": "float3"
                     },
                     {
-                        "name": "opacityg",
-                        "value": 1.0
+                        "generic_name": "advanced_group",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "opacityb",
-                        "value": 1.0
+                        "generic_name": "indirect_diffuse",
+                        "value": [
+                            1.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "normalx",
-                        "value": 0.0
+                        "generic_name": "indirect_specular",
+                        "value": [
+                            1.0
+                        ],
+                        "type": "float1"
                     },
                     {
-                        "name": "normaly",
-                        "value": 0.0
+                        "generic_name": "caustics",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "normalz",
-                        "value": 0.0
+                        "generic_name": "internal_reflections",
+                        "value": [
+                            1
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "tangentx",
-                        "value": 0.0
+                        "generic_name": "exit_to_background",
+                        "value": [
+                            0
+                        ],
+                        "type": "int1"
                     },
                     {
-                        "name": "tangenty",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "tangentz",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "thin_walled",
-                        "value": 0
-                    },
-                    {
-                        "name": "aov_group",
-                        "value": 0
-                    },
-                    {
-                        "name": "aov_id1",
-                        "value": ""
-                    },
-                    {
-                        "name": "id1r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id1g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id1b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "aov_id2",
-                        "value": ""
-                    },
-                    {
-                        "name": "id2r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id2g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id2b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "aov_id3",
-                        "value": ""
-                    },
-                    {
-                        "name": "id3r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id3g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id3b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "aov_id4",
-                        "value": ""
-                    },
-                    {
-                        "name": "id4r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id4g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id4b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "aov_id5",
-                        "value": ""
-                    },
-                    {
-                        "name": "id5r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id5g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id5b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "aov_id6",
-                        "value": ""
-                    },
-                    {
-                        "name": "id6r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id6g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id6b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "aov_id7",
-                        "value": ""
-                    },
-                    {
-                        "name": "id7r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id7g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id7b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "aov_id8",
-                        "value": ""
-                    },
-                    {
-                        "name": "id8r",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id8g",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "id8b",
-                        "value": 0.0
-                    },
-                    {
-                        "name": "advanced_group",
-                        "value": 0
-                    },
-                    {
-                        "name": "indirect_diffuse",
-                        "value": 1.0
-                    },
-                    {
-                        "name": "indirect_specular",
-                        "value": 1.0
-                    },
-                    {
-                        "name": "caustics",
-                        "value": 0
-                    },
-                    {
-                        "name": "internal_reflections",
-                        "value": 1
-                    },
-                    {
-                        "name": "exit_to_background",
-                        "value": 0
-                    },
-                    {
-                        "name": "shader",
-                        "value": ""
+                        "generic_name": "shader",
+                        "value": [
+                            ""
+                        ],
+                        "type": "str1"
                     }
                 ],
                 "connections_dict": {
@@ -513,170 +629,231 @@
                         "node_name": "image_diffuse",
                         "node_path": "/mat/arnold_materialbuilder_basic/image_diffuse",
                         "node_type": "arnold::image",
+                        "node_position": [
+                            -5.98235,
+                            1.11022e-16
+                        ],
                         "node_parms": [
                             {
-                                "name": "folder11",
-                                "value": 0
+                                "generic_name": "folder1",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "filename",
-                                "value": "F:/Assets 3D/Kitbash3D_old/Kitbash3D_Spaceship_battle_2/KB3DTextures/2k/KB3D_SBT_AtlasSpaceLCD_basecolor.png"
+                                "generic_name": "filename",
+                                "value": [
+                                    "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_diff_2k.jpg"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "reload",
-                                "value": "0"
+                                "generic_name": "reload",
+                                "value": [
+                                    "0"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "multiplyr",
-                                "value": 1.0
+                                "generic_name": "multiply",
+                                "value": [
+                                    1.0,
+                                    1.0,
+                                    1.0
+                                ],
+                                "type": "float3"
                             },
                             {
-                                "name": "multiplyg",
-                                "value": 1.0
+                                "generic_name": "offset",
+                                "value": [
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float3"
                             },
                             {
-                                "name": "multiplyb",
-                                "value": 1.0
+                                "generic_name": "color_family",
+                                "value": [
+                                    ""
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "offsetr",
-                                "value": 0.0
+                                "generic_name": "color_space",
+                                "value": [
+                                    "auto"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "offsetg",
-                                "value": 0.0
+                                "generic_name": "filter",
+                                "value": [
+                                    "smart_bicubic"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "offsetb",
-                                "value": 0.0
+                                "generic_name": "mipmap_bias",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "color_family",
-                                "value": ""
+                                "generic_name": "single_channel",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "color_space",
-                                "value": "auto"
+                                "generic_name": "start_channel",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "filter",
-                                "value": "smart_bicubic"
+                                "generic_name": "missing_texture_color",
+                                "value": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float4"
                             },
                             {
-                                "name": "mipmap_bias",
-                                "value": 0
+                                "generic_name": "ignore_missing_textures",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "single_channel",
-                                "value": 0
+                                "generic_name": "autotx",
+                                "value": [
+                                    1
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "start_channel",
-                                "value": 0
+                                "generic_name": "uvcoords",
+                                "value": [
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float2"
                             },
                             {
-                                "name": "missing_texture_colorr",
-                                "value": 0.0
+                                "generic_name": "uvset",
+                                "value": [
+                                    ""
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "missing_texture_colorg",
-                                "value": 0.0
+                                "generic_name": "soffset",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "missing_texture_colorb",
-                                "value": 0.0
+                                "generic_name": "toffset",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "missing_texture_colora",
-                                "value": 0.0
+                                "generic_name": "sscale",
+                                "value": [
+                                    1.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "ignore_missing_textures",
-                                "value": 0
+                                "generic_name": "tscale",
+                                "value": [
+                                    1.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "autotx",
-                                "value": 1
+                                "generic_name": "swrap",
+                                "value": [
+                                    "periodic"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "uvcoords1",
-                                "value": 0.0
+                                "generic_name": "twrap",
+                                "value": [
+                                    "periodic"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "uvcoords2",
-                                "value": 0.0
+                                "generic_name": "swap_st",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "uvset",
-                                "value": ""
+                                "generic_name": "sflip",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "soffset",
-                                "value": 0.0
+                                "generic_name": "tflip",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "toffset",
-                                "value": 0.0
+                                "generic_name": "rgba",
+                                "value": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float4"
                             },
                             {
-                                "name": "sscale",
-                                "value": 1.0
+                                "generic_name": "r",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "tscale",
-                                "value": 1.0
+                                "generic_name": "g",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "swrap",
-                                "value": "periodic"
+                                "generic_name": "b",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "twrap",
-                                "value": "periodic"
-                            },
-                            {
-                                "name": "swap_st",
-                                "value": 0
-                            },
-                            {
-                                "name": "sflip",
-                                "value": 0
-                            },
-                            {
-                                "name": "tflip",
-                                "value": 0
-                            },
-                            {
-                                "name": "rgbar",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "rgbag",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "rgbab",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "rgbaa",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "r",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "g",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "b",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "a",
-                                "value": 0.0
+                                "generic_name": "a",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             }
                         ],
                         "connections_dict": {
@@ -701,170 +878,231 @@
                         "node_name": "image_roughness",
                         "node_path": "/mat/arnold_materialbuilder_basic/image_roughness",
                         "node_type": "arnold::image",
+                        "node_position": [
+                            -9.5095,
+                            -2.11013
+                        ],
                         "node_parms": [
                             {
-                                "name": "folder11",
-                                "value": 0
+                                "generic_name": "folder1",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "filename",
-                                "value": "F:/Assets 3D/Kitbash3D_old/Kitbash3D_Spaceship_battle_2/KB3DTextures/2k/KB3D_SBT_AtlasSpaceLCD_roughness.png"
+                                "generic_name": "filename",
+                                "value": [
+                                    "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_rough_2k.jpg"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "reload",
-                                "value": "0"
+                                "generic_name": "reload",
+                                "value": [
+                                    "0"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "multiplyr",
-                                "value": 1.0
+                                "generic_name": "multiply",
+                                "value": [
+                                    1.0,
+                                    1.0,
+                                    1.0
+                                ],
+                                "type": "float3"
                             },
                             {
-                                "name": "multiplyg",
-                                "value": 1.0
+                                "generic_name": "offset",
+                                "value": [
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float3"
                             },
                             {
-                                "name": "multiplyb",
-                                "value": 1.0
+                                "generic_name": "color_family",
+                                "value": [
+                                    ""
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "offsetr",
-                                "value": 0.0
+                                "generic_name": "color_space",
+                                "value": [
+                                    "auto"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "offsetg",
-                                "value": 0.0
+                                "generic_name": "filter",
+                                "value": [
+                                    "smart_bicubic"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "offsetb",
-                                "value": 0.0
+                                "generic_name": "mipmap_bias",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "color_family",
-                                "value": ""
+                                "generic_name": "single_channel",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "color_space",
-                                "value": "auto"
+                                "generic_name": "start_channel",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "filter",
-                                "value": "smart_bicubic"
+                                "generic_name": "missing_texture_color",
+                                "value": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float4"
                             },
                             {
-                                "name": "mipmap_bias",
-                                "value": 0
+                                "generic_name": "ignore_missing_textures",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "single_channel",
-                                "value": 0
+                                "generic_name": "autotx",
+                                "value": [
+                                    1
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "start_channel",
-                                "value": 0
+                                "generic_name": "uvcoords",
+                                "value": [
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float2"
                             },
                             {
-                                "name": "missing_texture_colorr",
-                                "value": 0.0
+                                "generic_name": "uvset",
+                                "value": [
+                                    ""
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "missing_texture_colorg",
-                                "value": 0.0
+                                "generic_name": "soffset",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "missing_texture_colorb",
-                                "value": 0.0
+                                "generic_name": "toffset",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "missing_texture_colora",
-                                "value": 0.0
+                                "generic_name": "sscale",
+                                "value": [
+                                    1.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "ignore_missing_textures",
-                                "value": 0
+                                "generic_name": "tscale",
+                                "value": [
+                                    1.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "autotx",
-                                "value": 1
+                                "generic_name": "swrap",
+                                "value": [
+                                    "periodic"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "uvcoords1",
-                                "value": 0.0
+                                "generic_name": "twrap",
+                                "value": [
+                                    "periodic"
+                                ],
+                                "type": "str1"
                             },
                             {
-                                "name": "uvcoords2",
-                                "value": 0.0
+                                "generic_name": "swap_st",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "uvset",
-                                "value": ""
+                                "generic_name": "sflip",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "soffset",
-                                "value": 0.0
+                                "generic_name": "tflip",
+                                "value": [
+                                    0
+                                ],
+                                "type": "int1"
                             },
                             {
-                                "name": "toffset",
-                                "value": 0.0
+                                "generic_name": "rgba",
+                                "value": [
+                                    0.0,
+                                    0.0,
+                                    0.0,
+                                    0.0
+                                ],
+                                "type": "float4"
                             },
                             {
-                                "name": "sscale",
-                                "value": 1.0
+                                "generic_name": "r",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "tscale",
-                                "value": 1.0
+                                "generic_name": "g",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "swrap",
-                                "value": "periodic"
+                                "generic_name": "b",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             },
                             {
-                                "name": "twrap",
-                                "value": "periodic"
-                            },
-                            {
-                                "name": "swap_st",
-                                "value": 0
-                            },
-                            {
-                                "name": "sflip",
-                                "value": 0
-                            },
-                            {
-                                "name": "tflip",
-                                "value": 0
-                            },
-                            {
-                                "name": "rgbar",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "rgbag",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "rgbab",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "rgbaa",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "r",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "g",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "b",
-                                "value": 0.0
-                            },
-                            {
-                                "name": "a",
-                                "value": 0.0
+                                "generic_name": "a",
+                                "value": [
+                                    0.0
+                                ],
+                                "type": "float1"
                             }
                         ],
                         "connections_dict": {
