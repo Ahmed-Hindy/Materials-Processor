@@ -4,16 +4,12 @@ Copyright Ahmed Hindy. Please mention the author if you found any part of this c
 """
 import os
 import traceback
-import json
 import re
 import pprint
-from typing import List, Optional
-from pxr import Usd, UsdGeom, UsdShade, Sdf, Gf, Vt
+from typing import List
+from pxr import Usd, UsdGeom, UsdShade, Sdf, Gf
 
-from Material_Processor.material_classes import MaterialData
 from Material_Processor import material_processor
-
-
 
 GENERIC_NODE_TYPES_TO_REGULAR_USD = {
     'GENERIC::standard_surface': {
@@ -327,8 +323,8 @@ class USDTraverser:
 
         generic_name = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {}).get(attribute_name)
         if not generic_name:
-            print(f"WARNING: no generic name found for attribute: '{attribute_name}', with node_type: '{node_type}'")
-            generic_name = attribute_name
+            # print(f"WARNING: no generic name found for attribute: '{attribute_name}', with node_type: '{node_type}'")
+            generic_name = None
 
         return generic_name
 
@@ -632,15 +628,15 @@ class USDMaterialRecreator:
         for param in parameters:
             # DEBUG: param=NodeParameter(generic_name='base_color', generic_type='float3', value=(0.800000011920929, 0.800000011920929, 0.800000011920929))
             if not param.generic_name:
-                print(f"WARNING: Parameter '{param.generic_name}' has no generic name for node type '{node_type}'. Skipping.")
+                # print(f"WARNING: Parameter '{param}' has no generic name for node type '{node_type}'. Skipping.")
                 continue
 
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
             # DEBUG: parm_new_name=['base_color']
 
             if not parm_new_name:
-                print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
-                      f" for node type '{node_type}'. Skipping.")
+                # print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
+                #       f" for node type '{node_type}'. Skipping.")
                 continue  # skip unsupported params
 
             parm_new_name = parm_new_name[0]
@@ -1530,7 +1526,7 @@ def test(stage, mat_node, target_renderer="mtlx"):
         traceback.print_exc()
 
 
-def test2(stage, usd_material, target_renderer="mtlx"):
+def test2(stage, usd_material, target_renderer="arnold"):
     """
     Args:
         stage (Usd.Stage): USD stage

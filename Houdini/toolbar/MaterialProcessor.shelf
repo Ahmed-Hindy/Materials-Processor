@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<shelfDocument>
+  <!-- This file contains definitions of shelves, toolbars, and tools.
+ It should not be hand-edited when it is being used by the application.
+ Note, that two definitions of the same element are not allowed in
+ a single file. -->
+
+  <toolshelf name="MaterialProcessorShelf" label="Axe Material Processor">
+    <memberTool name="material_processor_ui"/>
+    <memberTool name="material_processor_selection"/>
+    <memberTool name="material_processor_test"/>
+  </toolshelf>
+
+  <tool name="material_processor_ui" label="material processor UI" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
+    <script scriptType="python"><![CDATA[from importlib import reload
+# import Example_Scripts.PySide2_test_v001 as PySide2_app
+from Material_Processor import PySide2_ui
+reload(PySide2_ui)
+
+
+# PySide2_test_v002.main()
+PySide2_ui.show_my_main_window()
+]]></script>
+  </tool>
+
+  <tool name="material_processor_selection" label="material processor [Selection]" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
+    <helpText><![CDATA[Select your materials first then run this script.]]></helpText>
+    <script scriptType="python"><![CDATA[from importlib import reload
+import hou
+from Material_Processor import material_processor
+reload(material_processor)
+
+target_context = hou.node('/mat')
+selected_nodes = hou.selectedNodes()
+if selected_nodes:
+    for node in selected_nodes:
+        parent = node.parent()
+        material_processor.run(node, parent)
+    
+    
+    
+# node = hou.node('/mat/material_arnold_ORIG')
+# node = hou.node('/mat/principledshader_ORIG')
+# material_processor.test()
+]]></script>
+  </tool>
+
+  <tool name="material_processor_test" label="material processor [Test]" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
+    <script scriptType="python"><![CDATA[from importlib import reload
+from Material_Processor import material_processor
+reload(material_processor)
+import hou
+
+
+material_processor.test_hou()
+
+]]></script>
+  </tool>
+</shelfDocument>

@@ -2,22 +2,16 @@
 copyright Ahmed Hindy. Please mention the original author if you used any part of this code
 This module processes material nodes in Houdini, extracting and converting shader parameters and textures.
 """
-import os
-import json
-import logging
 import traceback
-from typing import Dict, List
-from pathlib import Path
 import pprint
+from typing import Dict, List
 from importlib import reload, resources
 import tempfile
 
-
-from Material_Processor import material_classes
-from Material_Processor import utils_io
+from Material_Processor import material_classes, utils_io
+from Material_Processor.material_classes import NodeInfo, NodeParameter
 reload(material_classes)
 reload(utils_io)
-from Material_Processor.material_classes import MaterialData, NodeInfo, NodeParameter
 
 
 try:
@@ -836,6 +830,7 @@ class NodeStandardizer:
             if isinstance(value, tuple) and len(value) == 1:
                 value = value[0]
 
+            print(f"DEBUG: param: {pprint.pformat(param, sort_dicts=False)}")
             nodeParameter_list.append(NodeParameter(
                 generic_name=param['generic_name'],
                 generic_type=param['type'],
@@ -1242,14 +1237,20 @@ class NodeRecreator:
             parm_new_name = parm_new_name[0]
             hou_parm = node.parmTuple(parm_new_name)
             # print(f"DEBUG: {hou_parm.name()=}, {param.value=}")
-            if hou_parm is not None:
-                if not isinstance(param.value, tuple):
-                    param.value = (param.value,)
-
-                hou_parm.set(param.value)
-                # print(f"Set parameter '{renderer_specific_name}' on node '{node.path()}' to '{param.value}'")
-            else:
+            if hou_parm is None:
                 print(f"WARNING: Parm '{parm_new_name}' not found on node '{node.path()}'.")
+                continue
+
+            if not isinstance(param.value, tuple):
+                param.value = (param.value,)
+
+            try:
+                hou_parm.set(param.value)
+            except Exception as e:
+                print(f"ERROR: Failed to set parameter '{param.generic_name}' for node '{node.path()}': {e}")
+                continue
+            # print(f"Set parameter '{renderer_specific_name}' on node '{node.path()}' to '{param.value}'")
+
 
     def _create_node(self, node_info):
         """
@@ -1748,9 +1749,10 @@ def test():
         output_nodes_dict=output_nodes,
         material_type=material_type,
     )
+    nodeinfo_list, output_connections = standardizer.run()
 
     # print(f"DEBUG: {standardizer.node_info_list=}")
-    return standardizer
+    return nodeinfo_list, output_connections
 
 
 
@@ -1759,15 +1761,18 @@ def test_hou():
     target_context = hou.node('/mat')
     target_renderer = 'arnold'
     material_type = 'arnold'
+    try:
+        nodeinfo_list, output_connections = test()
 
-    standardizer = test()
-
-    recreator = NodeRecreator(
-        nodeinfo_list=standardizer.node_info_list,
-        output_connections=standardizer.standardized_output_nodes,
-        target_context=target_context,
-        target_renderer=target_renderer
-    )
+        recreator = NodeRecreator(
+            nodeinfo_list=nodeinfo_list,
+            output_connections=output_connections,
+            target_context=target_context,
+            target_renderer=target_renderer
+        )
+    except Exception:
+        traceback.print_exc()
+        return
 
 
 """
