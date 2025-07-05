@@ -801,36 +801,89 @@ class USDMaterialRecreator:
                 src_api.ConnectableAPI(), OUT_PRIM_DICT[self.target_renderer][generic_output]['src'])
 
 
+    def _find_valid_src(self, nodeinfo, parent_nodeinfo=None):
+        """
+        Recursively walk nodeinfo.children_list looking for the
+        first child whose prim has a non‐empty info:id.
+        Returns (dst_prim, dst_nodeinfo) or (None, None).
+        """
+        print(f"DEBUG: prim: '{nodeinfo.node_path}': children_list: {nodeinfo.children_list}")
+        if parent_nodeinfo:
+            print(f"DEBUG: parent: '{parent_nodeinfo.node_path}'")
+        for conn_index, conn in nodeinfo.connection_info.items():
+            print(f"DEBUG: node: parent node_path: '{conn['output']['node_path']}'")
+            if parent_nodeinfo and conn['output']['node_path'] != parent_nodeinfo.node_path:
+                print(f"DEBUG: Invalid parent, skipping connection!")
+                continue
+
+            print(f"DEBUG: node: {conn['input']['parm_name']} -> {conn['output']['parm_name']}")
+            for child_nodeinfo in nodeinfo.children_list:
+                child_path = self.old_new_map[child_nodeinfo.node_path]
+                prim = self.stage.GetPrimAtPath(Sdf.Path(child_path))
+                print(f"DEBUG: child prim: '{child_path}'")
+                if prim and prim.GetAttribute('info:id').Get():
+                    for c_conn_index, c_conn in child_nodeinfo.connection_info.items():
+                        print(f"DEBUG: child: {c_conn['input']['parm_name']} -> {c_conn['output']['parm_name']}\n")
+                        if nodeinfo and c_conn['output']['node_path'] != nodeinfo.node_path:
+                            print(f"DEBUG: Invalid node, skipping connection!")
+                            continue
+
+                        return prim, c_conn
+
+                # recurse deeper
+                deeper_prim, deeper_conn = self._find_valid_src(child_nodeinfo, nodeinfo)
+                if deeper_prim:
+                    return deeper_prim, deeper_conn
+        return None, None
+
+    def _connect_pair(self, src_prim, dst_prim, src_parm, dst_parm):
+        try:
+            src_api = UsdShade.Shader(src_prim)
+            dst_api = UsdShade.Shader(dst_prim)
+            print(f"→ Connecting prims: {src_prim.GetPath().pathString}[{src_parm}] -> {dst_prim.GetPath().pathString}[{dst_parm}]")
+            inp = dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
+            inp.ConnectToSource(src_api.ConnectableAPI(), src_parm)
+        except Exception as e:
+            print(f"FAILED to connect {src_prim.GetPath()}[{src_parm}] -> {dst_prim.GetPath().pathString}[{dst_parm}]: {e}")
+
     def set_shader_connections(self, nodeinfo_list):
         """
         Connect child shader prims based on stored connection_tasks.
         """
         for nodeinfo in nodeinfo_list:
-
             for conn_index, conn in nodeinfo.connection_info.items():
-                parent_path = nodeinfo.node_path
-
-                # conn has input and output entries
-                # src_name = self.old_new_map[conn['input']['node_name']]
-                src_path = self.old_new_map[conn['input']['node_path']]
-                # dst_name = self.old_new_map[conn['output']['node_name']]
-                dst_path = self.old_new_map[conn['output']['node_path']]
+                src_path = self.old_new_map.get(conn['input']['node_path'])
+                dst_path = self.old_new_map.get(conn['output']['node_path'])
                 src_parm = conn['input']['parm_name']
                 dst_parm = conn['output']['parm_name']
-                if dst_path in [x.pathString for x in self.created_out_primpaths]:
-                    print(f"WARNING:  Output detected: '{dst_path}' ")
+                src_prim = self.stage.GetPrimAtPath(Sdf.Path(src_path)) if src_path else None
+                dst_prim = self.stage.GetPrimAtPath(Sdf.Path(dst_path)) if dst_path else None
+
+                print(f"\nIteration:'{conn_index}',  '{src_path}[{src_parm}] → {dst_path}[{dst_parm}]':")
+                if not (src_prim and dst_prim and src_prim.IsValid() and dst_prim.IsValid()):
+                    print(f"SKIPPING connection, invalid prims found src:{src_prim}, dst:{dst_prim}")
+                    continue
+                if not src_prim.GetAttribute('info:id').Get() and not dst_prim.GetAttribute('info:id').Get():
+                    print(f"SKIPPING connection, both missing 'info:id'")
+                    continue
+                if dst_prim.GetTypeName() == 'Material':
+                    print(f"SKIPPING connection, dst_prim's primitive type is a Material not a Shader!")
                     continue
 
-                print(f"Connecting prims: src: '{src_path}[{src_parm}]' ->: '{dst_path}[{dst_parm}]'")
+                if not src_prim.GetAttribute('info:id').Get():
+                    print(f"No info:id found, searching children…")
+                    new_src_prim, new_conn = self._find_valid_src(nodeinfo)
+                    if not new_src_prim:
+                        print(f"SKIPPING child connection '{src_path}→{dst_path}': _find_valid_src() didn't find anything!")
+                        continue
 
-                src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
-                dst_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(dst_path)))
-                try:
-                    dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
-                    # errors out if the prim is a null.
-                    dst_api.GetInput(dst_parm).ConnectToSource(src_api.ConnectableAPI(), src_parm)
-                except Exception as e:
-                    print(f"ERROR: , Failed to set Connection: '{src_path}' -> '{dst_path}', probably a prim is null.")
+                    print(f"DEBUG: {new_src_prim=}")
+                    print(f"DEBUG: new_conn: {pprint.pformat(new_conn, sort_dicts=False)}")
+                    self._connect_pair(new_src_prim, dst_prim, new_conn['input']['parm_name'], dst_parm)
+                    continue
+
+
+                self._connect_pair(src_prim, dst_prim, src_parm, dst_parm)
 
             # recurse into children:
             if nodeinfo.children_list:

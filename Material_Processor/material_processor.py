@@ -299,6 +299,16 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'input2b': 'bg_color3b',
         'mix': 'mix',
     },
+    'arnold:curvature': {
+        'output': 'output',
+        'radius': 'radius',
+        'spread': 'spread',
+        'threshold': 'threshold',
+        'bias': 'bias',
+    },
+
+
+
 
     # principled shader 2.0:
     'principledshader:2.0': {
@@ -830,7 +840,6 @@ class NodeStandardizer:
             if isinstance(value, tuple) and len(value) == 1:
                 value = value[0]
 
-            print(f"DEBUG: param: {pprint.pformat(param, sort_dicts=False)}")
             nodeParameter_list.append(NodeParameter(
                 generic_name=param['generic_name'],
                 generic_type=param['type'],
