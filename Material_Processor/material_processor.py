@@ -67,6 +67,12 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
     'ND_range_float': 'GENERIC::range',
     'ND_displacement_float': 'GENERIC::displacement',
 
+    # redshiftvopnet nodes:
+    'redshift::StandardMaterial': 'GENERIC::standard_surface',
+    'redshift::TextureSampler': 'GENERIC::image',
+    'redshift::Displacement': 'GENERIC::displacement',
+    'redshift_material': 'GENERIC::output_node',
+
     'null': 'GENERIC::null',
 }
 
@@ -98,6 +104,17 @@ GENERIC_NODE_TYPES_TO_REGULAR = {
                 'GENERIC::mix_layer': 'mtlxmix',
                 'GENERIC::displacement': 'mtlxdisplacement',
                 'GENERIC::null': 'null',
+            },
+            'redshiftvopnet': {
+                'GENERIC::standard_surface': 'redshift::StandardMaterial',
+                'GENERIC::image': 'redshift::TextureSampler',
+                'GENERIC::color_correct': 'redshift::RSColorCorrection',
+                'GENERIC::range': 'redshift::RSColorRange',
+                'GENERIC::curvature': 'redshift::Curvature',
+                'GENERIC::mix_rgba': 'redshift::RSColorMix',
+                'GENERIC::mix_layer': 'redshift::RSColorLayer',
+                'GENERIC::displacement': 'redshift::Displacement',
+                'GENERIC::null': 'null',
             }
         }
 
@@ -105,6 +122,7 @@ GENERIC_NODE_TYPES_TO_REGULAR = {
 OUTPUT_NODE_MAP = {
     'arnold': 'arnold_material',
     'mtlx': 'subnetconnector',
+    'redshiftvopnet': 'redshift_material',
     'principledshader': '',
 }
 
@@ -130,6 +148,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'coat_roughness': 'coat_roughness',
         'transmission': 'transmission',
         'transmission_color': 'transmission_color',
+        'transmission_extra_roughness': 'transmission_extra_roughness',
         'subsurface': 'subsurface',
         'subsurface_color': 'subsurface_color',
         'emission': 'emission',
@@ -174,9 +193,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'scale': 'scale',
     },
 
-
-
-    # usd prims infoId:
+    # mtlx prims infoId:
     'ND_standard_surface_surfaceshader': {
         'base': 'base',
         'base_color': 'base_color',
@@ -193,6 +210,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'coat_roughness': 'coat_roughness',
         'transmission': 'transmission',
         'transmission_color': 'transmission_color',
+        'transmission_extra_roughness': 'transmission_extra_roughness',
         'subsurface': 'subsurface',
         'subsurface_color': 'subsurface_color',
         'emission': 'emission',
@@ -243,6 +261,70 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 
 
 
+    # redshiftvopnet parms::
+    'redshift:StandardMaterial': {
+        'base_color_weight': 'base',
+        'base_color': 'base_color',
+        'diffuse_roughness': 'diffuse_roughness',
+        'metalness': 'metalness',
+        'refl_weight': 'specular',
+        'refl_color': 'specular_color',
+        'refl_roughness': 'specular_roughness',
+        'refl_ior': 'specular_IOR',
+        'refl_aniso': 'specular_anisotropy',
+        'refl_aniso_rotation': 'specular_rotation',
+        'coat': 'coat',
+        'coat_color': 'coat_color',
+        'coat_roughness': 'coat_roughness',
+        'refr_weight': 'transmission',
+        'refr_color': 'transmission_color',
+        'refr_roughness': 'transmission_extra_roughness',
+        'ms_amount': 'subsurface',
+        'ms_color': 'subsurface_color',
+        'emission_weight': 'emission',
+        'emission_color': 'emission_color',
+        'opacity_color': 'opacity',
+        # 'normal': 'normal',  # unsupported
+        'refr_thin_walled': 'thin_walled',
+    },
+    'redshift:TextureSampler': {
+        'signature': 'signature',
+        'file': 'filename',
+    },
+    'redshift:RSMathRange': {
+        'in': 'in',
+        'inlow': 'inlow',
+        'inhigh': 'inhigh',
+        'gamma': 'gamma',
+        'outhigh': 'outhigh',
+        'outlow': 'outlow',
+    },
+    'redshift:RSColorRange': {
+        'in': 'in',
+        'inlow': 'inlow',
+        'inhigh': 'inhigh',
+        'gamma': 'gamma',
+        'outhigh': 'outhigh',
+        'outlow': 'outlow',
+    },
+    'redshift:RSColorCorrection': {
+        'contrast': 'contrast',
+        'contrastpivot': 'contrastpivot',
+        'exposure': 'exposure',
+        'gain': 'gain',
+        'gamma': 'gamma',
+        'hue': 'hue',
+        'in': 'in',
+        'lift': 'lift',
+        'saturation': 'saturation',
+    },
+    'redshift:Displacement': {
+        # 'displacement': 'displacement',
+        'scale': 'scale',
+    },
+
+
+
     # arnold parms:
     'arnold:standard_surface': {
         'base': 'base',
@@ -257,6 +339,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'specular_rotation': 'specular_rotation',
         'transmission': 'transmission',
         'transmission_color': 'transmission_color',
+        'transmission_extra_roughness': 'transmission_extra_roughness',
         'coat': 'coat',
         'coat_color': 'coat_color',
         'coat_roughness': 'coat_roughness',
@@ -396,7 +479,6 @@ class NodeTraverser:
             connected_output_name = connection.inputName()
             if connected_output_index == 0:
                 output_nodes['surface'] = {
-                    # 'node': arnold_output,
                     'node_name': arnold_output.name(),
                     'node_path': arnold_output.path(),
                     'connected_node_name': connected_input.name(),
@@ -458,6 +540,57 @@ class NodeTraverser:
         return output_nodes
 
     @staticmethod
+    def _detect_redshiftvopnet_output_nodes(material_node):
+        """
+        Detect redshiftvopnet output nodes in the node tree.
+
+        Args:
+            material_node (hou.Node): The parent Houdini node.
+
+        Returns:
+            Dict: A dictionary of detected redshiftvopnet output nodes.
+        """
+        redshift_output = None
+        for child in material_node.children():
+            if child.type().name() == 'redshift_material':
+                redshift_output = child
+                break
+        if not redshift_output:
+            raise Exception(f"No Output Node detected for 'redshiftvopnet' Material")
+
+        output_nodes = {}
+        connections = redshift_output.inputConnections()
+        for connection in connections:
+            connected_input = connection.inputNode()
+            connected_input_index = connection.outputIndex()
+            connected_input_name = connection.outputName()
+            connected_output_index = connection.inputIndex()
+            connected_output_name = connection.inputName()
+            if connected_output_index == 0:
+                output_nodes['surface'] = {
+                    'node_name': redshift_output.name(),
+                    'node_path': redshift_output.path(),
+                    'connected_node_name': connected_input.name(),
+                    'connected_node_path': connected_input.path(),
+                    'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
+                    'generic_type': 'GENERIC::output_surface'
+                }
+            elif connected_output_index == 1:
+                output_nodes['displacement'] = {
+                    'node_name': redshift_output.name(),
+                    'node_path': redshift_output.path(),
+                    'connected_node_name': connected_input.name(),
+                    'connected_node_path': connected_input.path(),
+                    'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
+                    'generic_type': 'GENERIC::output_displacement'
+                }
+        return output_nodes
+
+    @staticmethod
     def _detect_principled_output_nodes(material_node):
         """
         Detect Principled Shader output nodes in the node tree.
@@ -509,6 +642,8 @@ class NodeTraverser:
             output_nodes = self._detect_arnold_output_nodes(material_node)
         elif material_type == 'mtlx':
             output_nodes = self._detect_mtlx_output_nodes(material_node)
+        elif material_type == 'redshiftvopnet':
+            output_nodes = self._detect_redshiftvopnet_output_nodes(material_node)
         elif material_type == 'principledshader':
             output_nodes = self._detect_principled_output_nodes(material_node)
         else:
@@ -543,7 +678,7 @@ class NodeTraverser:
                     }
                 }
         """
-        print(f"DEBUG: parent_node.name(): {parent_node.name() if parent_node else 'None'},   node.name(): {node.name()}")
+        # print(f"DEBUG: parent_node.name(): {parent_node.name() if parent_node else 'None'},   node.name(): {node.name()}")
         # e.g. prints:
         # DEBUG: parent_node.name(): None,                  node.name(): 'surface_output'
         # DEBUG: parent_node.name(): surface_output,        node.name(): 'mtlxstandard_surface'
@@ -829,19 +964,23 @@ class NodeStandardizer:
         Returns:
             List[NodeParameter]: A list of filtered and standardized node parameters.
         """
-        generic_parm_names = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
-        if not generic_parm_names:
+        generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
+        if not generic_parm_names_dict:
             print(f"WARNING: No generic parameters mapping was found for nodetype: '{node_type}'.")
             return []
 
         nodeParameter_list = []
         for param in parms:
+            generic_name = generic_parm_names_dict.get(param['generic_name'], None)
+            if not generic_name:
+                continue
+
             value = param['value']
             if isinstance(value, tuple) and len(value) == 1:
                 value = value[0]
 
             nodeParameter_list.append(NodeParameter(
-                generic_name=param['generic_name'],
+                generic_name=generic_name,
                 generic_type=param['type'],
                 value=value,
             ))
@@ -1022,6 +1161,9 @@ class NodeRecreator:
         subnet_node = matnet.createNode('subnet', name)
         subnet_node = voptoolutils._setupMtlXBuilderSubnet(subnet_node=subnet_node, name=name, mask=MTLX_TAB_MASK,
                                                            folder_label=folder_label, render_context=render_context)
+
+        subnet_node.node('mtlxstandard_surface').destroy()
+
         output_nodes = {
             'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
                                         'node_name': subnet_node.node('surface_output').name(),
@@ -1168,11 +1310,11 @@ class NodeRecreator:
             new_output_nodepath = f"{self.material_node.path()}/{new_output_nodename}"
 
             created_output_node: hou.VopNode = hou.node(new_output_nodepath)
-            if not created_output_node:
-                raise Exception(f"This part of code is never tested!, rewrite it!")
+            # if not created_output_node:
+            #     raise Exception(f"This part of code is never tested!, rewrite it!")
 
             print(f"Found new output node: '{created_output_node.path()}' of type: '{output_node_type}' "
-                  f"for output generic type: {generic_output_type}")
+                  f"for output generic type: '{generic_output_type}'")
 
 
             self.old_new_node_map[output_info['node_path']] = {'node_name': created_output_node.name(),
@@ -1232,7 +1374,7 @@ class NodeRecreator:
 
         for param in parameters:
             if not param.generic_name:
-                print(f"WARNING: Parameter '{param.generic_name}' has no generic name for node type '{node_type}'. Skipping.")
+                print(f"WARNING: Parameter of value:'{param.value}' has no generic_name for node type '{node_type}'. Skipping.")
                 continue
 
             # Find the renderer-specific parameter name
@@ -1414,11 +1556,9 @@ class NodeRecreator:
 
             # Find the connected node info from the nodeinfo_list output connections
             new_connected_node_info = self.new_output_connections[output_type]
+            print(f"DEBUG: new_connected_node_info: {pprint.pformat(new_connected_node_info, sort_dicts=False)}")
 
             if new_connected_node_info:
-                # old_connected_node_path = orig_connected_node_info['connected_node_path']
-                # print(f"DEBUG: {old_connected_node_path=}")
-                # new_connected_node_path = self.old_new_node_map[old_connected_node_path].get('node_path')
                 new_connected_node: hou.VopNode = self.material_node.node(new_connected_node_info.get('connected_node_name'))
                 if not new_connected_node:
                     print(f"WARNING: Connections for node:'{new_connected_node_info['node_name']}' not found!")
@@ -1477,8 +1617,8 @@ class NodeRecreator:
                 continue
 
             # skip wiring if this is one of our designated outputs
-            if self._is_output_node(dest_node_name):
-                print(f"WARNING: Skipping connection for '{dest_node_name}' on '{dest_node.name()}' (it's an output node).")
+            if self._is_output_node(dest_node.name()):
+                print(f"WARNING: Skipping connection for '{dest_node_name} → {dest_node.name()}' (it's an output node).")
                 continue
 
             # perform the actual wire
@@ -1546,8 +1686,7 @@ class NodeRecreator:
 
 
         # if it's a node that needs splitting, we split the channels
-        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_parm not in ['rgb', 'rgba', 'out']:
-            print(f"DEBUG: {src_parm=}")
+        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_parm not in ['rgb', 'rgba', 'out', 'outColor']:
             check, _ = self.create_mtlx_vec3_split_node(src_node=src_node, dest_node=dest_node,
                                                         src_out_parm_name=src_parm, dest_in_index=dest_idx)
             return check
@@ -1641,6 +1780,11 @@ def get_material_type(materialbuilder_node):
             if 'mtlx' in child_node.type().name():
                 material_type = 'mtlx'
                 break
+    elif materialbuilder_type == 'redshift_vopnet':
+        material_type = 'redshiftvopnet'
+    elif materialbuilder_type == 'rs_usd_material_builder':
+        material_type = 'redshift_usd_builder'
+
     elif materialbuilder_type == 'principledshader::2.0':
         material_type = 'principledshader'
 
@@ -1653,8 +1797,8 @@ def ingest_material(material_node):
         material_type = get_material_type(material_node)
         if not material_type:
             print(f"Couldn't determine Input material type, "
-                  f"currently only Arnold, MTLX and Principled Shader are supported!")
-            return None
+                  f"currently only Arnold, MTLX, Redshift Standard Material and Principled Shader are supported!")
+            return None, None, None
 
         print("INFO: NodeTraverser() START----------------------")
         traverser = NodeTraverser(material_node, material_type=material_type)
