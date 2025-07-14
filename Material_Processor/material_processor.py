@@ -288,8 +288,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'refr_thin_walled': 'thin_walled',
     },
     'redshift:TextureSampler': {
-        'signature': 'signature',
-        'file': 'filename',
+        'tex0': 'filename',
     },
     'redshift:RSMathRange': {
         'in': 'in',
@@ -717,27 +716,39 @@ class NodeTraverser:
         return connections_dict
 
     @staticmethod
-    def _convert_parms_to_dict(parms_list):
+    def _convert_parms_to_dict(parmTuple_list):
         """
-        Convert a list of hou.ParmTemplate objects to a list of dictionaries with name and value.
+        Convert a list of hou.ParmTuple objects to a list of dictionaries with name and value.
 
         Args:
-            parms_list (List[hou.ParmTemplate]): The list of hou.ParmTemplate objects.
+            parmTuple_list (List[hou.ParmTuple]): The list of hou.ParmTuple objects.
 
         Returns:
             List[Dict[str, Any]]: A list of dictionaries with parameter names and values.
         Examples:
-            >>> parms_dict = self._convert_parms_to_dict(parms_list=node.parmTemplates())
+            >>> parms_dict = self._convert_parms_to_dict(parmTuple_list=node.parmTuples())
             >>> print(parms_dict)
              [
-             {'name': 'filename', value': 'F:/Assets 3D/Kitbash3D_old/Kitbash3D_Spaceship_battle_2/KB3DTextures/2k/KB3D_SBT_AtlasSpaceLCD_roughness.png'},
-             {'name': 'reload', 'value': '0'}
+                 {
+                    'name': 'filename',
+                    value': 'F:/Assets 3D/Kitbash3D_old/Kitbash3D_Spaceship_battle_2/KB3DTextures/2k/KB3D_SBT_AtlasSpaceLCD_roughness.png'
+                 },
+                 {
+                 'name': 'reload',
+                 'value': '0'
+                 }
              ]
         """
         parms_dict_list = []
-        for p in parms_list:
+        for p in parmTuple_list:
             p_name = p.name()
+            p_type = str(p.parmTemplate().type())
             p_value = p.eval()
+
+            if p_type in {'parmTemplateType.FolderSet', 'parmTemplateType.Folder', 'parmTemplateType.Label',
+                          'parmTemplateType.Separator', }:
+                # print(f"DEBUG: Skipping parameter: '{p_name}' or type: '{p_type}'")
+                continue
             if not p_value:
                 continue
 
@@ -805,7 +816,7 @@ class NodeTraverser:
         the same fields you use for Arnold.
         """
         # grab parameters + direct connections
-        parms = self._convert_parms_to_dict(node.parms())
+        parms = self._convert_parms_to_dict(node.parmTuples())
 
         entry = {
             f"{node.path()}/OUT_material": {
@@ -1474,7 +1485,7 @@ class NodeRecreator:
         Create nodes in the target context.
         """
         if self.target_renderer not in ['arnold', 'mtlx']:
-            return None
+            raise ValueError(f"Can't Create Nodes for Unsupported target renderer: {self.target_renderer}")
 
         self._create_nodes_recursive(nested_nodes_info)
         return True
