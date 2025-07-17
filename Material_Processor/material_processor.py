@@ -57,7 +57,7 @@ GENERIC_NODE_TYPES_TO_REGULAR = {
                 'GENERIC::displacement': 'mtlxdisplacement',
                 'GENERIC::null': 'null',
             },
-            'redshiftvopnet': {
+            'redshift_vopnet': {
                 'GENERIC::standard_surface': 'redshift::StandardMaterial',
                 'GENERIC::image': 'redshift::TextureSampler',
                 'GENERIC::color_correct': 'redshift::RSColorCorrection',
@@ -67,14 +67,26 @@ GENERIC_NODE_TYPES_TO_REGULAR = {
                 'GENERIC::mix_layer': 'redshift::RSColorLayer',
                 'GENERIC::displacement': 'redshift::Displacement',
                 'GENERIC::null': 'null',
-            }
+            },
+            'rs_usd_material_builder': {
+                'GENERIC::standard_surface': 'redshift::StandardMaterial',
+                'GENERIC::image': 'redshift::TextureSampler',
+                'GENERIC::color_correct': 'redshift::RSColorCorrection',
+                'GENERIC::range': 'redshift::RSColorRange',
+                'GENERIC::curvature': 'redshift::Curvature',
+                'GENERIC::mix_rgba': 'redshift::RSColorMix',
+                'GENERIC::mix_layer': 'redshift::RSColorLayer',
+                'GENERIC::displacement': 'redshift::Displacement',
+                'GENERIC::null': 'null',
+            },
         }
 
 # used for creating output nodes for render engines.
 OUTPUT_NODE_MAP = {
     'arnold': 'arnold_material',
     'mtlx': 'subnetconnector',
-    'redshiftvopnet': 'redshift_material',
+    'redshift_vopnet': 'redshift_material',
+    'rs_usd_material_builder': 'redshift_usd_material',
     'principledshader': '',
 }
 
@@ -203,15 +215,15 @@ class NodeTraverser:
         return output_nodes
 
     @staticmethod
-    def _detect_redshiftvopnet_output_nodes(material_node):
+    def _detect_redshift_vopnet_output_nodes(material_node):
         """
-        Detect redshiftvopnet output nodes in the node tree.
+        Detect redshift_vopnet output nodes in the node tree.
 
         Args:
             material_node (hou.Node): The parent Houdini node.
 
         Returns:
-            Dict: A dictionary of detected redshiftvopnet output nodes.
+            Dict: A dictionary of detected redshift_vopnet output nodes.
         """
         redshift_output = None
         for child in material_node.children():
@@ -219,7 +231,58 @@ class NodeTraverser:
                 redshift_output = child
                 break
         if not redshift_output:
-            raise Exception(f"No Output Node detected for 'redshiftvopnet' Material")
+            raise Exception(f"No Output Node detected for 'redshift_vopnet' Material")
+
+        output_nodes = {}
+        connections = redshift_output.inputConnections()
+        for connection in connections:
+            connected_input = connection.inputNode()
+            connected_input_index = connection.outputIndex()
+            connected_input_name = connection.outputName()
+            connected_output_index = connection.inputIndex()
+            connected_output_name = connection.inputName()
+            if connected_output_index == 0:
+                output_nodes['surface'] = {
+                    'node_name': redshift_output.name(),
+                    'node_path': redshift_output.path(),
+                    'connected_node_name': connected_input.name(),
+                    'connected_node_path': connected_input.path(),
+                    'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
+                    'generic_type': 'GENERIC::output_surface'
+                }
+            elif connected_output_index == 1:
+                output_nodes['displacement'] = {
+                    'node_name': redshift_output.name(),
+                    'node_path': redshift_output.path(),
+                    'connected_node_name': connected_input.name(),
+                    'connected_node_path': connected_input.path(),
+                    'connected_input_index': connected_input_index,
+                    'connected_input_name': connected_input_name,
+                    'connected_output_name': connected_output_name,
+                    'generic_type': 'GENERIC::output_displacement'
+                }
+        return output_nodes
+
+    @staticmethod
+    def _detect_RsUsdMaterialbuilder_output_nodes(material_node):
+        """
+        Detect rs usd materialbuilder output nodes in the node tree.
+
+        Args:
+            material_node (hou.Node): The parent Houdini node.
+
+        Returns:
+            Dict: A dictionary of detected redshift_vopnet output nodes.
+        """
+        redshift_output = None
+        for child in material_node.children():
+            if child.type().name() == 'redshift_usd_material':
+                redshift_output = child
+                break
+        if not redshift_output:
+            raise Exception(f"No Output Node detected for 'rs usd materialbuilder' Material")
 
         output_nodes = {}
         connections = redshift_output.inputConnections()
@@ -305,8 +368,10 @@ class NodeTraverser:
             output_nodes = self._detect_arnold_output_nodes(material_node)
         elif material_type == 'mtlx':
             output_nodes = self._detect_mtlx_output_nodes(material_node)
-        elif material_type == 'redshiftvopnet':
-            output_nodes = self._detect_redshiftvopnet_output_nodes(material_node)
+        elif material_type == 'redshift_vopnet':
+            output_nodes = self._detect_redshift_vopnet_output_nodes(material_node)
+        elif material_type == 'rs_usd_material_builder':
+            output_nodes = self._detect_RsUsdMaterialbuilder_output_nodes(material_node)
         elif material_type == 'principledshader':
             output_nodes = self._detect_principled_output_nodes(material_node)
         else:
@@ -1278,9 +1343,9 @@ def get_material_type(materialbuilder_node):
                 material_type = 'mtlx'
                 break
     elif materialbuilder_type == 'redshift_vopnet':
-        material_type = 'redshiftvopnet'
+        material_type = 'redshift_vopnet'
     elif materialbuilder_type == 'rs_usd_material_builder':
-        material_type = 'redshift_usd_builder'
+        material_type = 'rs_usd_material_builder'
 
     elif materialbuilder_type == 'principledshader::2.0':
         material_type = 'principledshader'

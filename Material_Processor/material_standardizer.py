@@ -194,7 +194,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 
 
 
-    # redshiftvopnet parms::
+    # redshiftvopnet parms:
     'redshift:StandardMaterial': {
         'base_color_weight': 'base',
         'base_color': 'base_color',

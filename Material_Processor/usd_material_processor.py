@@ -14,6 +14,24 @@ reload(material_standardizer)
 reload(material_processor)
 
 
+# map USD material outputs back to GENERIC types
+GENERIC_OUTPUT_TYPES = {
+    'surface': 'GENERIC::output_surface',
+    'displacement': 'GENERIC::output_displacement',
+}
+
+OUT_PRIMS_TYPES = {
+    'mtlx': 'subnetconnector',
+    'arnold': 'arnold_shader',
+    'rs_usd_material_builder': 'redshift_usd_material',
+}
+
+SKIPPED_ATTRIBS = [
+    'info:id',
+    'info:implementationSource',
+    'outputs:out'
+]
+
 
 GENERIC_NODE_TYPES_TO_REGULAR_USD = {
     'GENERIC::standard_surface': {
@@ -21,6 +39,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:standard_surface',
             'mtlx': 'ND_standard_surface_surfaceshader',
+            'rs_usd_material_builder': 'redshift::StandardMaterial',
             'usdpreview': 'UsdPreviewSurface',
         },
     },
@@ -29,6 +48,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:image',
             'mtlx': 'ND_image_color3',
+            'rs_usd_material_builder': 'redshift::TextureSampler',
             'usdpreview': 'UsdUVTexture',
         },
     },
@@ -37,6 +57,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:range',
             'mtlx': 'ND_range_color3',
+            'rs_usd_material_builder': 'redshift::RSColorRange',
         },
     },
     'GENERIC::color_correct': {
@@ -44,6 +65,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:color_correct',
             'mtlx': 'ND_colorcorrect_color3',
+            'rs_usd_material_builder': 'redshift::RSColorCorrection',
         },
     },
     'GENERIC::curvature': {
@@ -51,6 +73,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:curvature',
             # 'mtlx': 'null',
+            # 'rs_usd_material_builder': 'redshift::Curvature',
         },
     },
     'GENERIC::mix_rgba': {
@@ -91,6 +114,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:bump2d',
             'mtlx':   'ND_bump_vector3',
+            'rs_usd_material_builder':   'redshift::Displacement',
         },
     },
     'GENERIC::output_node': {
@@ -102,6 +126,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': None,
             'mtlx':   None,
+            'rs_usd_material_builder': None,
         },
     },
 }
@@ -128,26 +153,22 @@ OUT_PRIM_DICT = {
             'src': 'out',
             'dest': 'mtlx:displacement',
         },
-    }
+    },
+    'rs_usd_material_builder': {
+        'GENERIC::output_surface': {
+            'src': 'Shader',
+            'dest': 'Redshift:surface',
+        },
+        'GENERIC::output_displacement': {
+            'src': 'out',
+            'dest': 'Redshift:displacement',
+        },
+    },
 }
 
 
-# map USD material outputs back to GENERIC types
-GENERIC_OUTPUT_TYPES = {
-    'surface': 'GENERIC::output_surface',
-    'displacement': 'GENERIC::output_displacement',
-}
 
-OUT_PRIMS_TYPES = {
-    'mtlx': 'subnetconnector',
-    'arnold': 'arnold_shader',
-}
 
-SKIPPED_ATTRIBS = [
-    'info:id',
-    'info:implementationSource',
-    'outputs:out'
-]
 
 _ATTRIB_TYPE_CASTERS = {
     'int': Sdf.ValueTypeNames.Int,
@@ -448,17 +469,16 @@ class USDTraverser:
             'connections_dict': {},
             'children_list': [],
         }
-
         if parent_shader is not None:
             shader_connections = shader.GetInputs()
-            # print(f"DEBUG: Getting Inputs!")
+            print(f"DEBUG: Getting Inputs!")
         else:
             shader_connections = shader.GetOutputs()
-            # print(f"DEBUG: Getting Outputs!")
+            print(f"DEBUG: Getting Outputs!")
 
         if not shader_connections:
-            print(f"WARNING: No Outputs!")
-            return {shader_prim.path(): node_dict}
+            print(f"WARNING: No Outputs!, {shader_prim=}")
+            return {shader_prim.GetPath().pathString: node_dict}
 
         count = 0
         for out in shader_connections:
@@ -1523,10 +1543,14 @@ def get_material_type(usd_material):
         material_list.append('arnold')
     if 'ND_standard_surface_surfaceshader' in infoId_list:
         material_list.append('mtlx')
+    if 'redshift::StandardMaterial' in infoId_list:
+        material_list.append('rs_usd_material_builder')
 
     material_list = tuple(material_list)
     if len(material_list) > 1:
         raise NotImplementedError(f"ERROR: multiple material types found: '{material_list}', Script only supports one material type at a time.")
+    if len(material_list) == 0:
+        raise NotImplementedError(f"ERROR: Couldn't determine Input material type.")
 
     material_type = material_list[0]
 
@@ -1576,9 +1600,8 @@ def test2(stage, usd_material, target_renderer="arnold"):
     mat_name = mat_prim.GetName()
 
     material_type = get_material_type(usd_material)
-    if not material_type or material_type not in ['arnold', 'mtlx']:
-        print(f"Couldn't determine Input material type, "
-              f"currently only Arnold, MTLX are supported!")
+    if not material_type :
+        print(f"Couldn't determine Input material type.")
         return None
 
     nested_nodes_dict, output_nodes_dict  = USDTraverser(stage, mat_prim, material_type).run()
