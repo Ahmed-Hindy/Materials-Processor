@@ -1,15 +1,19 @@
 """
 Copyright Ahmed Hindy. Please mention the author if you found any part of this code useful.
-
 """
 import os
 import traceback
 import re
 import pprint
 from typing import List
+from importlib import reload
 from pxr import Usd, UsdGeom, UsdShade, Sdf, Gf
 
-from Material_Processor import material_processor
+from Material_Processor import material_standardizer, material_processor
+reload(material_standardizer)
+reload(material_processor)
+
+
 
 GENERIC_NODE_TYPES_TO_REGULAR_USD = {
     'GENERIC::standard_surface': {
@@ -134,7 +138,7 @@ GENERIC_OUTPUT_TYPES = {
     'displacement': 'GENERIC::output_displacement',
 }
 
-CONV_DICT = {
+OUT_PRIMS_TYPES = {
     'mtlx': 'subnetconnector',
     'arnold': 'arnold_shader',
 }
@@ -146,15 +150,23 @@ SKIPPED_ATTRIBS = [
 ]
 
 _ATTRIB_TYPE_CASTERS = {
-    'int': int,
-    'float': float,
-    'bool': lambda v: v.lower() in ('true', '1'),
-    'str': str,
+    'int': Sdf.ValueTypeNames.Int,
+    'int1': Sdf.ValueTypeNames.Int,
+    'int2': Sdf.ValueTypeNames.Int2,
+    'float': Sdf.ValueTypeNames.Float,
+    'float1': Sdf.ValueTypeNames.Float,
+    'float2': Sdf.ValueTypeNames.Float2,
+    'float3': Sdf.ValueTypeNames.Float3,
+    'float4': Sdf.ValueTypeNames.Float4,
+    'bool': Sdf.ValueTypeNames.Bool,
+    'bool1': Sdf.ValueTypeNames.Bool,
+    'str': Sdf.ValueTypeNames.String,
+    'str1': Sdf.ValueTypeNames.String,
+    'AssetPath': Sdf.ValueTypeNames.Asset,
+    'AssetPath1': Sdf.ValueTypeNames.Asset,
+    'xyzw3': Sdf.ValueTypeNames.Vector3f,
     'tuple': tuple,
-    'AssetPath': str,
 }
-
-
 
 
 
@@ -170,6 +182,10 @@ def split_trailing_number(s: str):
         print(f"{s=}, {type(s)=}, {e=}")
 
 
+
+
+
+
 class USDTraverser:
     """
     Traverse a UsdShade.Material prim to extract its shading network
@@ -177,9 +193,9 @@ class USDTraverser:
 
     Attributes:
         stage (Usd.Stage): The USD stage containing the material.
+        material_prim
         material_type (UsdShade.Material): The material to traverse.
         nested_nodes (Dict[str, dict]): Nested shader-graph per material.
-        output_nodes (Dict[str, dict]): Info on each material output.
     """
 
     def __init__(self, stage, material_prim, material_type):
@@ -310,7 +326,7 @@ class USDTraverser:
         if shader_infoId:
             return shader_infoId
 
-        return CONV_DICT[self.material_type]
+        return OUT_PRIMS_TYPES[self.material_type]
 
     def _normalize_attribute_names(self, attribute_name, node_type):
         """
@@ -321,12 +337,7 @@ class USDTraverser:
             if attribute_name.startswith(leading_str):
                 attribute_name = attribute_name.split(leading_str, 1)[1]
 
-        generic_name = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {}).get(attribute_name)
-        if not generic_name:
-            # print(f"WARNING: no generic name found for attribute: '{attribute_name}', with node_type: '{node_type}'")
-            generic_name = None
-
-        return generic_name
+        return attribute_name
 
     def _normalize_attribute_values(self, attribute_val):
         """
@@ -372,16 +383,20 @@ class USDTraverser:
         Args:
             attribute_list (List[pxr.Usd.Attribute]): list of Usd Attributes
         Returns:
-            (Dict[str: str])
+            (Dict[str, List[dict]]): A dict with 'input' and 'output' keys,
         """
-        if node_type == CONV_DICT[self.material_type]:
-            return [{
-                'generic_name': None,
-                'value': None,
-                'type': None,
-            }]
+        parms = {"input": [], "output": []}
 
-        attrib_dict_list = []
+        if node_type == OUT_PRIMS_TYPES[self.material_type]:
+            parms["input"].append({
+                "generic_name": None,
+                "value": None,
+                "type": None,
+                "direction": "input",
+            })
+            return parms
+
+
         for attrib in attribute_list:
             attrib_name = attrib.GetName()
 
@@ -389,15 +404,15 @@ class USDTraverser:
             if attrib_name in SKIPPED_ATTRIBS:
                 continue
 
-            attrib_dict = {
+            parms["input"].append({
                 'generic_name': self._normalize_attribute_names(attrib_name, node_type),
                 'value': self._normalize_attribute_values(attrib.Get()),
                 'type': self._normalize_attribute_types(attrib.Get()),
-            }
+                'direction': 'input',
+            })
 
-            attrib_dict_list.append(attrib_dict)
 
-        return attrib_dict_list
+        return parms
 
 
 
@@ -597,7 +612,7 @@ class USDMaterialRecreator:
             return True
         return False
 
-    def _set_shader_parameters(self, shader, node_type, parameters):
+    def _apply_parameters(self, shader, node_type, parameters):
         """
         Map generic parameters over to renderer-specific USD inputs.
 
@@ -620,23 +635,26 @@ class USDMaterialRecreator:
 
         # look up standardized mapping for this node type
         node_type = node_type.replace('::', ':')
-        std_parm_map: dict = material_processor.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type)
+        std_parm_map: dict = material_standardizer.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type)
         if not std_parm_map:
             print(f"WARNING: No generic parameter mappings found for node type: '{node_type}'")
             return
 
         for param in parameters:
             # DEBUG: param=NodeParameter(generic_name='base_color', generic_type='float3', value=(0.800000011920929, 0.800000011920929, 0.800000011920929))
+            if param.direction != 'input':
+                print(f"WARNING: Parameter '{param.generic_name}' is not an input parameter for node type '{node_type}'. Skipping.")
+                continue
             if not param.generic_name:
-                # print(f"WARNING: Parameter '{param}' has no generic name for node type '{node_type}'. Skipping.")
+                print(f"WARNING: Parameter of value:'{param.value}' has no generic_name for node type '{node_type}'. Skipping.")
                 continue
 
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
             # DEBUG: parm_new_name=['base_color']
 
             if not parm_new_name:
-                # print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
-                #       f" for node type '{node_type}'. Skipping.")
+                print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
+                      f" for node type '{node_type}'. Skipping.")
                 continue  # skip unsupported params
 
             parm_new_name = parm_new_name[0]
@@ -644,52 +662,16 @@ class USDMaterialRecreator:
             if not val:
                 continue
 
-            val_generic_type = param.generic_type
-
-
-            val_generic_type_str, val_len = split_trailing_number(val_generic_type)
-            val_type = _ATTRIB_TYPE_CASTERS.get(val_generic_type_str)
-
+            val_type = _ATTRIB_TYPE_CASTERS.get(param.generic_type)
             if not val_type:
-                print(f"WARNING: parm: '{parm_new_name}' has no type!, {val_generic_type_str=}")
+                print(f"WARNING: parm: '{parm_new_name}' has no type!, {val_type=}")
                 continue
 
-            if isinstance(val_type, tuple) and len(val_type) == 1:
-                val = val[0]
-
-            if val_len > 1:
-                if all(isinstance(x, float) for x in val):
-                    type_name = getattr(Sdf.ValueTypeNames, f"Float{val_len}", Sdf.ValueTypeNames.Float)
-                elif all(isinstance(x, int) for x in val):
-                    type_name = getattr(Sdf.ValueTypeNames, f"Int{val_len}", Sdf.ValueTypeNames.Int)
-                elif all(isinstance(x, str) for x in val):
-                    type_name = getattr(Sdf.ValueTypeNames, f"String{val_len}", Sdf.ValueTypeNames.String)
-                elif all(isinstance(x, bool) for x in val):
-                    type_name = getattr(Sdf.ValueTypeNames, f"Bool{val_len}", Sdf.ValueTypeNames.Bool)
-                else:
-                    print(f"WARNING: {parm_new_name}.{val_type=} is not a supported tuple type: '{type(val[0])}'")
-                    type_name = Sdf.ValueTypeNames.Token
-            elif val_type == bool:
-                type_name = Sdf.ValueTypeNames.Bool
-            elif val_type == int:
-                type_name = Sdf.ValueTypeNames.Int
-            elif val_type == float:
-                type_name = Sdf.ValueTypeNames.Float
-            elif val_type == str:
-                type_name = Sdf.ValueTypeNames.String
-            else:
-                print(f"WARNING: parm: '{parm_new_name}' of type: '{val_type}'/'{val_generic_type_str}' and length: '{val_len}', is unsupported, {val=}")
-                continue
-
-                # type_name = Sdf.ValueTypeNames.Token
-
-            inp = shader.CreateInput(parm_new_name, type_name)
-            # print(f"DEBUG: {parm_new_name=}, {val=}")
-
+            inp = shader.CreateInput(parm_new_name, val_type)
             try:
                 inp.Set(val)
             except Exception as e:
-                print(f"ERROR: failed to set input '{parm_new_name}' to '{val}'")
+                print(f"ERROR: failed to set input '{parm_new_name}' to '{val}[{type(val)}]' for value_type: {param.generic_type}->{val_type}, '{e=}\n")
 
 
     def create_material_prim(self):
@@ -759,7 +741,7 @@ class USDMaterialRecreator:
                 # set parameters
                 # DEBUG: nodeinfo.node_type='GENERIC::standard_surface'
                 regular_node_type: str = material_processor.GENERIC_NODE_TYPES_TO_REGULAR[self.target_renderer].get(nodeinfo.node_type, '')
-                self._set_shader_parameters(shader, regular_node_type, nodeinfo.parameters)
+                self._apply_parameters(shader, regular_node_type, nodeinfo.parameters)
 
                 # store it in the 'old_new_map' dict
                 self.old_new_map[nodeinfo.node_path] = shader.GetPath().pathString
@@ -846,7 +828,7 @@ class USDMaterialRecreator:
         except Exception as e:
             print(f"FAILED to connect {src_prim.GetPath()}[{src_parm}] -> {dst_prim.GetPath().pathString}[{dst_parm}]: {e}")
 
-    def set_shader_connections(self, nodeinfo_list):
+    def set_shader_connections(self, nodeinfo_list, parent_node=None):
         """
         Connect child shader prims based on stored connection_tasks.
         """
@@ -1544,7 +1526,7 @@ def get_material_type(usd_material):
 
     material_list = tuple(material_list)
     if len(material_list) > 1:
-        raise Exception(f"ERROR: multiple material types found: '{material_list}', Script only supports one material type at a time.")
+        raise NotImplementedError(f"ERROR: multiple material types found: '{material_list}', Script only supports one material type at a time.")
 
     material_type = material_list[0]
 
@@ -1596,7 +1578,7 @@ def test2(stage, usd_material, target_renderer="arnold"):
     material_type = get_material_type(usd_material)
     if not material_type or material_type not in ['arnold', 'mtlx']:
         print(f"Couldn't determine Input material type, "
-              f"currently only Arnold, MTLX and Principled Shader are supported!")
+              f"currently only Arnold, MTLX are supported!")
         return None
 
     nested_nodes_dict, output_nodes_dict  = USDTraverser(stage, mat_prim, material_type).run()
@@ -1651,15 +1633,16 @@ def test2(stage, usd_material, target_renderer="arnold"):
     if not (nested_nodes_dict and output_nodes_dict):
         return None
 
-    standardizer = material_processor.NodeStandardizer(
+    standardizer = material_standardizer.NodeStandardizer(
         traversed_nodes_dict=nested_nodes_dict,
         output_nodes_dict=output_nodes_dict,
-        material_type='arnold',
+        material_type=material_type,
     )
     nodeinfo_list, output_connections = standardizer.run()
 
     try:
-        USDMaterialRecreator(stage, f"__material", nodeinfo_list, output_connections, target_renderer=target_renderer)
+        USDMaterialRecreator(stage, f"__material", nodeinfo_list, output_connections,
+                             target_renderer=target_renderer)
     except:
         traceback.print_exc()
 

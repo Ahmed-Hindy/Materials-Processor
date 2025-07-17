@@ -18,6 +18,7 @@ class NodeParameter:
     """
     generic_name: Optional[str] = None
     generic_type: Optional[str] = None
+    direction: Optional[str] = None  # 'input' or 'output'
     value: Optional[any] = None
 
     def __repr__(self):
