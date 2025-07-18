@@ -9,9 +9,11 @@ from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, 
                                QComboBox)
 from PySide2 import QtCore
 
-from Material_Processor import material_processor
+from Material_Processor import material_processor, material_standardizer
 
 import hou
+
+
 
 
 
@@ -57,8 +59,11 @@ class MyMainWindow(QMainWindow):
         # Add the format selection combo box
         format_label = QLabel("Select Material Format:")
         layout.addWidget(format_label)
+
+        # display a choice dialog for the user to select the target renderer
+        self.format_names, self.format_labels = zip(*material_standardizer.FORMAT_CHOICES.items())
         self.format_combobox = QComboBox()
-        self.format_combobox.addItems(["principled_shader", "arnold", "mtlx", "usdpreview"])  # Add your formats here
+        self.format_combobox.addItems(list(self.format_labels))  # Add your formats here
         layout.addWidget(self.format_combobox)
 
         # Add the convert materials button and close button at the bottom
@@ -127,7 +132,9 @@ class MyMainWindow(QMainWindow):
         """
         reload(material_processor)
         selected_nodes = [self.node_list.item(i).text() for i in range(self.node_list.count())]
-        target_format = self.format_combobox.currentText()
+        selected_index = self.format_combobox.currentIndex()
+        target_format = self.format_names[selected_index]
+
         self.logger.info(f"Converting materials for nodes: '{selected_nodes}' to format: '{target_format}'")
 
         conversion_successful = True  # Assuming conversion is successful initially

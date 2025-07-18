@@ -1372,7 +1372,7 @@ def ingest_material(material_node):
         return None, None, None
 
 
-def run(input_material_builder_node, target_context, target_format='mtlx'):
+def run(input_material_builder_node, target_context, target_format='arnold'):
     """
     Run the material conversion process for the selected node.
 
@@ -1424,13 +1424,7 @@ def convert_material_from_opmenu(kwargs):
         return
 
     # display a choice dialog for the user to select the target renderer
-    FORMAT_CHOICES = {
-        'mtlx':                     'MTLX',
-        'arnold':                   'Arnold',
-        'rs_usd_material_builder':  'Redshift USD Material Builder',
-        'principledshader':         'Principled Shader',
-    }
-    names, labels = zip(*FORMAT_CHOICES.items())
+    names, labels = zip(*material_standardizer.FORMAT_CHOICES.items())
 
     choice = hou.ui.displayMessage(
         text="Select Target Renderer",

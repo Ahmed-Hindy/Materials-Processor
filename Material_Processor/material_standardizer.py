@@ -15,16 +15,16 @@ STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims']
 REGULAR_NODE_TYPES_TO_GENERIC = {
     'arnold': {
         'hou_vop_nodes': {
-            'arnold:standard_surface': 'GENERIC::standard_surface',
-            'arnold:image': 'GENERIC::image',
-            'arnold:range': 'GENERIC::range',
-            'arnold:color_correct': 'GENERIC::color_correct',
-            'arnold:curvature': 'GENERIC::curvature',
-            'arnold:mix_rgba': 'GENERIC::mix_rgba',
-            'arnold:mix_layer': 'GENERIC::mix_layer',
-            'arnold:layer_rgba': 'GENERIC::layer_rgba',
-            'arnold:ramp_rgb::2': 'GENERIC::ramp_rgb',
-            'arnold:ramp_float::2': 'GENERIC::ramp_float',
+            'arnold::standard_surface': 'GENERIC::standard_surface',
+            'arnold::image': 'GENERIC::image',
+            'arnold::range': 'GENERIC::range',
+            'arnold::color_correct': 'GENERIC::color_correct',
+            'arnold::curvature': 'GENERIC::curvature',
+            'arnold::mix_rgba': 'GENERIC::mix_rgba',
+            'arnold::mix_layer': 'GENERIC::mix_layer',
+            'arnold::layer_rgba': 'GENERIC::layer_rgba',
+            'arnold::ramp_rgb::2': 'GENERIC::ramp_rgb',
+            'arnold::ramp_float::2': 'GENERIC::ramp_float',
             'arnold_material': 'GENERIC::output_node',
             'null': 'GENERIC::null',
         },
@@ -400,7 +400,12 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     }
 }
 
-
+FORMAT_CHOICES = {
+    'mtlx': 'MTLX',
+    'arnold': 'Arnold',
+    'rs_usd_material_builder': 'Redshift USD Material Builder',
+    'principledshader': 'Principled Shader',
+}
 
 
 
