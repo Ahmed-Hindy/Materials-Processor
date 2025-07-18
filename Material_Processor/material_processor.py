@@ -81,18 +81,6 @@ GENERIC_NODE_TYPES_TO_REGULAR = {
             },
         }
 
-# used for creating output nodes for render engines.
-OUTPUT_NODE_MAP = {
-    'arnold': 'arnold_material',
-    'mtlx': 'subnetconnector',
-    'redshift_vopnet': 'redshift_material',
-    'rs_usd_material_builder': 'redshift_usd_material',
-    'principledshader': '',
-}
-
-
-
-
 OUTPUT_CONNECTIONS_INDEX_MAP = {
     'arnold': {
         'GENERIC::output_surface': 0,
@@ -278,7 +266,7 @@ class NodeTraverser:
         """
         redshift_output = None
         for child in material_node.children():
-            if child.type().name() == 'redshift_usd_material':
+            if child.type().name() == 'suboutput':
                 redshift_output = child
                 break
         if not redshift_output:
@@ -727,18 +715,10 @@ class NodeRecreator:
             'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
                                         'node_name': subnet_node.node('surface_output').name(),
                                         'node_path': subnet_node.node('surface_output').path(),
-                                        # 'connected_node_name': subnet_node.node('mtlxstandard_surface').path(),
-                                        # 'connected_input_index': 0,
-                                        # 'connected_input_name': 'out',
-                                        # 'connected_output_name': 'suboutput',
                                         },
             'GENERIC::output_displacement': {'node': subnet_node.node('displacement_output'),
                                              'node_name': subnet_node.node('displacement_output').name(),
                                              'node_path': subnet_node.node('displacement_output').path(),
-                                             # 'connected_node_name': subnet_node.node('mtlxstandard_surface').path(),
-                                             # 'connected_input_index': None,
-                                             # 'connected_input_name': None,
-                                             # 'connected_output_name': None,
                                              }
         }
         return subnet_node, output_nodes
@@ -839,6 +819,36 @@ class NodeRecreator:
         }
         return node_material_builder, output_nodes
 
+    @staticmethod
+    def create_rs_usd_material_builder_init_shader(matnet=None):
+        """
+        Create an initial rs_usd_material_builder shader in the specified network.
+
+        Args:
+            matnet (hou.Node, optional): The Houdini network node.
+
+        Returns:
+            Tuple[hou.Node, Dict]: The created rs_usd_material_builder shader node and output nodes.
+        """
+        if not matnet:
+            matnet = hou.node('/mat')
+
+        subnet_node = matnet.createNode('rs_usd_material_builder')
+
+        subnet_node.node('StandardMaterial1').destroy()
+
+        output_nodes = {
+            'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
+                                        'node_name': subnet_node.node('surface_output').name(),
+                                        'node_path': subnet_node.node('surface_output').path(),
+                                        },
+            'GENERIC::output_displacement': {'node': subnet_node.node('displacement_output'),
+                                             'node_name': subnet_node.node('displacement_output').name(),
+                                             'node_path': subnet_node.node('displacement_output').path(),
+                                             }
+        }
+        return subnet_node, output_nodes
+
     def create_init_shader(self, target_renderer):
         if target_renderer == 'mtlx':
             self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context)
@@ -846,6 +856,8 @@ class NodeRecreator:
             self.material_node, self.new_output_connections = self.create_arnold_init_shader(self.target_context)
         elif target_renderer == 'principledshader':
             self.material_node, self.new_output_connections = self.create_principledshader_init_shader(self.target_context)
+        elif target_renderer == 'create_rs_usd_material_builder_init_shader':
+            self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(self.target_context)
         else:
             raise KeyError(f"Unsupported target renderer: {self.target_renderer}")
 
@@ -853,11 +865,9 @@ class NodeRecreator:
         """
         Create or reuse output nodes in the target context.
         """
-        if self.target_renderer not in ['arnold', 'mtlx']:
+        if self.target_renderer not in ['arnold', 'mtlx', 'create_rs_usd_material_builder_init_shader']:
             return None
 
-        output_node_type = OUTPUT_NODE_MAP[self.target_renderer]
-        #     e.g. 'subnetconnector'
         for generic_output_type, output_info in self.orig_output_connections.items():
             # e.g. generic_output_type = "GENERIC::output_surface"
             # e.g. output_info         = {'node_path': '/mat/material_mtlx_ORIG/surface_output',
@@ -869,11 +879,6 @@ class NodeRecreator:
             new_output_nodepath = f"{self.material_node.path()}/{new_output_nodename}"
 
             created_output_node: hou.VopNode = hou.node(new_output_nodepath)
-            # if not created_output_node:
-            #     raise Exception(f"This part of code is never tested!, rewrite it!")
-
-            print(f"Found new output node: '{created_output_node.path()}' of type: '{output_node_type}' "
-                  f"for output generic type: '{generic_output_type}'")
 
 
             self.old_new_node_map[output_info['node_path']] = {'node_name': created_output_node.name(),
@@ -890,8 +895,6 @@ class NodeRecreator:
                                                                 'connected_input_name': output_info['connected_input_name'],
                                                                 'connected_output_name': output_info['connected_output_name'],
                                                                 }
-        # print(f"DEBUG: {self.orig_output_connections.keys()=}")
-        # print(f"DEBUG: {self.new_output_connections.keys()=}")
         return None
 
     @staticmethod
@@ -906,7 +909,6 @@ class NodeRecreator:
         Returns:
             str: The renderer-specific node type.
         """
-        # print(f"DEBUG: Generic node {node_type}, converted to: {GENERIC_NODE_TYPES_TO_REGULAR[self.target_format][node_type]}")
         if node_type in GENERIC_NODE_TYPES_TO_REGULAR[target_renderer]:
             return GENERIC_NODE_TYPES_TO_REGULAR[target_renderer][node_type]
         else:
