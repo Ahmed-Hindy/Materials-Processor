@@ -5,14 +5,16 @@ from typing import Dict
 from Material_Processor import utils_io
 from Material_Processor.material_classes import NodeParameter, NodeInfo
 
+
 ###################################### CONSTANTS ######################################
 
 TEMP_DIR = f"{tempfile.gettempdir()}/MaterialProcessorTemp"
+STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims']
+
 
 REGULAR_NODE_TYPES_TO_GENERIC = {
     'arnold': {
-        'nodes': {
-            # arnold nodes:
+        'hou_vop_nodes': {
             'arnold:standard_surface': 'GENERIC::standard_surface',
             'arnold:image': 'GENERIC::image',
             'arnold:range': 'GENERIC::range',
@@ -26,8 +28,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'arnold_material': 'GENERIC::output_node',
             'null': 'GENERIC::null',
         },
-        'usd': {
-            # arnold nodes:
+        'usd_prims': {
             'arnold:standard_surface': 'GENERIC::standard_surface',
             'arnold:image': 'GENERIC::image',
             'arnold:range': 'GENERIC::range',
@@ -44,7 +45,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
     },
 
     'mtlx': {
-        'nodes': {
+        'hou_vop_nodes': {
             'mtlxstandard_surface': 'GENERIC::standard_surface',
             'mtlximage': 'GENERIC::image',
             'mtlxrange': 'GENERIC::range',
@@ -54,7 +55,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'subnetconnector': 'GENERIC::output_node',
             'null': 'GENERIC::null',
         },
-        'usd': {
+        'usd_prims': {
             # mtlx usd prims infoId:
             'ND_standard_surface_surfaceshader': 'GENERIC::standard_surface',
             'ND_image_float': 'GENERIC::image',
@@ -66,7 +67,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
     },
 
     'rs_usd_material_builder': {
-        'nodes': {
+        'hou_vop_nodes': {
             'redshift::StandardMaterial': 'GENERIC::standard_surface',
             'redshift::TextureSampler': 'GENERIC::image',
             'redshift::Displacement': 'GENERIC::displacement',
@@ -74,7 +75,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'redshift_usd_material': 'GENERIC::shader_node',
             'null': 'GENERIC::null',
         },
-        'usd': {
+        'usd_prims': {
             'redshift::StandardMaterial': 'GENERIC::standard_surface',
             'redshift::TextureSampler': 'GENERIC::image',
             'redshift::Displacement': 'GENERIC::displacement',
@@ -91,23 +92,23 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
 GENERIC_TO_RENDERER = {}
 for renderer, profiles in REGULAR_NODE_TYPES_TO_GENERIC.items():
     GENERIC_TO_RENDERER[renderer] = {
-        'nodes': { generic:specific
-                   for specific, generic in profiles.get('nodes',{}).items() },
-        'usd':   { generic:specific
-                   for specific, generic in profiles.get('usd',{}).items() },
+        'hou_vop_nodes': {generic: specific
+                          for specific, generic in profiles.get('hou_vop_nodes', {}).items()},
+        'usd_prims':   {generic: specific
+                        for specific, generic in profiles.get('usd_prims', {}).items()},
     }
 
 # 3) a single little helper to pick which map you want:
 def convert_generic(node_type: str,
                     target_renderer: str,
-                    profile: str = 'nodes') -> str:
+                    profile: str = 'hou_vop_nodes') -> str:
     """
-    profile == 'nodes'  → VOP node‐type mapping
-    profile == 'usd'    → USD‐prim info:id mapping
+    profile == 'hou_vop_nodes'  → VOP node‐type mapping
+    profile == 'usd_prims'      → USD‐prim info:id mapping
     """
     lookup = GENERIC_TO_RENDERER[target_renderer].get(profile, {})
     return lookup.get(node_type,
-           lookup.get('GENERIC::null',''))
+           lookup.get('GENERIC::null'))
 
 
 """
@@ -409,7 +410,7 @@ class NodeStandardizer:
     Class for standardizing Shader nodes and creating MaterialData Class.
     """
 
-    def __init__(self, traversed_nodes_dict, output_nodes_dict, material_type):
+    def __init__(self, traversed_nodes_dict, output_nodes_dict, material_type, source_type):
         """
         Initialize the NodeStandardizer with the traverse tree and output nodes.
 
@@ -417,10 +418,15 @@ class NodeStandardizer:
             traversed_nodes_dict (Dict): The nested node dictionary from NodeTraverser.
             output_nodes_dict (Dict): The detected output nodes from NodeTraverser.
             material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
+            source_type (str): Type of source (e.g., 'hou_vop_nodes', 'usd_prims').
         """
         self.traversed_nodes_dict = traversed_nodes_dict
         self.output_nodes_dict = output_nodes_dict
         self.material_type = material_type
+        self.source_type = source_type
+        if source_type not in STANDARDIZER_SUPPORTED_SOURCE_TYPES:
+            raise ValueError(f"Unsupported source_type: {source_type}."
+                             f" Supported types are {STANDARDIZER_SUPPORTED_SOURCE_TYPES}.")
 
         utils_io.dump_dict_to_json(self.traversed_nodes_dict, f"{TEMP_DIR}/traversed_nodes_dict.json")
         utils_io.dump_dict_to_json(self.output_nodes_dict, f"{TEMP_DIR}/output_nodes_dict.json")
@@ -564,9 +570,7 @@ class NodeStandardizer:
         if child_node_parms:
             parameters = self.standardize_shader_parameters(child_node_type, child_node_parms)
 
-        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC[self.material_type]['nodes'].get(child_node_type)
-        if not generic_node_type:
-            generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC[self.material_type]['usd'].get(child_node_type)
+        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC[self.material_type][self.source_type].get(child_node_type)
         if not generic_node_type:
             print(f"WARNING: No generic type was found for node type: '{child_node_type}'")
 

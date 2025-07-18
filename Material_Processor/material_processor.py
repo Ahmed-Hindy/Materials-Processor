@@ -864,7 +864,7 @@ class NodeRecreator:
         new_node_type = material_standardizer.convert_generic(
             node_type=node_type,
             target_renderer=target_renderer,
-            profile='nodes'
+            profile='hou_vop_nodes'
         )
 
         print(f"DEBUG: {target_renderer=}, {node_type=}, {new_node_type=}")
@@ -1346,6 +1346,7 @@ def ingest_material(material_node):
             traversed_nodes_dict=nested_nodes_dict,
             output_nodes_dict=output_nodes_dict,
             material_type=material_type,
+            source_type='hou_vop_nodes',
         )
         nodeinfo_list, output_connections = standardizer.run()
 
@@ -1422,6 +1423,7 @@ def test():
         traversed_nodes_dict=node_tree,
         output_nodes_dict=output_nodes,
         material_type=material_type,
+        source_type='hou_vop_nodes',
     )
     nodeinfo_list, output_connections = standardizer.run()
 

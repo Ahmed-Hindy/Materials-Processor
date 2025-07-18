@@ -770,7 +770,7 @@ class USDMaterialRecreator:
                 regular_node_type = profiles = material_standardizer.convert_generic(
                     node_type=nodeinfo.node_type,
                     target_renderer=self.target_renderer,
-                    profile='usd'
+                    profile='usd_prims'
                 )
                 self._apply_parameters(shader, regular_node_type, nodeinfo.parameters)
 
@@ -1671,6 +1671,7 @@ def test2(stage, usd_material, target_renderer="arnold"):
         traversed_nodes_dict=nested_nodes_dict,
         output_nodes_dict=output_nodes_dict,
         material_type=material_type,
+        source_type='usd_prims',
     )
     nodeinfo_list, output_connections = standardizer.run()
 
