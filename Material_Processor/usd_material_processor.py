@@ -121,6 +121,12 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'prim_type': 'Material',
         # output nodes themselves become UsdShade.Material, no info:id needed
     },
+    'GENERIC::shader_node': {
+        'prim_type': 'Shader',
+        'info_id': {
+            'rs_usd_material_builder': 'redshift_usd_material',
+        },
+    },
     'GENERIC::null': {
         'prim_type': 'Shader',
         'info_id': {
@@ -654,8 +660,7 @@ class USDMaterialRecreator:
             return
 
         # look up standardized mapping for this node type
-        node_type = node_type.replace('::', ':')
-        std_parm_map: dict = material_standardizer.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type)
+        std_parm_map: dict = material_standardizer.REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
         if not std_parm_map:
             print(f"WARNING: No generic parameter mappings found for node type: '{node_type}'")
             return

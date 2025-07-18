@@ -55,6 +55,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
     'redshift::TextureSampler': 'GENERIC::image',
     'redshift::Displacement': 'GENERIC::displacement',
     'redshift_material': 'GENERIC::output_node',
+    'redshift_usd_material': 'GENERIC::shader_node',
 
     'null': 'GENERIC::null',
 }
