@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<menuDocument>
+	<menu>
+
+        <separatorItem />
+
+      <scriptItem id="axe_convert_material">
+        <label>Convert Material [Axe]</label>
+        <context>
+          <expression><![CDATA[
+node = kwargs["node"]
+if node.type().nameComponents()[2] in ['arnold_materialbuilder', 'subnet', 'rs_usd_material_builder', 'principledshader::2.0']:
+    return True
+return False
+       ]]></expression>
+        </context>
+
+        <scriptCode><![CDATA[
+from importlib import reload
+from Material_Processor import material_processor
+reload(material_processor)
+material_processor.convert_material_from_opmenu(kwargs)
+        ]]></scriptCode>
+      </scriptItem>
+
+
+	</menu>
+</menuDocument>

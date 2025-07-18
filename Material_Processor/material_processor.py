@@ -1401,6 +1401,76 @@ def run(input_material_builder_node, target_context, target_format='mtlx'):
         return
 
 
+def convert_material_from_opmenu(kwargs):
+    """
+    Houdini op-menu / shelf tool entry to convert selected material builder(s)
+    into the given target_format (e.g. 'mtlx', 'arnold', 'rs_usd_material_builder').
+
+    Example:
+         kwargs={
+         'items': [<hou.VopNode of type subnet at /mat/mtlxmaterial_basic>],
+         'node': <hou.VopNode of type subnet at /mat/mtlxmaterial_basic>,
+         'networkeditorpos': (6.704338180657215, 3.538853007111061),
+         'commonparent': True,
+         'networkeditor': <hou.NetworkEditor panetab10>,
+         'toolname': 'h.pane.wsheet.axe_convert_material',
+         'altclick': False,
+         'ctrlclick': False,
+         'shiftclick': False,
+         'cmdclick': False
+         }
+    """
+    if not  kwargs.get('items'):
+        return
+
+    # display a choice dialog for the user to select the target renderer
+    FORMAT_CHOICES = {
+        'mtlx':                     'MTLX',
+        'arnold':                   'Arnold',
+        'rs_usd_material_builder':  'Redshift USD Material Builder',
+        'principledshader':         'Principled Shader',
+    }
+    names, labels = zip(*FORMAT_CHOICES.items())
+
+    choice = hou.ui.displayMessage(
+        text="Select Target Renderer",
+        buttons=list(labels),
+        default_choice=0,
+        close_choice=-1,
+        title='Material Conversion',
+    )
+    if choice < 0 or choice >= len(names):
+        return
+    target_format = names[choice]
+
+
+    for input_material_builder_node in kwargs['items']:
+        # Check if the selected nodes are VOP nodes
+        if not isinstance(input_material_builder_node, hou.VopNode):
+            print(f"WARNING: Selected node '{input_material_builder_node.path()}' is not a VOP node. Skipping.")
+            continue
+
+        # Ingest the material and get the node info and output connections
+        material_type, nodeinfo_list, output_connections = ingest_material(input_material_builder_node)
+        if not (material_type and nodeinfo_list and output_connections):
+            continue
+
+        target_context = input_material_builder_node.parent()
+        try:
+            print("NodeRecreator() START----------------------")
+            recreator = NodeRecreator(
+                nodeinfo_list=nodeinfo_list,
+                output_connections=output_connections,
+                target_context=target_context,
+                target_renderer=target_format
+            )
+            print("NodeRecreator() Finished----------------------\n\n\n")
+            print(f"Material conversion complete. Converted material from '{material_type}' to '{target_format}'.")
+        except Exception:
+            traceback.print_exc()
+            continue
+
+
 
 
 
