@@ -10,55 +10,104 @@ from Material_Processor.material_classes import NodeParameter, NodeInfo
 TEMP_DIR = f"{tempfile.gettempdir()}/MaterialProcessorTemp"
 
 REGULAR_NODE_TYPES_TO_GENERIC = {
-    # arnold nodes:
-    'arnold::standard_surface': 'GENERIC::standard_surface',
-    'arnold:standard_surface': 'GENERIC::standard_surface',
-    'arnold::image': 'GENERIC::image',
-    'arnold:image': 'GENERIC::image',
-    'arnold::range': 'GENERIC::range',
-    'arnold:range': 'GENERIC::range',
-    'arnold::color_correct': 'GENERIC::color_correct',
-    'arnold:color_correct': 'GENERIC::color_correct',
-    'arnold::curvature': 'GENERIC::curvature',
-    'arnold:curvature': 'GENERIC::curvature',
-    'arnold::mix_rgba': 'GENERIC::mix_rgba',
-    'arnold:mix_rgba': 'GENERIC::mix_rgba',
-    'arnold::mix_layer': 'GENERIC::mix_layer',
-    'arnold:mix_layer': 'GENERIC::mix_layer',
-    'arnold::layer_rgba': 'GENERIC::layer_rgba',
-    'arnold:layer_rgba': 'GENERIC::layer_rgba',
-    'arnold::ramp_rgb::2': 'GENERIC::ramp_rgb',
-    'arnold:ramp_rgb::2': 'GENERIC::ramp_rgb',
-    'arnold::ramp_float::2': 'GENERIC::ramp_float',
-    'arnold:ramp_float::2': 'GENERIC::ramp_float',
-    'arnold_material': 'GENERIC::output_node',
+    'arnold': {
+        'nodes': {
+            # arnold nodes:
+            'arnold:standard_surface': 'GENERIC::standard_surface',
+            'arnold:image': 'GENERIC::image',
+            'arnold:range': 'GENERIC::range',
+            'arnold:color_correct': 'GENERIC::color_correct',
+            'arnold:curvature': 'GENERIC::curvature',
+            'arnold:mix_rgba': 'GENERIC::mix_rgba',
+            'arnold:mix_layer': 'GENERIC::mix_layer',
+            'arnold:layer_rgba': 'GENERIC::layer_rgba',
+            'arnold:ramp_rgb::2': 'GENERIC::ramp_rgb',
+            'arnold:ramp_float::2': 'GENERIC::ramp_float',
+            'arnold_material': 'GENERIC::output_node',
+            'null': 'GENERIC::null',
+        },
+        'usd': {
+            # arnold nodes:
+            'arnold:standard_surface': 'GENERIC::standard_surface',
+            'arnold:image': 'GENERIC::image',
+            'arnold:range': 'GENERIC::range',
+            'arnold:color_correct': 'GENERIC::color_correct',
+            'arnold:curvature': 'GENERIC::curvature',
+            'arnold:mix_rgba': 'GENERIC::mix_rgba',
+            'arnold:mix_layer': 'GENERIC::mix_layer',
+            'arnold:layer_rgba': 'GENERIC::layer_rgba',
+            'arnold:ramp_rgb::2': 'GENERIC::ramp_rgb',
+            'arnold:ramp_float::2': 'GENERIC::ramp_float',
+            'arnold_material': 'GENERIC::output_node',
+            'null': 'GENERIC::null',
+        },
+    },
 
-    # mtlx nodes:
-    'mtlxstandard_surface': 'GENERIC::standard_surface',
-    'mtlximage': 'GENERIC::image',
-    'mtlxrange': 'GENERIC::range',
-    'mtlxcolorcorrect': 'GENERIC::color_correct',
-    'mtlxmix': 'GENERIC::mix_rgba',  # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
-    'mtlxdisplacement': 'GENERIC::displacement',
-    'subnetconnector': 'GENERIC::output_node',
+    'mtlx': {
+        'nodes': {
+            'mtlxstandard_surface': 'GENERIC::standard_surface',
+            'mtlximage': 'GENERIC::image',
+            'mtlxrange': 'GENERIC::range',
+            'mtlxcolorcorrect': 'GENERIC::color_correct',
+            'mtlxmix': 'GENERIC::mix_rgba',  # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
+            'mtlxdisplacement': 'GENERIC::displacement',
+            'subnetconnector': 'GENERIC::output_node',
+            'null': 'GENERIC::null',
+        },
+        'usd': {
+            # mtlx usd prims infoId:
+            'ND_standard_surface_surfaceshader': 'GENERIC::standard_surface',
+            'ND_image_float': 'GENERIC::image',
+            'ND_image_color3': 'GENERIC::image',
+            'ND_colorcorrect_color3': 'GENERIC::color_correct',
+            'ND_range_float': 'GENERIC::range',
+            'ND_displacement_float': 'GENERIC::displacement',
+        },
+    },
 
-    # mtlx usd prims infoId:
-    'ND_standard_surface_surfaceshader': 'GENERIC::standard_surface',
-    'ND_image_float': 'GENERIC::image',
-    'ND_image_color3': 'GENERIC::image',
-    'ND_colorcorrect_color3': 'GENERIC::color_correct',
-    'ND_range_float': 'GENERIC::range',
-    'ND_displacement_float': 'GENERIC::displacement',
+    'rs_usd_material_builder': {
+        'nodes': {
+            'redshift::StandardMaterial': 'GENERIC::standard_surface',
+            'redshift::TextureSampler': 'GENERIC::image',
+            'redshift::Displacement': 'GENERIC::displacement',
+            'redshift_material': 'GENERIC::output_node',
+            'redshift_usd_material': 'GENERIC::shader_node',
+            'null': 'GENERIC::null',
+        },
+        'usd': {
+            'redshift::StandardMaterial': 'GENERIC::standard_surface',
+            'redshift::TextureSampler': 'GENERIC::image',
+            'redshift::Displacement': 'GENERIC::displacement',
+            'redshift_material': 'GENERIC::output_node',
+            'redshift_usd_material': 'GENERIC::shader_node',
+            'null': 'GENERIC::null',
+        },
+    },
 
-    # redshiftvopnet nodes:
-    'redshift::StandardMaterial': 'GENERIC::standard_surface',
-    'redshift::TextureSampler': 'GENERIC::image',
-    'redshift::Displacement': 'GENERIC::displacement',
-    'redshift_material': 'GENERIC::output_node',
-    'redshift_usd_material': 'GENERIC::shader_node',
-
-    'null': 'GENERIC::null',
 }
+
+
+# 2) build *both* reverse maps automatically in one sweep
+GENERIC_TO_RENDERER = {}
+for renderer, profiles in REGULAR_NODE_TYPES_TO_GENERIC.items():
+    GENERIC_TO_RENDERER[renderer] = {
+        'nodes': { generic:specific
+                   for specific, generic in profiles.get('nodes',{}).items() },
+        'usd':   { generic:specific
+                   for specific, generic in profiles.get('usd',{}).items() },
+    }
+
+# 3) a single little helper to pick which map you want:
+def convert_generic(node_type: str,
+                    target_renderer: str,
+                    profile: str = 'nodes') -> str:
+    """
+    profile == 'nodes'  → VOP node‐type mapping
+    profile == 'usd'    → USD‐prim info:id mapping
+    """
+    lookup = GENERIC_TO_RENDERER[target_renderer].get(profile, {})
+    return lookup.get(node_type,
+           lookup.get('GENERIC::null',''))
 
 
 """
@@ -515,7 +564,9 @@ class NodeStandardizer:
         if child_node_parms:
             parameters = self.standardize_shader_parameters(child_node_type, child_node_parms)
 
-        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC.get(child_node_type)
+        generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC[self.material_type]['nodes'].get(child_node_type)
+        if not generic_node_type:
+            generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC[self.material_type]['usd'].get(child_node_type)
         if not generic_node_type:
             print(f"WARNING: No generic type was found for node type: '{child_node_type}'")
 

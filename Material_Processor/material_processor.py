@@ -28,59 +28,6 @@ except:
 
 
 ###################################### CONSTANTS ######################################
-
-
-"""
-Conversion_map is a dict of {'from_node_type': 'to_node_type'}
-"""
-GENERIC_NODE_TYPES_TO_REGULAR = {
-            'arnold': {
-                'GENERIC::standard_surface': 'arnold::standard_surface',
-                'GENERIC::image': 'arnold::image',
-                'GENERIC::color_correct': 'arnold::color_correct',
-                'GENERIC::range': 'arnold::range',
-                'GENERIC::curvature': 'arnold::curvature',
-                'GENERIC::mix_rgba': 'arnold::mix_rgba',
-                'GENERIC::mix_layer': 'arnold::mix_layer',
-                'GENERIC::layer_rgba': 'arnold::layer_rgba',
-                'GENERIC::displacement': 'null',
-                'GENERIC::null': 'null',
-            },
-            'mtlx': {
-                'GENERIC::standard_surface': 'mtlxstandard_surface',
-                'GENERIC::image': 'mtlximage',
-                'GENERIC::color_correct': 'mtlxcolorcorrect',
-                'GENERIC::range': 'mtlxrange',
-                # 'GENERIC::curvature': 'mtlxcurvature',  # not supported yet
-                'GENERIC::mix_rgba': 'mtlxmix',
-                'GENERIC::mix_layer': 'mtlxmix',
-                'GENERIC::displacement': 'mtlxdisplacement',
-                'GENERIC::null': 'null',
-            },
-            'redshift_vopnet': {
-                'GENERIC::standard_surface': 'redshift::StandardMaterial',
-                'GENERIC::image': 'redshift::TextureSampler',
-                'GENERIC::color_correct': 'redshift::RSColorCorrection',
-                'GENERIC::range': 'redshift::RSColorRange',
-                'GENERIC::curvature': 'redshift::Curvature',
-                'GENERIC::mix_rgba': 'redshift::RSColorMix',
-                'GENERIC::mix_layer': 'redshift::RSColorLayer',
-                'GENERIC::displacement': 'redshift::Displacement',
-                'GENERIC::null': 'null',
-            },
-            'rs_usd_material_builder': {
-                'GENERIC::standard_surface': 'redshift::StandardMaterial',
-                'GENERIC::image': 'redshift::TextureSampler',
-                'GENERIC::color_correct': 'redshift::RSColorCorrection',
-                'GENERIC::range': 'redshift::RSColorRange',
-                'GENERIC::curvature': 'redshift::Curvature',
-                'GENERIC::mix_rgba': 'redshift::RSColorMix',
-                'GENERIC::mix_layer': 'redshift::RSColorLayer',
-                'GENERIC::displacement': 'redshift::Displacement',
-                'GENERIC::null': 'null',
-            },
-        }
-
 OUTPUT_CONNECTIONS_INDEX_MAP = {
     'arnold': {
         'GENERIC::output_surface': 0,
@@ -710,6 +657,7 @@ class NodeRecreator:
                                                            folder_label=folder_label, render_context=render_context)
 
         subnet_node.node('mtlxstandard_surface').destroy()
+        subnet_node.node('inputs').destroy()
 
         output_nodes = {
             'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
@@ -836,6 +784,7 @@ class NodeRecreator:
         subnet_node = matnet.createNode('rs_usd_material_builder')
 
         subnet_node.node('StandardMaterial1').destroy()
+        subnet_node.node('subinput1').destroy()
 
         output_nodes = {
             'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
@@ -909,10 +858,17 @@ class NodeRecreator:
         Returns:
             str: The renderer-specific node type.
         """
-        if node_type in GENERIC_NODE_TYPES_TO_REGULAR[target_renderer]:
-            return GENERIC_NODE_TYPES_TO_REGULAR[target_renderer][node_type]
-        else:
-            return GENERIC_NODE_TYPES_TO_REGULAR[target_renderer]['GENERIC::null']
+        if not node_type:
+            node_type = 'GENERIC::null'
+
+        new_node_type = material_standardizer.convert_generic(
+            node_type=node_type,
+            target_renderer=target_renderer,
+            profile='nodes'
+        )
+
+        print(f"DEBUG: {target_renderer=}, {node_type=}, {new_node_type=}")
+        return new_node_type
 
     @staticmethod
     def _apply_parameters(node, parameters):
@@ -977,7 +933,7 @@ class NodeRecreator:
         Returns:
             (hou.Node): The created Houdini node.
         """
-        new_node_type = self._convert_generic_node_type_to_renderer_node_type(node_info.node_type,
+        new_node_type = self._convert_generic_node_type_to_renderer_node_type(node_type=node_info.node_type,
                                                                               target_renderer=self.target_renderer)
 
         # Check for existing nodes of the same type to reuse
@@ -994,6 +950,7 @@ class NodeRecreator:
             return node
 
         # Create new node if no reusable node is found
+        print(f"DEBUG: {new_node_type=}, {node_info.node_name=}")
         new_node = self.material_node.createNode(new_node_type, node_info.node_name)
         self._apply_parameters(new_node, node_info.parameters)
         self.reused_nodes[node_info.node_path] = new_node

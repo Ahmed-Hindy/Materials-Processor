@@ -765,7 +765,13 @@ class USDMaterialRecreator:
 
                 # set parameters
                 # DEBUG: nodeinfo.node_type='GENERIC::standard_surface'
-                regular_node_type: str = material_processor.GENERIC_NODE_TYPES_TO_REGULAR[self.target_renderer].get(nodeinfo.node_type, '')
+                # regular_node_type: str = material_standardizer.GENERIC_NODE_TYPES_TO_REGULAR[self.target_renderer].get(nodeinfo.node_type, '')
+
+                regular_node_type = profiles = material_standardizer.convert_generic(
+                    node_type=nodeinfo.node_type,
+                    target_renderer=self.target_renderer,
+                    profile='usd'
+                )
                 self._apply_parameters(shader, regular_node_type, nodeinfo.parameters)
 
                 # store it in the 'old_new_map' dict
