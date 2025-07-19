@@ -11,19 +11,17 @@
     <memberTool name="material_processor_test"/>
   </toolshelf>
 
-  <tool name="material_processor_ui" label="material processor UI" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
+  <tool name="material_processor_ui" label="[GUI] material processor" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
     <script scriptType="python"><![CDATA[from importlib import reload
-# import Example_Scripts.PySide2_test_v001 as PySide2_app
 from Material_Processor import PySide2_ui
 reload(PySide2_ui)
 
 
-# PySide2_test_v002.main()
 PySide2_ui.show_my_main_window()
 ]]></script>
   </tool>
 
-  <tool name="material_processor_selection" label="material processor [Selection]" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
+  <tool name="material_processor_selection" label="[Selection] material processor" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
     <helpText><![CDATA[Select your materials first then run this script.]]></helpText>
     <script scriptType="python"><![CDATA[from importlib import reload
 import hou
@@ -45,7 +43,7 @@ if selected_nodes:
 ]]></script>
   </tool>
 
-  <tool name="material_processor_test" label="material processor [Test]" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
+  <tool name="material_processor_test" label="[TEST] material processor" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
     <script scriptType="python"><![CDATA[from importlib import reload
 from Material_Processor import material_processor
 reload(material_processor)

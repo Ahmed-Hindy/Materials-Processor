@@ -1,8 +1,9 @@
 # Material Processor
-a WIP 3D Materials tool for Ingestion, Standardization, and Conversion for complex multi-input/ multi-output materials\
-in various DCCs. Also supports USD file format.\
-Currently in pre-release with support for only Arnold, MaterialX, PrincipledShader in Houdini.\
-Has basic support also for USD.
+A tool for Ingestion, Standardization, and Conversion tool for all kinds of Material Networks
+for complex multi-input/ multi-output materials in various DCCs.\
+Supports USD file format.
+Currently in beta with support for Houdini's Arnold, MaterialX, PrincipledShader, 
+and Redshift as regular nodes and usd prims.
 
 
 ![Material_processor_v004](https://github.com/Ahmed-Hindy/AxeFx_tools/assets/23151881/0a330312-8809-44bf-b6a9-35e233c57eda)
@@ -10,18 +11,15 @@ Has basic support also for USD.
 
 ### Features
 - [x] UI supports Drag and drop for dropping mat nodes from the Application.
-- [x] Ingests Most Materials: PrincipledShader, Arnold, MaterialX, PrincipledShader.
-- [x] Convert to varius render engine: Arnold, MaterialX, PrincipledShader.
-- [x] ships with proper logging.
-- [x] pip-standard coding practices as much as possible.
-- [x] [NEW] added ingestions of usdPreview materials in Solaris.
-- [x] [NEW] added conversion to Arnold + UsdPreview material in Solaris.
-- [x] [NEW] added auto reassigning to Solaris prims which had the old material.
+- [x] Ingests and converts to Most Materials types: PrincipledShader, Arnold, MaterialX, Redshift.
+- [x] pip-standard coding practices as much as possible and with proper logging.
 
 
 ### Roadmap
-- [ ] Add support for .usd files
+- [x] Add support for Solaris and USD files
 - [ ] Extend support to other apps like Substance Painter, Maya, and blender.
-- [x] Add Changelog.
+- [x] Finish implementation for Redshift
+- [ ] Add implementation for Vray and Renderman
+
 
 

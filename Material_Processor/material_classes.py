@@ -13,17 +13,17 @@ class NodeParameter:
     Represents a parameter of a node in a material network.
 
     Attributes:
-        name (str): The name of the parameter.
-        value (any): The value of the parameter.
         generic_name (Optional[str]): A standardized name for the parameter, if applicable.
+        value (Optional[str]): The value of the parameter.
     """
-    # name: Optional[str] = None  # no longer used and should be removed
     generic_name: Optional[str] = None
     generic_type: Optional[str] = None
+    direction: Optional[str] = None  # 'input' or 'output'
     value: Optional[any] = None
 
-    def __str__(self):
-        return f"NodeParameter(name={self.name}, value={self.value}, generic_name={self.generic_name})"
+    def __repr__(self):
+        return f"NodeParameter(generic_name={self.generic_name}, value={self.value})"
+
 
 @dataclass
 class NodeInfo:
