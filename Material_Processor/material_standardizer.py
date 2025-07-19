@@ -140,10 +140,12 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'opacity': 'opacity',
         'normal': 'normal',
         'thin_walled': 'thin_walled',
+        'out': 'surface',
     },
     'mtlximage': {
         'signature': 'signature',
         'file': 'filename',
+        'out': 'rgb',
     },
     'mtlxcolorcorrect': {
         'hue': 'hue',
@@ -154,6 +156,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'contrast': 'contrast',
         'contrastpivot': 'contrastpivot',
         'exposure': 'exposure',
+        'out': 'rgb',
     },
     'mtlxrange': {
         'inlow': 'inlow',
@@ -161,6 +164,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'gamma': 'gamma',
         'outlow': 'outlow',
         'outhigh': 'outhigh',
+        'out': 'rgb',
     },
     'mtlxmix': {
         'signature': 'signature',
@@ -171,10 +175,12 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'bg_color3g': 'bg_color3g',
         'bg_color3b': 'bg_color3b',
         'mix': 'mix',
+        'out': 'rgb',
     },
     'mtlxdisplacement': {
         'displacement': 'displacement',
         'scale': 'scale',
+        'out': 'displacement',
     },
 
     # mtlx prims infoId:
@@ -257,7 +263,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'refl_ior': 'specular_IOR',
         'refl_aniso': 'specular_anisotropy',
         'refl_aniso_rotation': 'specular_rotation',
-        'coat': 'coat',
+        'coat_weight': 'coat',
         'coat_color': 'coat_color',
         'coat_roughness': 'coat_roughness',
         'refr_weight': 'transmission',
@@ -270,9 +276,11 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'opacity_color': 'opacity',
         # 'normal': 'normal',  # unsupported
         'refr_thin_walled': 'thin_walled',
+        'outColor': 'shader',
     },
     'redshift:TextureSampler': {
         'tex0': 'filename',
+        'outColor': 'rgb',
     },
     'redshift:RSMathRange': {
         'in': 'in',
@@ -281,6 +289,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'gamma': 'gamma',
         'outhigh': 'outhigh',
         'outlow': 'outlow',
+        'outColor': 'rgb',
     },
     'redshift:RSColorRange': {
         'in': 'in',
@@ -289,6 +298,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'gamma': 'gamma',
         'outhigh': 'outhigh',
         'outlow': 'outlow',
+        'outColor': 'rgb',
     },
     'redshift:RSColorCorrection': {
         'contrast': 'contrast',
@@ -300,10 +310,12 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'in': 'in',
         'lift': 'lift',
         'saturation': 'saturation',
+        'outColor': 'rgb',
     },
     'redshift:Displacement': {
-        # 'displacement': 'displacement',
+        'texMap': 'filename',
         'scale': 'scale',
+        'outColor': 'rgb',
     },
 
 
@@ -330,10 +342,12 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'subsurface_color': 'subsurface_color',
         'emission': 'emission',
         'emission_color': 'emission_color',
-        'opacity': 'opacity'
+        'opacity': 'opacity',
+        'shader': 'shader',
     },
     'arnold:image': {
-        'filename': 'filename'
+        'filename': 'filename',
+        'rgba': 'rgba',
     },
     'arnold:color_correct': {
         'gamma': 'gamma',
@@ -344,6 +358,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'exposure': 'exposure',
         'multiply': 'multiply',
         'add': 'add',
+        'rgba': 'rgba',
     },
     'arnold:range': {
         'input_min': 'inlow',
@@ -354,9 +369,9 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'contrast_pivot': 'contrastpivot',
         'bias': 'bias',
         'gain': 'gain',
+        'rgb': 'rgb',
     },
     'arnold:mix_rgba': {
-        # 'signature': 'signature',
         'input1r': 'fg_color3r',
         'input1g': 'fg_color3g',
         'input1b': 'fg_color3b',
@@ -364,13 +379,14 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'input2g': 'bg_color3g',
         'input2b': 'bg_color3b',
         'mix': 'mix',
+        'rgba': 'rgba',
     },
     'arnold:curvature': {
-        'output': 'output',
         'radius': 'radius',
         'spread': 'spread',
         'threshold': 'threshold',
         'bias': 'bias',
+        'rgb': 'rgb',
     },
 
 
@@ -538,6 +554,63 @@ class NodeStandardizer:
 
         return nodeParameter_list
 
+
+    def standardize_connection_info(self, connections_dict):
+        """
+
+        Example:
+            DEBUG: connections_dict: {
+                        'connection_0': {
+                                'input': {
+                                        'node_name': 'mtlxstandard_surface',
+                                        'node_path': '/mat/mtlxmaterial_basic/mtlxstandard_surface',
+                                        'node_type': 'mtlxstandard_surface',
+                                        'node_index': 0,
+                                        'parm_name': 'out'},
+                                'output': {
+                                        'node_name': 'surface_output',
+                                        'node_path': '/mat/mtlxmaterial_basic/surface_output',
+                                        'node_type': 'subnetconnector',
+                                        'node_index': 0,
+                                        'parm_name': 'suboutput'}
+                                       }
+                                     }
+        """
+        if not connections_dict:
+            return {}
+
+        # print(f"DEBUG: connections_dict: {pprint.pformat(connections_dict, sort_dicts=False)}")
+        _unsupported_parms_list = []
+        _parms_with_no_generic_name_list = []
+        _parms_with_no_mapping = []
+        nodeParameter_list = []
+        new_connections_dict = {}
+
+        for i, connection_dict in connections_dict.items():
+            new_connections_dict[i] = connection_dict
+            for direction, direction_dict in connection_dict.items():
+                new_connections_dict[i][direction] = direction_dict
+
+                node_type = direction_dict['node_type']
+                generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
+                if not generic_parm_names_dict:
+                    print(f"WARNING: No generic parameters mapping was found for nodetype: '{node_type}'.")
+                    _parms_with_no_mapping.append(node_type)
+                    continue
+
+                param = direction_dict['parm_name']
+                generic_name = generic_parm_names_dict.get(param, None)
+                if not generic_name:
+                    print(f"WARNING: No generic name was found for parameter: '{param}' for node_type: '{node_type}'")
+                    _unsupported_parms_list.append(param)
+                    _parms_with_no_generic_name_list.append(param)
+                    # print(f"DEBUG: generic_parm_names_dict: {pprint.pformat(generic_parm_names_dict, sort_dicts=False)}")
+                    continue
+                new_connections_dict[i][direction]['parm_name'] = generic_name
+
+        return new_connections_dict
+
+
     def create_nodeinfo_object(self, node_path, child_dict):
         """
         Create a NodeInfo object from a NodeTraverser dictionary.
@@ -564,6 +637,7 @@ class NodeStandardizer:
         output_type = child_dict.get('output_type', None)
 
         connection_info = child_dict.get('connections_dict', {})
+        standardized_connection_info = self.standardize_connection_info(connection_info)
 
         child_node_name: str = child_dict['node_name']
         child_node_type: str = child_dict['node_type']
@@ -584,7 +658,7 @@ class NodeStandardizer:
             node_name=child_node_name,
             node_path=node_path,
             parameters=parameters,
-            connection_info=connection_info,
+            connection_info=standardized_connection_info,
             children_list=[],
             is_output_node=is_output_node,
             output_type=output_type if is_output_node else generic_node_type,

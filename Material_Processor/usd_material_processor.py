@@ -298,8 +298,7 @@ class USDTraverser:
         return output_nodes
 
 
-    @staticmethod
-    def _detect_node_connections(srcInfo, shader, dest_param, count):
+    def _detect_node_connections(self, srcInfo, shader, dest_param, count):
         """
         Args:
 
@@ -322,22 +321,19 @@ class USDTraverser:
                 "input": {
                     "node_name": src_prim.GetName(),
                     "node_path": src_prim.GetPath().pathString,
+                    "node_type": self._get_shader_infoId_attrib(src_prim),
                     "node_index": -1,
                     "parm_name": srcName,
                 },
                 "output": {
                     "node_name": shader_prim.GetName(),
                     "node_path": shader_prim.GetPath().pathString,
+                    "node_type": self._get_shader_infoId_attrib(shader_prim),
                     "node_index": -1,
                     "parm_name": dest_param,
                 }
             }
         })
-
-        # if not connections_dict:
-        #     print(f"WARNING: {count=}, shader: '{shader.GetPrim().GetName()}', {'parent_shader:'  + parent_shader.GetPrim().GetName() if parent_shader else 'No_parent_shader'}, root: '{is_root}'. "
-        #           f"Found src_prim: '{src_prim.GetName() if src_prim else 'None'}', \n")
-
         return connections_dict
 
 
@@ -431,6 +427,7 @@ class USDTraverser:
             if attrib_name in SKIPPED_ATTRIBS:
                 continue
 
+            # TODO: parameter names should be standardized? Need to think about this.
             parms["input"].append({
                 'generic_name': self._normalize_attribute_names(attrib_name, node_type),
                 'value': self._normalize_attribute_values(attrib.Get()),

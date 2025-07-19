@@ -13,12 +13,10 @@
 
   <tool name="material_processor_ui" label="[GUI] material processor" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
     <script scriptType="python"><![CDATA[from importlib import reload
-# import Example_Scripts.PySide2_test_v001 as PySide2_app
 from Material_Processor import PySide2_ui
 reload(PySide2_ui)
 
 
-# PySide2_test_v002.main()
 PySide2_ui.show_my_main_window()
 ]]></script>
   </tool>

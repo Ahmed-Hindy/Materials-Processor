@@ -601,12 +601,14 @@
                         "input": {
                             "node_name": "standard_surface",
                             "node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+                            "node_type": "arnold::standard_surface",
                             "node_index": 0,
                             "parm_name": "shader"
                         },
                         "output": {
                             "node_name": "OUT_material",
                             "node_path": "/mat/arnold_materialbuilder_basic/OUT_material",
+                            "node_type": "arnold_material",
                             "node_index": 0,
                             "parm_name": "surface"
                         }
@@ -881,12 +883,14 @@
                                 "input": {
                                     "node_name": "image_diffuse",
                                     "node_path": "/mat/arnold_materialbuilder_basic/image_diffuse",
+                                    "node_type": "arnold::image",
                                     "node_index": 0,
                                     "parm_name": "rgba"
                                 },
                                 "output": {
                                     "node_name": "standard_surface",
                                     "node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+                                    "node_type": "arnold::standard_surface",
                                     "node_index": 1,
                                     "parm_name": "base_color"
                                 }
@@ -1162,12 +1166,14 @@
                                 "input": {
                                     "node_name": "image_roughness",
                                     "node_path": "/mat/arnold_materialbuilder_basic/image_roughness",
+                                    "node_type": "arnold::image",
                                     "node_index": 1,
                                     "parm_name": "r"
                                 },
                                 "output": {
                                     "node_name": "standard_surface",
                                     "node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+                                    "node_type": "arnold::standard_surface",
                                     "node_index": 6,
                                     "parm_name": "specular_roughness"
                                 }
