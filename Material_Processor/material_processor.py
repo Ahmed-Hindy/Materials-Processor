@@ -601,7 +601,7 @@ class NodeRecreator:
     """
 
     def __init__(self, nodeinfo_list, output_connections, target_context,
-                 target_renderer='arnold'):
+                 target_renderer='arnold', material_name=None):
         """
         Initialize the NodeRecreator with the provided material data and target context.
 
@@ -615,6 +615,7 @@ class NodeRecreator:
         self.orig_output_connections = output_connections
         self.target_context = target_context
         self.target_renderer = target_renderer
+        self.material_name = material_name
         self.old_new_node_map = {}  # e.g., {old_node_path:str :
         #                                       'node_name': node.name(),
         #                                       'node_path': node.path()
@@ -637,7 +638,7 @@ class NodeRecreator:
 
 
     @staticmethod
-    def create_mtlx_init_shader(matnet=None):
+    def create_mtlx_init_shader(matnet=None, material_name=None):
         """
         Create an initial MaterialX shader in the specified network.
 
@@ -651,15 +652,16 @@ class NodeRecreator:
         UTILITY_NODES = 'parameter constant collect null genericshader'
         SUBNET_NODES = 'subnet subnetconnector suboutput subinput'
         MTLX_TAB_MASK = f'MaterialX {UTILITY_NODES} {SUBNET_NODES}'
-        name = 'mtlxmaterial'
+        if not material_name:
+            material_name = 'mtlxmaterial'
         folder_label = 'MaterialX Builder'
         render_context = 'mtlx'
 
         if not matnet:
             matnet = hou.node('/mat')
 
-        subnet_node = matnet.createNode('subnet', name)
-        subnet_node = voptoolutils._setupMtlXBuilderSubnet(subnet_node=subnet_node, name=name, mask=MTLX_TAB_MASK,
+        subnet_node = matnet.createNode('subnet', material_name)
+        subnet_node = voptoolutils._setupMtlXBuilderSubnet(subnet_node=subnet_node, name=material_name, mask=MTLX_TAB_MASK,
                                                            folder_label=folder_label, render_context=render_context)
 
         subnet_node.node('mtlxstandard_surface').destroy()
@@ -720,7 +722,7 @@ class NodeRecreator:
             return False, None
 
     @staticmethod
-    def create_arnold_init_shader(matnet=None):
+    def create_arnold_init_shader(matnet=None, material_name=None):
         """
         Create an initial Arnold shader in the specified network.
 
@@ -732,8 +734,10 @@ class NodeRecreator:
         """
         if not matnet:
             matnet = hou.node('/mat')
+        if not material_name:
+            material_name = 'arnold_materialbuilder'
 
-        node_material_builder = matnet.createNode('arnold_materialbuilder')
+        node_material_builder = matnet.createNode('arnold_materialbuilder', material_name)
         output_nodes = {
             'GENERIC::output_surface': {'node': node_material_builder.node('OUT_material'),
                                         'node_name': node_material_builder.node('OUT_material').name(),
@@ -747,7 +751,7 @@ class NodeRecreator:
         return node_material_builder, output_nodes
 
     @staticmethod
-    def create_principledshader_init_shader(matnet=None):
+    def create_principledshader_init_shader(matnet=None, material_name=None):
         """
         Create an initial principledshader shader in the specified network.
 
@@ -759,8 +763,10 @@ class NodeRecreator:
         """
         if not matnet:
             matnet = hou.node('/mat')
+        if not material_name:
+            material_name = 'principledshader::2.0'
 
-        node_material_builder = matnet.createNode('principledshader::2.0')
+        node_material_builder = matnet.createNode('principledshader::2.0', material_name)
         output_nodes = {
             'GENERIC::output_surface': {'node': None,
                                         'node_name': None,
@@ -774,7 +780,7 @@ class NodeRecreator:
         return node_material_builder, output_nodes
 
     @staticmethod
-    def create_rs_usd_material_builder_init_shader(matnet=None):
+    def create_rs_usd_material_builder_init_shader(matnet=None, material_name=None):
         """
         Create an initial rs_usd_material_builder shader in the specified network.
 
@@ -786,8 +792,10 @@ class NodeRecreator:
         """
         if not matnet:
             matnet = hou.node('/mat')
+        if not material_name:
+            material_name = 'rs_usd_material_builder'
 
-        subnet_node = matnet.createNode('rs_usd_material_builder')
+        subnet_node = matnet.createNode('rs_usd_material_builder', material_name)
 
         subnet_node.node('StandardMaterial1').destroy()
         subnet_node.node('subinput1').destroy()
@@ -804,15 +812,15 @@ class NodeRecreator:
         }
         return subnet_node, output_nodes
 
-    def create_init_shader(self, target_renderer):
+    def create_init_shader(self, target_renderer, material_name=None):
         if target_renderer == 'mtlx':
-            self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context)
+            self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context, material_name)
         elif target_renderer == 'arnold':
-            self.material_node, self.new_output_connections = self.create_arnold_init_shader(self.target_context)
+            self.material_node, self.new_output_connections = self.create_arnold_init_shader(self.target_context, material_name)
         elif target_renderer == 'principledshader':
-            self.material_node, self.new_output_connections = self.create_principledshader_init_shader(self.target_context)
+            self.material_node, self.new_output_connections = self.create_principledshader_init_shader(self.target_context, material_name)
         elif target_renderer == 'rs_usd_material_builder':
-            self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(self.target_context)
+            self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(self.target_context, material_name)
         else:
             raise KeyError(f"Unsupported target renderer: {self.target_renderer}")
 
@@ -1239,7 +1247,7 @@ class NodeRecreator:
         Recreate the nodes in the target context based on the material data.
         """
         # create initial shader network:
-        self.create_init_shader(self.target_renderer)
+        self.create_init_shader(self.target_renderer, self.material_name)
         # print(f"{self.material_node=}, {self.standardizer.output_nodes_dict=}, {self.new_output_connections=}")
 
         # Create output nodes first:
@@ -1444,7 +1452,8 @@ def convert_material_from_opmenu(kwargs):
                 nodeinfo_list=nodeinfo_list,
                 output_connections=output_connections,
                 target_context=target_context,
-                target_renderer=target_format
+                target_renderer=target_format,
+                material_name=input_material_builder_node.name(),
             )
             print("NodeRecreator() Finished----------------------\n\n\n")
             print(f"Material conversion complete. Converted material from '{material_type}' to '{target_format}'.")
