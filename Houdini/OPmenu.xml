@@ -9,7 +9,7 @@
         <context>
           <expression><![CDATA[
 node = kwargs["node"]
-if node.type().nameComponents()[2] in ['arnold_materialbuilder', 'subnet', 'rs_usd_material_builder', 'principledshader::2.0']:
+if node.type().nameComponents()[2] in ['arnold_materialbuilder', 'subnet', 'rs_usd_material_builder', 'principledshader']:
     return True
 return False
        ]]></expression>

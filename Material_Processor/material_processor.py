@@ -267,13 +267,23 @@ class NodeTraverser:
         """
         return {
             "surface": {
-                "node_name": "OUT_material",
-                "node_path": f"{material_node.path()}/OUT_material",
-                "connected_node_name": "standard_surface",
-                "connected_node_path": f"{material_node.path()}/standard_surface",
+                "node_name": "surface_output",
+                "node_path": f"{material_node.path()}/surface_output",
+                "connected_node_name": "mtlxstandard_surface",
+                "connected_node_path": f"{material_node.path()}/mtlxstandard_surface",
                 "connected_input_index": 0,
-                "generic_type": "GENERIC::output_surface"
-            }
+                "connected_input_name": "suboutput",
+                "connected_output_name": "out",
+            },
+            "displacement": {
+                "node_name": "displacement_output",
+                "node_path": f"{material_node.path()}/displacement_output",
+                "connected_node_name": "mtlxdisplacement",
+                "connected_node_path": f"{material_node.path()}/mtlxdisplacement",
+                "connected_input_index": 0,
+                "connected_input_name": "suboutput",
+                "connected_output_name": "out",
+            },
         }
 
     def create_output_dict(self, material_node, material_type: str):
@@ -496,42 +506,44 @@ class NodeTraverser:
 
         return {node.path(): node_dict}
 
+
     def _build_principled_entry(self, node):
         """
-        Recursively walk all upstream connections into `node` and emit
-        the same fields you use for Arnold.
+
         """
         # grab parameters + direct connections
         parms = self._convert_parms_to_dict(node)
 
         entry = {
-            f"{node.path()}/OUT_material": {
-                "node_name": "OUT_material",
-                "node_path": f"{node.path()}/OUT_material",
-                "node_type": "arnold_material",
-                "node_position": (0,0),
+            f"{node.path()}/surface_output": {
+                "node_name": "surface_output",
+                "node_path": f"{node.path()}/surface_output",
+                "node_type": "subnetconnector",
+                "node_position": [0,0],
                 "node_parms": [],
                 "connections_dict": {},
                 "children_list": [
                     {
-                        "node_name": "standard_surface",
-                        "node_path": f"{node.path()}/standard_surface",
-                        "node_type": "arnold::standard_surface",
-                        "node_position": (-3, 0),
+                        "node_name": "mtlxstandard_surface",
+                        "node_path": f"{node.path()}/mtlxstandard_surface",
+                        "node_type": "mtlxstandard_surface",
+                        "node_position": [-3, 0],
                         "node_parms": [],
                         "connections_dict": {
                             "connection_0": {
                                 "input": {
-                                    "node_name": "standard_surface",
-                                    "node_path": "/mat/arnold_materialbuilder_basic/standard_surface",
+                                    "node_name": "mtlxstandard_surface",
+                                    "node_path": f"{node.path()}/mtlxstandard_surface",
+                                    "node_type": "mtlxstandard_surface",
                                     "node_index": 0,
-                                    "parm_name": "shader"
+                                    "parm_name": "out"
                                 },
                                 "output": {
-                                    "node_name": "OUT_material",
-                                    "node_path": "/mat/arnold_materialbuilder_basic/OUT_material",
+                                    "node_name": "surface_output",
+                                    "node_path": f"{node.path()}/surface_output",
+                                    "node_type": "subnetconnector",
                                     "node_index": 0,
-                                    "parm_name": "surface"
+                                    "parm_name": "suboutput"
                                 },
                             }
                         },
@@ -542,29 +554,71 @@ class NodeTraverser:
         }
 
         if node.parm('basecolor_useTexture').eval():
-            entry[f"{node.path()}/OUT_material"]['children_list'][0]['children_list'].append({
+            entry[f"{node.path()}/surface_output"]['children_list'][0]['children_list'].append({
                 "node_name": "image_diffuse",
                 "node_path": f"{node.path()}/image_diffuse",
-                "node_type": "arnold::image",
-                "node_position": (-6, 0),
+                "node_type": "mtlximage",
+                "node_position": [-4, 0],
                 'node_parms': {
                     'input': [
-                        {'name': 'filename', 'value': node.parm('basecolor_texture').eval()},
+                        {'generic_name': 'file',
+                         'value': node.parm('basecolor_texture').eval(),
+                         "type": "string1",
+                         "direction": "input"},
                     ],
+                    'output': [],
                 },
                 'connections_dict': {
                     "connection_0": {
                         "input": {
                             "node_name": "image_diffuse",
                             "node_path": f"{node.path()}/image_diffuse",
+                            "node_type": "mtlximage",
                             "node_index": 0,
-                            "parm_name": "rgba"
+                            "parm_name": "out"
                         },
                         "output": {
-                            "node_name": "standard_surface",
-                            "node_path": f"{node.path()}/standard_surface",
+                            "node_name": "mtlxstandard_surface",
+                            "node_path": f"{node.path()}/mtlxstandard_surface",
+                            "node_type": "mtlxstandard_surface",
                             "node_index": 1,
                             "parm_name": "base_color"
+                        }
+                    },
+                },
+
+            })
+
+        if node.parm('rough_useTexture').eval():
+            entry[f"{node.path()}/surface_output"]['children_list'][0]['children_list'].append({
+                "node_name": "image_roughness",
+                "node_path": f"{node.path()}/image_roughness",
+                "node_type": "mtlximage",
+                "node_position": [-4, -2],
+                'node_parms': {
+                    'input': [
+                        {'generic_name': 'file',
+                         'value': node.parm('rough_texture').eval(),
+                         "type": "string1",
+                         "direction": "input"},
+                    ],
+                    'output': [],
+                },
+                'connections_dict': {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "image_roughness",
+                            "node_path": f"{node.path()}/image_roughness",
+                            "node_type": "mtlximage",
+                            "node_index": 0,
+                            "parm_name": "out"
+                        },
+                        "output": {
+                            "node_name": "mtlxstandard_surface",
+                            "node_path": f"{node.path()}/mtlxstandard_surface",
+                            "node_type": "mtlxstandard_surface",
+                            "node_index": 6,
+                            "parm_name": "specular_roughness"
                         }
                     },
                 },
@@ -813,6 +867,9 @@ class NodeRecreator:
         return subnet_node, output_nodes
 
     def create_init_shader(self, target_renderer, material_name=None):
+        if not material_name:
+            material_name = 'convertedMaterial'
+
         if target_renderer == 'mtlx':
             self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context, material_name)
         elif target_renderer == 'arnold':
@@ -823,6 +880,8 @@ class NodeRecreator:
             self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(self.target_context, material_name)
         else:
             raise KeyError(f"Unsupported target renderer: {self.target_renderer}")
+
+        self.material_node.moveToGoodPosition()
 
     def create_output_nodes(self):
         """
@@ -1118,10 +1177,15 @@ class NodeRecreator:
         Iterate all connections for one node and wire them up (skipping output nodes).
         """
         for conn in src_nodeinfo.connection_info.values():
+            # print(f"DEBUG: ///conn: {pprint.pformat(conn, sort_dicts=False)}")
             print(f"\nDEBUG: connecting src node: '{src_nodeinfo.node_name}[{conn['input']['node_index']}][{conn['input']['parm_name']}]' to "
                   f"dest node: '{dest_node.name()}[{conn['output']['node_index']}][{conn['output']['parm_name']}]'")
             src_node_name = conn['input']['node_name']
+            src_parm_name = conn['input']['parm_name']
             dest_node_name = conn['output']['node_name']
+            dest_parm_name = conn['output']['parm_name']
+            dest_node_type = dest_node.type().name()
+            src_node_type  = conn['input']['node_type']
 
             # find the source (input) node
             src_node = self._get_input_node(src_node_name)
@@ -1134,12 +1198,19 @@ class NodeRecreator:
                 continue
 
             # look up the standardized parameter names to use for the connection:
-            dest_node_type = dest_node.type().name()
-            std_parm_map = material_standardizer.REGULAR_PARAM_NAMES_TO_GENERIC.get(dest_node_type.replace('::', ':'), {})
-            src_parm_new_name = [key for key, val in std_parm_map.items() if val == conn['input']['parm_name']]
-            src_parm_new_name = src_parm_new_name[0] if src_parm_new_name else None
-            dest_parm_new_name = [key for key, val in std_parm_map.items() if val == conn['output']['parm_name']]
-            dest_parm_new_name = dest_parm_new_name[0] if dest_parm_new_name else None
+            src_std_parm_map = material_standardizer.REGULAR_PARAM_NAMES_TO_GENERIC.get(src_node_type.replace('::', ':'), {})
+            dest_std_parm_map = material_standardizer.REGULAR_PARAM_NAMES_TO_GENERIC.get(dest_node_type.replace('::', ':'), {})
+
+            src_parm_new_name = [key for key, val in src_std_parm_map.items() if val == src_parm_name]
+            src_parm_new_name = src_parm_new_name[0] if src_parm_new_name else src_parm_name
+            dest_parm_new_name = [key for key, val in dest_std_parm_map.items() if val == dest_parm_name]
+            dest_parm_new_name = dest_parm_new_name[0] if dest_parm_new_name else dest_parm_name
+
+            print(f"DEBUG: // {src_node_type=}{dest_node_type=}")
+            print(f"DEBUG: // src_std_parm_map: {pprint.pformat(src_std_parm_map, sort_dicts=False)}")
+            print(f"DEBUG: // dest_std_parm_map: {pprint.pformat(dest_std_parm_map, sort_dicts=False)}")
+            print(f"DEBUG: // {src_parm_name=}, {dest_parm_name=}")
+            print(f"DEBUG: // {src_parm_new_name=}, {dest_parm_new_name=}")
 
 
             # perform the actual wire
@@ -1320,6 +1391,8 @@ def ingest_material(material_node):
         print("INFO: NodeTraverser() START----------------------")
         traverser = NodeTraverser(material_node, material_type=material_type)
         nested_nodes_dict, output_nodes_dict = traverser.run()
+        # print(f"DEBUG: nested_nodes_dict: {pprint.pformat(nested_nodes_dict, sort_dicts=False)}")
+        # print(f"DEBUG: output_nodes_dict: {pprint.pformat(output_nodes_dict, sort_dicts=False)}")
         # DEBUG: traverser.output_nodes_dict: {
         #     "surface": {
         #         "node_name": "OUT_material",

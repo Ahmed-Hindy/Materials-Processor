@@ -66,6 +66,20 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         },
     },
 
+    'principledshader': {
+        'hou_vop_nodes': {
+            'mtlxstandard_surface': 'GENERIC::standard_surface',
+            'mtlximage': 'GENERIC::image',
+            'mtlxrange': 'GENERIC::range',
+            'mtlxcolorcorrect': 'GENERIC::color_correct',
+            'mtlxmix': 'GENERIC::mix_rgba',
+            # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
+            'mtlxdisplacement': 'GENERIC::displacement',
+            'subnetconnector': 'GENERIC::output_node',
+            'null': 'GENERIC::null',
+        },
+    },
+
     'rs_usd_material_builder': {
         'hou_vop_nodes': {
             'redshift::StandardMaterial': 'GENERIC::standard_surface',
@@ -617,7 +631,7 @@ class NodeStandardizer:
 
         Args:
             node_path (str): The Houdini node path.
-            child_dict (dict): The Houdini node path.
+            child_dict (dict):
         Returns:
             NodeInfo: The created NodeInfo object.
 
@@ -714,3 +728,5 @@ class NodeStandardizer:
         nodeinfo_list = self.standardize_node_dict(self.traversed_nodes_dict)
         standardized_output_nodes_dict = self.standardize_output_dict(self.output_nodes_dict)
         return nodeinfo_list, standardized_output_nodes_dict
+
+
