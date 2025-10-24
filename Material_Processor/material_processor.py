@@ -1129,27 +1129,20 @@ class NodeRecreator:
             new_connected_node_info = self.new_output_connections[generic_output_type]
             # print(f"DEBUG: new_connected_node_info: {pprint.pformat(new_connected_node_info, sort_dicts=False)}")
 
-            if new_connected_node_info:
-                new_connected_node: hou.VopNode = self.material_node.node(new_connected_node_info.get('connected_node_name'))
-                if not new_connected_node:
-                    print(f"WARNING: Connections for node:'{new_connected_node_info['node_name']}' not found!")
-                    continue
+            if not new_connected_node_info:
+                continue
 
-                print(f"INFO: Setting input for {output_node.path()}[{output_index}] "
-                      f"to '{new_connected_node.path()}[0]' for output type: '{generic_output_type}', ")
-                output_node.setInput(output_index, new_connected_node)
+            new_connected_node: hou.VopNode = self.material_node.node(new_connected_node_info.get('connected_node_name'))
+            if not new_connected_node:
+                print(f"WARNING: Connections for node:'{new_connected_node_info['node_name']}' not found!")
+                continue
+            if new_connected_node.type().name() == 'null':
+                print(f"WARNING: Ignoring Output connections from input null node: '{new_connected_node_info['node_name']}'")
+                continue
 
-            else:
-                # This part of the code never runs. Probably safe to delete.
-                # Ensure the existing output node is mapped correctly
-                print(f"////////WARNING: no new_connected_node_info found for: '{generic_output_type}'")
-                existing_output_node = self.old_new_node_map.get(output_info['node_path'])
-                if existing_output_node:
-                    self.old_new_node_map[output_info['node_path']] = existing_output_node
-                    print(f"DEBUG: Using newly created output node: '{existing_output_node.path()}' for "
-                          f"generic output: '{generic_output_type}'")
-                else:
-                    print(f"DEBUG: No connected node info found for {generic_output_type=}")
+            print(f"INFO: Setting input for {output_node.path()}[{output_index}] "
+                  f"to '{new_connected_node.path()}[0]' for output type: '{generic_output_type}', ")
+            output_node.setInput(output_index, new_connected_node)
 
         return True
 
@@ -1202,11 +1195,11 @@ class NodeRecreator:
             dest_std_parm_map = material_standardizer.REGULAR_PARAM_NAMES_TO_GENERIC.get(dest_node_type.replace('::', ':'), {})
 
             src_parm_new_name = [key for key, val in src_std_parm_map.items() if val == src_parm_name]
-            src_parm_new_name = src_parm_new_name[0] if src_parm_new_name else src_parm_name
+            src_parm_new_name: str = src_parm_new_name[0] if src_parm_new_name else src_parm_name
             dest_parm_new_name = [key for key, val in dest_std_parm_map.items() if val == dest_parm_name]
-            dest_parm_new_name = dest_parm_new_name[0] if dest_parm_new_name else dest_parm_name
+            dest_parm_new_name: str = dest_parm_new_name[0] if dest_parm_new_name else dest_parm_name
 
-            print(f"DEBUG: // {src_node_type=}{dest_node_type=}")
+            print(f"DEBUG: // {src_node_type=}, {dest_node_type=}")
             print(f"DEBUG: // src_std_parm_map: {pprint.pformat(src_std_parm_map, sort_dicts=False)}")
             print(f"DEBUG: // dest_std_parm_map: {pprint.pformat(dest_std_parm_map, sort_dicts=False)}")
             print(f"DEBUG: // {src_parm_name=}, {dest_parm_name=}")
@@ -1259,7 +1252,7 @@ class NodeRecreator:
         if not dest_idx:
             dest_idx = 0
             dest_idx_by_name = dest_node.inputIndex(dest_parm)
-            if dest_idx_by_name != -1:
+            if dest_idx_by_name not in [-1, -999]:
                 dest_idx = dest_idx_by_name
             else:
                 print(f"WARNING: dest: '{dest_node.name()}' has no parm: '{dest_parm}', using provided index: {dest_idx}.")
@@ -1267,7 +1260,7 @@ class NodeRecreator:
         if not src_idx:
             src_idx = 0
             src_idx_by_name = src_node.outputIndex(src_parm)
-            if src_idx_by_name != -1:
+            if src_idx_by_name not in [-1, -999]:
                 src_idx = src_idx_by_name
             else:
                 print(f"WARNING: src: '{src_node.name()}' has no parm: '{src_parm}', using provided index: {src_idx}.")
