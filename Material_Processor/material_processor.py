@@ -587,6 +587,44 @@ class NodeTraverser:
                         "children_list": [],
                     },
                 ]
+            },
+            f"{node.path()}/displacement_output": {
+                "node_name": "displacement_output",
+                "node_path": f"{node.path()}/displacement_output",
+                "node_type": "subnetconnector",
+                "node_position": [-4,1],
+                "node_parms": [],
+                "connections_dict": {},
+                "children_list": [
+                    {
+                        "node_name": "mtlxdisplacement",
+                        "node_path": f"{node.path()}l/mtlxdisplacement",
+                        "node_type": "mtlxdisplacement",
+                        "node_position": [0, -3],
+                        "node_parms": {},
+                        "connections_dict": {
+                            "connection_0": {
+                                "input": {
+                                    "node_name": "mtlxdisplacement",
+                                    "node_path": f"{node.path()}/mtlxdisplacement",
+                                    "node_type": "mtlxdisplacement",
+                                    "node_index": 0,
+                                    "parm_name": "out",
+                                    "data_type": "displacement"
+                                },
+                                "output": {
+                                    "node_name": "displacement_output",
+                                    "node_path": f"{node.path()}l/displacement_output",
+                                    "node_type": "subnetconnector",
+                                    "node_index": 0,
+                                    "parm_name": "suboutput",
+                                    "data_type": "displacement"
+                                }
+                            }
+                        },
+                        "children_list": []
+                    }
+                ]
             }
         }
 
@@ -806,6 +844,45 @@ class NodeTraverser:
                                 "children_list": []
                             }
                         ]
+
+            })
+
+        if node.parm('dispTex_enable').eval():
+            entry[f"{node.path()}/displacement_output"]['children_list'][0]['children_list'].append({
+                "node_name": "image_disp",
+                "node_path": f"{node.path()}/image_disp",
+                "node_type": "mtlximage",
+                "node_position": [-3, -10],
+                'node_parms': {
+                    'input': [
+                        {'generic_name': 'file',
+                         'value': node.parm('dispTex_texture').eval(),
+                         "type": "string1",
+                         "direction": "input"},
+                    ],
+                    'output': [],
+                },
+                "connections_dict": {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "image_disp",
+                            "node_path": f"{node.path()}/image_disp",
+                            "node_type": "mtlximage",
+                            "node_index": 0,
+                            "parm_name": "out",
+                            "data_type": "float"
+                        },
+                        "output": {
+                            "node_name": "mtlxdisplacement",
+                            "node_path": f"{node.path()}/mtlxdisplacement",
+                            "node_type": "mtlxdisplacement",
+                            "node_index": 0,
+                            "parm_name": "displacement",
+                            "data_type": "float"
+                        }
+                    }
+                },
+                "children_list": []
 
             })
 
