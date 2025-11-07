@@ -1,3 +1,7 @@
+"""
+copyright Ahmed Hindy. Please mention the original author if you used any part of this code
+"""
+
 import tempfile
 import pprint
 from typing import Dict
@@ -17,6 +21,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'hou_vop_nodes': {
             'arnold::standard_surface': 'GENERIC::standard_surface',
             'arnold::image': 'GENERIC::image',
+            'arnold::normal_map': 'GENERIC::normalmap',
             'arnold::range': 'GENERIC::range',
             'arnold::color_correct': 'GENERIC::color_correct',
             'arnold::curvature': 'GENERIC::curvature',
@@ -48,6 +53,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'hou_vop_nodes': {
             'mtlxstandard_surface': 'GENERIC::standard_surface',
             'mtlximage': 'GENERIC::image',
+            'mtlxnormalmap::2.0': 'GENERIC::normalmap',
             'mtlxrange': 'GENERIC::range',
             'mtlxcolorcorrect': 'GENERIC::color_correct',
             'mtlxmix': 'GENERIC::mix_rgba',  # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
@@ -63,6 +69,21 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'ND_colorcorrect_color3': 'GENERIC::color_correct',
             'ND_range_float': 'GENERIC::range',
             'ND_displacement_float': 'GENERIC::displacement',
+        },
+    },
+
+    'principledshader': {
+        'hou_vop_nodes': {
+            'mtlxstandard_surface': 'GENERIC::standard_surface',
+            'mtlximage': 'GENERIC::image',
+            'mtlxnormalmap::2.0': 'GENERIC::normalmap',
+            'mtlxrange': 'GENERIC::range',
+            'mtlxcolorcorrect': 'GENERIC::color_correct',
+            'mtlxmix': 'GENERIC::mix_rgba',
+            # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
+            'mtlxdisplacement': 'GENERIC::displacement',
+            'subnetconnector': 'GENERIC::output_node',
+            'null': 'GENERIC::null',
         },
     },
 
@@ -417,10 +438,10 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 }
 
 FORMAT_CHOICES = {
+    'principledshader': 'Principled Shader',
     'mtlx': 'MTLX',
     'arnold': 'Arnold',
     'rs_usd_material_builder': 'Redshift USD Material Builder',
-    'principledshader': 'Principled Shader',
 }
 
 
@@ -566,13 +587,15 @@ class NodeStandardizer:
                                         'node_path': '/mat/mtlxmaterial_basic/mtlxstandard_surface',
                                         'node_type': 'mtlxstandard_surface',
                                         'node_index': 0,
-                                        'parm_name': 'out'},
+                                        'parm_name': 'out',
+                                        'data_type': 'surface'},
                                 'output': {
                                         'node_name': 'surface_output',
                                         'node_path': '/mat/mtlxmaterial_basic/surface_output',
                                         'node_type': 'subnetconnector',
                                         'node_index': 0,
-                                        'parm_name': 'suboutput'}
+                                        'parm_name': 'suboutput',
+                                        'data_type': 'surface'}
                                        }
                                      }
         """
@@ -608,6 +631,7 @@ class NodeStandardizer:
                     continue
                 new_connections_dict[i][direction]['parm_name'] = generic_name
 
+
         return new_connections_dict
 
 
@@ -617,7 +641,7 @@ class NodeStandardizer:
 
         Args:
             node_path (str): The Houdini node path.
-            child_dict (dict): The Houdini node path.
+            child_dict (dict):
         Returns:
             NodeInfo: The created NodeInfo object.
 
@@ -714,3 +738,5 @@ class NodeStandardizer:
         nodeinfo_list = self.standardize_node_dict(self.traversed_nodes_dict)
         standardized_output_nodes_dict = self.standardize_output_dict(self.output_nodes_dict)
         return nodeinfo_list, standardized_output_nodes_dict
+
+

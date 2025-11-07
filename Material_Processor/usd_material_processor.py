@@ -1541,7 +1541,6 @@ def get_material_type(usd_material):
     Returns:
         (str): material type.
     """
-    material_type = None
     material_list = []
     infoId_list = []
     for x in usd_material.GetPrim().GetChildren():

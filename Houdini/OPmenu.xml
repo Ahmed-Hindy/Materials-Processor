@@ -8,8 +8,14 @@
         <label>Convert Material [Axe]</label>
         <context>
           <expression><![CDATA[
+import os
 node = kwargs["node"]
-if node.type().nameComponents()[2] in ['arnold_materialbuilder', 'subnet', 'rs_usd_material_builder', 'principledshader::2.0']:
+
+allowed_types = ['subnet', 'rs_usd_material_builder', 'principledshader']
+if 'HTOA' in os.environ:
+     allowed_types.append('arnold_materialbuilder')
+
+if node.type().nameComponents()[2] in allowed_types:
     return True
 return False
        ]]></expression>

@@ -1,2 +1,5 @@
 backup/
 *rendergallery*
+*copilot.data*
+/.vscode/
+/.idea/
