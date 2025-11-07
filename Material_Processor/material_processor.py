@@ -1680,20 +1680,31 @@ def convert_material_from_opmenu(kwargs):
          'cmdclick': False
          }
     """
+    import os
+
     if not  kwargs.get('items'):
         return
 
+    node = kwargs["node"]
+
     # display a choice dialog for the user to select the target renderer
-    names, labels = zip(*material_standardizer.FORMAT_CHOICES.items())
+    allowed_types = material_standardizer.FORMAT_CHOICES
+    if 'HTOA' not in os.environ:
+        del allowed_types['arnold']
+    if 'REDSHIFT_COREDATAPATH' not in os.environ:
+        del allowed_types['rs_usd_material_builder']
+
+    allowed_types['cancel'] = 'Cancel'
+    names, labels = zip(*allowed_types.items())
 
     choice = hou.ui.displayMessage(
         text="Select Target Renderer",
         buttons=list(labels),
         default_choice=0,
-        close_choice=-1,
+        close_choice=len(labels)-1,
         title='Material Conversion',
     )
-    if choice < 0 or choice >= len(names):
+    if choice < 0 or choice >= len(names) or choice == len(labels)-1:
         return
     target_format = names[choice]
 

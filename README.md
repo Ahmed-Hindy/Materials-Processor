@@ -2,7 +2,7 @@
 A tool for Ingestion, Standardization, and Conversion tool for all kinds of Material Networks
 for complex multi-input/ multi-output materials in various DCCs.\
 Supports USD file format.
-Currently in beta with support for Houdini's Arnold, MaterialX, PrincipledShader, 
+Currently, it's in beta with support for Houdini's Arnold, MaterialX, PrincipledShader, 
 and Redshift as regular nodes and usd prims.
 
 
@@ -15,11 +15,22 @@ and Redshift as regular nodes and usd prims.
 - [x] pip-standard coding practices as much as possible and with proper logging.
 
 
+### Installation
+- On Windows: run the included batch installer `install_houdini_win.bat`.
+  - Double-click `install_houdini_win.bat` in File Explorer.
+  - The script copies the project folder to `%USERPROFILE%\Documents\HoudiniTools`.
+  - the script also copies the `Axe_Material_Processor.json` file to `%USERPROFILE%\Documents\houdini20.5\packages` directory.
+  - if you want to install to a different Houdini version, copy the json file to `%USERPROFILE%\Documents\houdini<HOUDINI_VERSION>\packages`
+  - If you encounter permission or auditing errors, run .bat file as Administrator.
+  - After installation, restart Houdini to load the tool.
+
+
+
 ### Roadmap
-- [x] Add support for Solaris and USD files
+- [x] Add support for Solaris and USD files.
+- [x] Finish implementation for Redshift.
+- [ ] Add implementation for Vray and Renderman.
 - [ ] Extend support to other apps like Substance Painter, Maya, and blender.
-- [x] Finish implementation for Redshift
-- [ ] Add implementation for Vray and Renderman
 
 
 

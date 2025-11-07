@@ -1,3 +1,7 @@
+"""
+copyright Ahmed Hindy. Please mention the original author if you used any part of this code
+"""
+
 import tempfile
 import pprint
 from typing import Dict
@@ -433,10 +437,10 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 }
 
 FORMAT_CHOICES = {
+    'principledshader': 'Principled Shader',
     'mtlx': 'MTLX',
     'arnold': 'Arnold',
     'rs_usd_material_builder': 'Redshift USD Material Builder',
-    'principledshader': 'Principled Shader',
 }
 
 
