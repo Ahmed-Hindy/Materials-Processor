@@ -7,6 +7,7 @@ and Redshift as regular nodes and usd prims.
 
 
 ![Material_processor_v004](https://github.com/Ahmed-Hindy/AxeFx_tools/assets/23151881/0a330312-8809-44bf-b6a9-35e233c57eda)
+![convert_material_demo_2_v001](https://github.com/user-attachments/assets/6d0bb6ae-3bc9-4a0a-84a9-00e258134dec)
 
 
 ### Features
