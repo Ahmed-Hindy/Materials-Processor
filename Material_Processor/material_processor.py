@@ -89,8 +89,10 @@ class NodeTraverser:
             connected_input = connection.inputNode()
             connected_input_index = connection.outputIndex()
             connected_input_name = connection.outputName()
+            connected_input_datatype = connection.inputDataType()
             connected_output_index = connection.inputIndex()
             connected_output_name = connection.inputName()
+            connected_output_datatype = connection.outputDataType()
             if connected_output_index == 0:
                 output_nodes['surface'] = {
                     'node_name': arnold_output.name(),
@@ -99,7 +101,10 @@ class NodeTraverser:
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
                     'connected_input_name': connected_input_name,
+                    'connected_input_datatype': connected_input_datatype,
+                    'connected_output_index': connected_output_index,
                     'connected_output_name': connected_output_name,
+                    'connected_output_datatype': connected_output_datatype,
                     'generic_type': 'GENERIC::output_surface'
                 }
             elif connected_output_index == 1:
@@ -110,7 +115,10 @@ class NodeTraverser:
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
                     'connected_input_name': connected_input_name,
+                    'connected_input_datatype': connected_input_datatype,
+                    'connected_output_index': connected_output_index,
                     'connected_output_name': connected_output_name,
+                    'connected_output_datatype': connected_output_datatype,
                     'generic_type': 'GENERIC::output_displacement'
                 }
         return output_nodes
@@ -135,8 +143,10 @@ class NodeTraverser:
                 connected_input = connection.inputNode()
                 connected_input_index = connection.outputIndex()
                 connected_input_name = connection.outputName()
-                connected_output_name = connection.inputName()
+                connected_input_datatype = connection.inputDataType()
                 connected_output_index = connection.inputIndex()
+                connected_output_name = connection.inputName()
+                connected_output_datatype = connection.outputDataType()
                 output_type = output_node.parm('parmname').eval()
                 if output_type not in ['surface', 'displacement']:
                     print(f"WARNING: Unknown MaterialX output type '{output_node.name()}/{output_type}' detected, skipping.")
@@ -149,7 +159,10 @@ class NodeTraverser:
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
                     'connected_input_name': connected_input_name,
+                    'connected_input_datatype': connected_input_datatype,
+                    'connected_output_index': connected_output_index,
                     'connected_output_name': connected_output_name,
+                    'connected_output_datatype': connected_output_datatype,
                 }
         return output_nodes
 
@@ -178,8 +191,10 @@ class NodeTraverser:
             connected_input = connection.inputNode()
             connected_input_index = connection.outputIndex()
             connected_input_name = connection.outputName()
+            connected_input_datatype = connection.inputDataType()
             connected_output_index = connection.inputIndex()
             connected_output_name = connection.inputName()
+            connected_output_datatype = connection.outputDataType()
             if connected_output_index == 0:
                 output_nodes['surface'] = {
                     'node_name': redshift_output.name(),
@@ -188,7 +203,11 @@ class NodeTraverser:
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
                     'connected_input_name': connected_input_name,
+                    'connected_input_datatype': connected_input_datatype,
+                    'connected_output_index': connected_output_index,
                     'connected_output_name': connected_output_name,
+                    'connected_output_datatype': connected_output_datatype,
+
                     'generic_type': 'GENERIC::output_surface'
                 }
             elif connected_output_index == 1:
@@ -199,7 +218,10 @@ class NodeTraverser:
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
                     'connected_input_name': connected_input_name,
+                    'connected_input_datatype': connected_input_datatype,
+                    'connected_output_index': connected_output_index,
                     'connected_output_name': connected_output_name,
+                    'connected_output_datatype': connected_output_datatype,
                     'generic_type': 'GENERIC::output_displacement'
                 }
         return output_nodes
@@ -229,8 +251,10 @@ class NodeTraverser:
             connected_input = connection.inputNode()
             connected_input_index = connection.outputIndex()
             connected_input_name = connection.outputName()
+            connected_input_datatype = connection.inputDataType()
             connected_output_index = connection.inputIndex()
             connected_output_name = connection.inputName()
+            connected_output_datatype = connection.outputDataType()
             if connected_output_index == 0:
                 output_nodes['surface'] = {
                     'node_name': redshift_output.name(),
@@ -239,7 +263,10 @@ class NodeTraverser:
                     'connected_node_path': connected_input.path(),
                     'connected_input_index': connected_input_index,
                     'connected_input_name': connected_input_name,
+                    'connected_input_datatype': connected_input_datatype,
                     'connected_output_name': connected_output_name,
+                    'connected_output_index': connected_output_index,
+                    'connected_output_datatype': connected_output_datatype,
                     'generic_type': 'GENERIC::output_surface'
                 }
             elif connected_output_index == 1:
@@ -251,6 +278,8 @@ class NodeTraverser:
                     'connected_input_index': connected_input_index,
                     'connected_input_name': connected_input_name,
                     'connected_output_name': connected_output_name,
+                    'connected_output_index': connected_output_index,
+                    'connected_output_datatype': connected_output_datatype,
                     'generic_type': 'GENERIC::output_displacement'
                 }
         return output_nodes
@@ -273,7 +302,10 @@ class NodeTraverser:
                 "connected_node_path": f"{material_node.path()}/mtlxstandard_surface",
                 "connected_input_index": 0,
                 "connected_input_name": "suboutput",
+                "connected_input_datatype": "surface",
+                "connected_output_index": 0,
                 "connected_output_name": "out",
+                "connected_output_datatype": "surface"
             },
             "displacement": {
                 "node_name": "displacement_output",
@@ -282,7 +314,10 @@ class NodeTraverser:
                 "connected_node_path": f"{material_node.path()}/mtlxdisplacement",
                 "connected_input_index": 0,
                 "connected_input_name": "suboutput",
+                "connected_input_datatype": "displacement",
+                "connected_output_index": 0,
                 "connected_output_name": "out",
+                "connected_output_datatype": "displacement"
             },
         }
 
@@ -382,6 +417,7 @@ class NodeTraverser:
                         "node_type": connection.inputNode().type().name(),
                         "node_index": connection.outputIndex(),
                         "parm_name": connection.inputName(),
+                        "data_type": connection.inputDataType(),
                     },
                     "output": {
                         "node_name": connection.outputNode().name(),
@@ -389,6 +425,7 @@ class NodeTraverser:
                         "node_type": connection.outputNode().type().name(),
                         "node_index": connection.inputIndex(),
                         "parm_name": connection.outputName(),
+                        "data_type": connection.outputDataType(),
                     }
                 }
             })
@@ -558,7 +595,7 @@ class NodeTraverser:
                 "node_name": "image_diffuse",
                 "node_path": f"{node.path()}/image_diffuse",
                 "node_type": "mtlximage",
-                "node_position": [-4, 0],
+                "node_position": [-6, 0],
                 'node_parms': {
                     'input': [
                         {'generic_name': 'file',
@@ -589,12 +626,48 @@ class NodeTraverser:
 
             })
 
+        if node.parm('metallic_useTexture').eval():
+            entry[f"{node.path()}/surface_output"]['children_list'][0]['children_list'].append({
+                "node_name": "image_metalness",
+                "node_path": f"{node.path()}/image_metalness",
+                "node_type": "mtlximage",
+                "node_position": [-6, -3],
+                'node_parms': {
+                    'input': [
+                        {'generic_name': 'file',
+                         'value': node.parm('metallic_texture').eval(),
+                         "type": "string1",
+                         "direction": "input"},
+                    ],
+                    'output': [],
+                },
+                'connections_dict': {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "image_metalness",
+                            "node_path": f"{node.path()}/image_metalness",
+                            "node_type": "mtlximage",
+                            "node_index": 0,
+                            "parm_name": "out"
+                        },
+                        "output": {
+                            "node_name": "mtlxstandard_surface",
+                            "node_path": f"{node.path()}/mtlxstandard_surface",
+                            "node_type": "mtlxstandard_surface",
+                            "node_index": 3,
+                            "parm_name": "metalness"
+                        }
+                    },
+                },
+
+            })
+
         if node.parm('rough_useTexture').eval():
             entry[f"{node.path()}/surface_output"]['children_list'][0]['children_list'].append({
                 "node_name": "image_roughness",
                 "node_path": f"{node.path()}/image_roughness",
                 "node_type": "mtlximage",
-                "node_position": [-4, -2],
+                "node_position": [-6, -6],
                 'node_parms': {
                     'input': [
                         {'generic_name': 'file',
@@ -624,6 +697,118 @@ class NodeTraverser:
                 },
 
             })
+
+        if node.parm('sss_useTexture').eval():
+            entry[f"{node.path()}/surface_output"]['children_list'][0]['children_list'].append({
+                "node_name": "image_sss",
+                "node_path": f"{node.path()}/image_sss",
+                "node_type": "mtlximage",
+                "node_position": [-6, -9],
+                'node_parms': {
+                    'input': [
+                        {'generic_name': 'file',
+                         'value': node.parm('sss_texture').eval(),
+                         "type": "string1",
+                         "direction": "input"},
+                    ],
+                    'output': [],
+                },
+                'connections_dict': {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "image_sss",
+                            "node_path": f"{node.path()}/image_sss",
+                            "node_type": "mtlximage",
+                            "node_index": 0,
+                            "parm_name": "out"
+                        },
+                        "output": {
+                            "node_name": "mtlxstandard_surface",
+                            "node_path": f"{node.path()}/mtlxstandard_surface",
+                            "node_type": "mtlxstandard_surface",
+                            "node_index": 30,
+                            "parm_name": "subsurface_color"
+                        }
+                    },
+                },
+
+            })
+
+        if node.parm('baseBumpAndNormal_enable').eval() and node.parm('baseBumpAndNormal_type').eval() == "normal":
+            entry[f"{node.path()}/surface_output"]['children_list'][0]['children_list'].append({
+                "node_name": "mtlxnormalmap1",
+                "node_path": f"{node.path()}/mtlxnormalmap1",
+                "node_type": "mtlxnormalmap::2.0",
+                "node_position": [-6, -12],
+                'node_parms': {
+                    'input': [],
+                    'output': [],
+                },
+                'connections_dict': {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "mtlxnormalmap1",
+                            "node_path": f"{node.path()}/mtlxnormalmap1",
+                            "node_type": "mtlxnormalmap::2.0",
+                            "node_index": 0,
+                            "parm_name": "out"
+                        },
+                        "output": {
+                            "node_name": "mtlxstandard_surface",
+                            "node_path": f"{node.path()}/mtlxstandard_surface",
+                            "node_type": "mtlxstandard_surface",
+                            "node_index": 40,
+                            "parm_name": "normal"
+                        }
+                    },
+                },
+                        "children_list": [
+                            {
+                                "node_name": "image_normal",
+                                "node_path": f"{node.path()}/image_normal",
+                                "node_type": "mtlximage",
+                                "node_position": [-9, -7],
+                                "node_parms": {
+                                    'input': [
+                                        {'generic_name': 'file',
+                                         'value': node.parm('baseNormal_texture').eval(),
+                                         "type": "string1",
+                                         "direction": "input"},
+                                    ],
+                                    "output": [
+                                        {
+                                            "generic_name": "out",
+                                            "value": None,
+                                            "type": "xyzw3",
+                                            "direction": "output"}
+                                    ]
+                                },
+                                "connections_dict": {
+                                    "connection_0": {
+                                        "input": {
+                                            "node_name": "image_normal",
+                                            "node_path": f"{node.path()}/image_normal",
+                                            "node_type": "mtlximage",
+                                            "node_index": 0,
+                                            "parm_name": "out",
+                                            "data_type": "color"
+                                        },
+                                        "output": {
+                                            "node_name": "mtlxnormalmap1",
+                                            "node_path": f"{node.path()}/mtlxnormalmap1",
+                                            "node_type": "mtlxnormalmap::2.0",
+                                            "node_index": 0,
+                                            "parm_name": "in",
+                                            "data_type": "vector"
+                                        }
+                                    }
+                                },
+                                "children_list": []
+                            }
+                        ]
+
+            })
+
 
         return entry
 
@@ -866,27 +1051,32 @@ class NodeRecreator:
         }
         return subnet_node, output_nodes
 
-    def create_init_shader(self, target_renderer, material_name=None):
+    def create_init_shader(self, material_name=None):
         if not material_name:
             material_name = 'convertedMaterial'
 
-        if target_renderer == 'mtlx':
+        if self.target_renderer == 'mtlx':
             self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context, material_name)
-        elif target_renderer == 'arnold':
+        elif self.target_renderer == 'arnold':
             self.material_node, self.new_output_connections = self.create_arnold_init_shader(self.target_context, material_name)
-        elif target_renderer == 'principledshader':
+        elif self.target_renderer == 'principledshader':
             self.material_node, self.new_output_connections = self.create_principledshader_init_shader(self.target_context, material_name)
-        elif target_renderer == 'rs_usd_material_builder':
+        elif self.target_renderer == 'rs_usd_material_builder':
             self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(self.target_context, material_name)
         else:
             raise KeyError(f"Unsupported target renderer: {self.target_renderer}")
 
         self.material_node.moveToGoodPosition()
 
+
     def create_output_nodes(self):
         """
         Create or reuse output nodes in the target context.
         """
+        if self.target_renderer == 'principledshader':
+            print("DEBUG: PrincipledShader does not require explicit output nodes. Skipping creation.")
+            return
+
         for generic_output_type, output_info in self.orig_output_connections.items():
             # e.g. generic_output_type = "GENERIC::output_surface"
             # e.g. output_info         = {'node_path': '/mat/material_mtlx_ORIG/surface_output',
@@ -1063,6 +1253,10 @@ class NodeRecreator:
         """
         Create nodes in the target context.
         """
+        if self.target_renderer == 'principledshader':
+            print("DEBUG: PrincipledShader does not require explicit output nodes. Skipping creation.")
+            return
+
         self._create_nodes_recursive(nested_nodes_info)
         return True
 
@@ -1071,6 +1265,10 @@ class NodeRecreator:
         """
         Set connections for the output nodes in the recreated material.
         """
+        if self.target_renderer == 'principledshader':
+            print("DEBUG: PrincipledShader does not require explicit output nodes. Skipping creation.")
+            return
+
         renderer_output_connections = OUTPUT_CONNECTIONS_INDEX_MAP.get(self.target_renderer)
         if not renderer_output_connections:
             raise KeyError(f"Unsupported renderer: {self.target_renderer}")
@@ -1199,11 +1397,11 @@ class NodeRecreator:
             dest_parm_new_name = [key for key, val in dest_std_parm_map.items() if val == dest_parm_name]
             dest_parm_new_name: str = dest_parm_new_name[0] if dest_parm_new_name else dest_parm_name
 
-            print(f"DEBUG: // {src_node_type=}, {dest_node_type=}")
-            print(f"DEBUG: // src_std_parm_map: {pprint.pformat(src_std_parm_map, sort_dicts=False)}")
-            print(f"DEBUG: // dest_std_parm_map: {pprint.pformat(dest_std_parm_map, sort_dicts=False)}")
-            print(f"DEBUG: // {src_parm_name=}, {dest_parm_name=}")
-            print(f"DEBUG: // {src_parm_new_name=}, {dest_parm_new_name=}")
+            # print(f"DEBUG: // {src_node_type=}, {dest_node_type=}")
+            # print(f"DEBUG: // src_std_parm_map: {pprint.pformat(src_std_parm_map, sort_dicts=False)}")
+            # print(f"DEBUG: // dest_std_parm_map: {pprint.pformat(dest_std_parm_map, sort_dicts=False)}")
+            # print(f"DEBUG: // {src_parm_name=}, {dest_parm_name=}")
+            # print(f"DEBUG: // {src_parm_new_name=}, {dest_parm_new_name=}")
 
 
             # perform the actual wire
@@ -1311,7 +1509,7 @@ class NodeRecreator:
         Recreate the nodes in the target context based on the material data.
         """
         # create initial shader network:
-        self.create_init_shader(self.target_renderer, self.material_name)
+        self.create_init_shader(self.material_name)
         # print(f"{self.material_node=}, {self.standardizer.output_nodes_dict=}, {self.new_output_connections=}")
 
         # Create output nodes first:

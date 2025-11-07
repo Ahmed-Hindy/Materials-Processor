@@ -1,0 +1,26 @@
+{
+    "surface": {
+        "node_name": "surface_output",
+        "node_path": "/mat/mtlxmaterial_full/surface_output",
+        "connected_node_name": "mtlxstandard_surface",
+        "connected_node_path": "/mat/mtlxmaterial_full/mtlxstandard_surface",
+        "connected_input_index": 0,
+        "connected_input_name": "suboutput",
+        "connected_input_datatype": "surface",
+        "connected_output_index": 0,
+        "connected_output_name": "out",
+        "connected_output_datatype": "surface"
+    },
+    "displacement": {
+        "node_name": "displacement_output",
+        "node_path": "/mat/mtlxmaterial_full/displacement_output",
+        "connected_node_name": "mtlxdisplacement",
+        "connected_node_path": "/mat/mtlxmaterial_full/mtlxdisplacement",
+        "connected_input_index": 0,
+        "connected_input_name": "suboutput",
+        "connected_input_datatype": "displacement",
+        "connected_output_index": 0,
+        "connected_output_name": "out",
+        "connected_output_datatype": "displacement"
+    }
+}

@@ -48,6 +48,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'hou_vop_nodes': {
             'mtlxstandard_surface': 'GENERIC::standard_surface',
             'mtlximage': 'GENERIC::image',
+            'mtlxnormalmap::2.0': 'GENERIC::normalmap',
             'mtlxrange': 'GENERIC::range',
             'mtlxcolorcorrect': 'GENERIC::color_correct',
             'mtlxmix': 'GENERIC::mix_rgba',  # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
@@ -70,6 +71,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'hou_vop_nodes': {
             'mtlxstandard_surface': 'GENERIC::standard_surface',
             'mtlximage': 'GENERIC::image',
+            'mtlxnormalmap::2.0': 'GENERIC::normalmap',
             'mtlxrange': 'GENERIC::range',
             'mtlxcolorcorrect': 'GENERIC::color_correct',
             'mtlxmix': 'GENERIC::mix_rgba',
@@ -580,13 +582,15 @@ class NodeStandardizer:
                                         'node_path': '/mat/mtlxmaterial_basic/mtlxstandard_surface',
                                         'node_type': 'mtlxstandard_surface',
                                         'node_index': 0,
-                                        'parm_name': 'out'},
+                                        'parm_name': 'out',
+                                        'data_type': 'surface'},
                                 'output': {
                                         'node_name': 'surface_output',
                                         'node_path': '/mat/mtlxmaterial_basic/surface_output',
                                         'node_type': 'subnetconnector',
                                         'node_index': 0,
-                                        'parm_name': 'suboutput'}
+                                        'parm_name': 'suboutput',
+                                        'data_type': 'surface'}
                                        }
                                      }
         """
@@ -621,6 +625,7 @@ class NodeStandardizer:
                     # print(f"DEBUG: generic_parm_names_dict: {pprint.pformat(generic_parm_names_dict, sort_dicts=False)}")
                     continue
                 new_connections_dict[i][direction]['parm_name'] = generic_name
+
 
         return new_connections_dict
 
