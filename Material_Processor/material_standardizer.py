@@ -21,6 +21,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'hou_vop_nodes': {
             'arnold::standard_surface': 'GENERIC::standard_surface',
             'arnold::image': 'GENERIC::image',
+            'arnold::normal_map': 'GENERIC::normalmap',
             'arnold::range': 'GENERIC::range',
             'arnold::color_correct': 'GENERIC::color_correct',
             'arnold::curvature': 'GENERIC::curvature',
