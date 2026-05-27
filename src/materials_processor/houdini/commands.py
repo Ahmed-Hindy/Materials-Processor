@@ -190,8 +190,8 @@ def test():
     target_renderer = 'mtlx'
     material_type = 'mtlx'
 
-    node_tree = io.load_node_tree_json(resources.files("materials_processor.fixtures") / "example_traversed_nodes_dict.json")
-    output_nodes = io.load_node_tree_json(resources.files("materials_processor.fixtures") / "example_output_nodes_dict.json")
+    node_tree = io.load_node_tree_json(resources.files("materials_processor.fixtures") / "houdini_mtlx_full_traversed_nodes.json")
+    output_nodes = io.load_node_tree_json(resources.files("materials_processor.fixtures") / "houdini_mtlx_full_output_nodes.json")
 
     standardizer = NodeStandardizer(
         traversed_nodes_dict=node_tree,

@@ -1,6 +1,7 @@
 import contextlib
 import io as stdlib_io
 import json
+from dataclasses import dataclass
 from importlib import resources
 
 import pytest
@@ -12,12 +13,35 @@ from materials_processor.usd.recreator import USDMaterialRecreator
 from materials_processor.usd.traverser import USDTraverser
 
 
-MATERIAL_NAME = "mtlxmaterial_full"
-MATERIAL_PATH = Sdf.Path(f"/materials/{MATERIAL_NAME}")
+@dataclass(frozen=True)
+class HoudiniJsonFixture:
+    material_name: str
+    material_type: str
+    traversed_nodes_file: str
+    output_nodes_file: str
+
+    @property
+    def material_path(self):
+        return Sdf.Path(f"/materials/{self.material_name}")
 
 
-USD_TARGETS = [
+HOUDINI_MTLX_FULL = HoudiniJsonFixture(
+    material_name="mtlxmaterial_full",
+    material_type="mtlx",
+    traversed_nodes_file="houdini_mtlx_full_traversed_nodes.json",
+    output_nodes_file="houdini_mtlx_full_output_nodes.json",
+)
+HOUDINI_ARNOLD_FULL = HoudiniJsonFixture(
+    material_name="arnold_materialbuilder_full",
+    material_type="arnold",
+    traversed_nodes_file="houdini_arnold_full_traversed_nodes.json",
+    output_nodes_file="houdini_arnold_full_output_nodes.json",
+)
+
+
+USD_CONVERSION_CASES = [
     pytest.param(
+        HOUDINI_MTLX_FULL,
         "mtlx",
         {
             "ND_standard_surface_surfaceshader",
@@ -30,9 +54,10 @@ USD_TARGETS = [
             "surface": "mtlx:surface",
             "displacement": "mtlx:displacement",
         },
-        id="mtlx",
+        id="houdini-mtlx-to-usd-mtlx",
     ),
     pytest.param(
+        HOUDINI_MTLX_FULL,
         "arnold",
         {
             "arnold:standard_surface",
@@ -45,9 +70,10 @@ USD_TARGETS = [
             "surface": "arnold:surface",
             "displacement": "arnold:displacement",
         },
-        id="arnold",
+        id="houdini-mtlx-to-usd-arnold",
     ),
     pytest.param(
+        HOUDINI_MTLX_FULL,
         "rs_usd_material_builder",
         {
             "redshift::StandardMaterial",
@@ -60,33 +86,66 @@ USD_TARGETS = [
             "surface": "Redshift:surface",
             "displacement": "Redshift:displacement",
         },
-        id="rs-usd-material-builder",
+        id="houdini-mtlx-to-usd-redshift",
+    ),
+    pytest.param(
+        HOUDINI_ARNOLD_FULL,
+        "arnold",
+        {
+            "arnold:standard_surface",
+            "arnold:image",
+            "arnold:color_correct",
+            "arnold:curvature",
+            "arnold:layer_rgba",
+            "arnold:mix_rgba",
+            "arnold:range",
+        },
+        {
+            "surface": "arnold:surface",
+            "displacement": "arnold:displacement",
+        },
+        id="houdini-arnold-to-usd-arnold",
+    ),
+    pytest.param(
+        HOUDINI_ARNOLD_FULL,
+        "rs_usd_material_builder",
+        {
+            "redshift::StandardMaterial",
+            "redshift::TextureSampler",
+            "redshift::RSColorCorrection",
+            "redshift::RSColorRange",
+        },
+        {
+            "surface": "Redshift:surface",
+            "displacement": "Redshift:displacement",
+        },
+        id="houdini-arnold-to-usd-redshift",
     ),
 ]
 
 
-def _load_houdini_mtlx_fixture():
+def _load_houdini_fixture(fixture):
     fixture_root = resources.files("materials_processor.fixtures")
-    traversed_nodes = material_io.load_node_tree_json(fixture_root / "example_traversed_nodes_dict.json")
-    output_nodes = material_io.load_node_tree_json(fixture_root / "example_output_nodes_dict.json")
+    traversed_nodes = material_io.load_node_tree_json(fixture_root / fixture.traversed_nodes_file)
+    output_nodes = material_io.load_node_tree_json(fixture_root / fixture.output_nodes_file)
 
     with contextlib.redirect_stdout(stdlib_io.StringIO()):
         return NodeStandardizer(
             traversed_nodes_dict=traversed_nodes,
             output_nodes_dict=output_nodes,
-            material_type="mtlx",
+            material_type=fixture.material_type,
             source_type="hou_vop_nodes",
         ).run()
 
 
-def _build_usd_stage_from_houdini_json(target_renderer):
-    nodeinfo_list, output_connections = _load_houdini_mtlx_fixture()
+def _build_usd_stage_from_houdini_json(fixture, target_renderer):
+    nodeinfo_list, output_connections = _load_houdini_fixture(fixture)
     stage = Usd.Stage.CreateInMemory()
 
     with contextlib.redirect_stdout(stdlib_io.StringIO()):
         USDMaterialRecreator(
             stage=stage,
-            material_name=MATERIAL_NAME,
+            material_name=fixture.material_name,
             nodeinfo_list=nodeinfo_list,
             output_connections=output_connections,
             target_renderer=target_renderer,
@@ -109,15 +168,19 @@ def _material_output_names(material):
     return {output.GetBaseName() for output in material_shader.GetOutputs()}
 
 
-@pytest.mark.parametrize(("target_renderer", "expected_shader_ids", "expected_output_labels"), USD_TARGETS)
+@pytest.mark.parametrize(
+    ("fixture", "target_renderer", "expected_shader_ids", "expected_output_labels"),
+    USD_CONVERSION_CASES,
+)
 def test_houdini_json_converts_to_usd_renderer_matrix(
+    fixture,
     target_renderer,
     expected_shader_ids,
     expected_output_labels,
 ):
-    stage = _build_usd_stage_from_houdini_json(target_renderer)
+    stage = _build_usd_stage_from_houdini_json(fixture, target_renderer)
 
-    material = UsdShade.Material.Get(stage, MATERIAL_PATH)
+    material = UsdShade.Material.Get(stage, fixture.material_path)
     assert material.GetPrim().IsValid()
     assert material.GetPrim().GetTypeName() == "Material"
 

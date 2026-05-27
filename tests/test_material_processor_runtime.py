@@ -78,10 +78,10 @@ def test_material_processor_test_helper_uses_checked_in_fixtures(tmp_path, monke
 def test_standardizer_preserves_runtime_connection_mapping(tmp_path, monkeypatch):
     monkeypatch.setattr(standardizer, "TEMP_DIR", str(tmp_path))
     traversed_nodes = io.load_node_tree_json(
-        "src/materials_processor/fixtures/example_traversed_nodes_dict.json"
+        "src/materials_processor/fixtures/houdini_mtlx_full_traversed_nodes.json"
     )
     output_nodes = io.load_node_tree_json(
-        "src/materials_processor/fixtures/example_output_nodes_dict.json"
+        "src/materials_processor/fixtures/houdini_mtlx_full_output_nodes.json"
     )
 
     nodeinfo_list, output_connections = standardizer.NodeStandardizer(
