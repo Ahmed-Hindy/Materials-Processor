@@ -14,6 +14,8 @@ from materials_processor.standardizer import NodeStandardizer
 logger = logging.getLogger(__name__)
 
 def ingest_material(material_node):
+    from materials_processor.logging_config import setup_file_logging
+    setup_file_logging()
     try:
         material_type = get_material_type(material_node)
         if not material_type:

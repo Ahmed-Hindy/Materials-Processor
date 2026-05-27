@@ -76,6 +76,8 @@ def test2(stage, usd_material, target_renderer="arnold"):
         None
     """
     import hou
+    from materials_processor.logging_config import setup_file_logging
+    setup_file_logging()
 
     mat_prim = usd_material.GetPrim()
     mat_name = mat_prim.GetName()

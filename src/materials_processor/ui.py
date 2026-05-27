@@ -120,6 +120,10 @@ class MyMainWindow(QMainWindow):
         text_edit_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(text_edit_handler)
 
+        # Configure proper and safe rotating file logging
+        from materials_processor.logging_config import setup_file_logging
+        setup_file_logging()
+
 
         # Store preferences
         self.preferences = {
