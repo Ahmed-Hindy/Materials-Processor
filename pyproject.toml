@@ -1,0 +1,35 @@
+[project]
+name = "materials-processor"
+version = "1.2.4"
+description = "Houdini material ingestion, standardization, and conversion tools."
+requires-python = ">=3.11"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.0.3",
+    "ruff>=0.15.14",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+pythonpath = ["."]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B"]
+ignore = [
+    "B007",
+    "B018",
+    "B020",
+    "B905",
+    "E501",
+    "E722",
+    "F401",
+    "F841",
+    "I001",
+]

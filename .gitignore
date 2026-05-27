@@ -1,5 +1,23 @@
 backup/
 *rendergallery*
 *copilot.data*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Local environments
+.venv/
+venv/
+
+# Editors
 /.vscode/
 /.idea/
+
+# Local scratch files
+/temp/

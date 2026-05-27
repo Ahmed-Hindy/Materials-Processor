@@ -2,9 +2,9 @@
 copyright Ahmed Hindy. Please mention the original author if you used any part of this code
 This module processes material nodes in Houdini, standardizing shader nodes and parameters.
 """
-from dataclasses import dataclass, field
-from typing import Optional, Dict, List, Any
 import pprint
+from dataclasses import dataclass, field
+from typing import Any, Dict, List, Optional
 
 
 @dataclass

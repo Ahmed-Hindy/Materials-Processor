@@ -8,16 +8,22 @@ rem Source and folder name
 set "SRC=%CD%"
 for %%I in ("%SRC%") do set "FOLDER=%%~nI"
 
+rem Houdini version defaults to the currently supported version.
+set "HOUDINI_VERSION=%~1"
+if "%HOUDINI_VERSION%"=="" set "HOUDINI_VERSION=21.0"
+
 rem Destinations
 set "DEST_BASE=%USERPROFILE%\Documents\HoudiniTools"
 set "DEST=%DEST_BASE%\%FOLDER%"
-set "PACKAGES=%USERPROFILE%\Documents\houdini20.5\packages"
+set "PACKAGES=%USERPROFILE%\Documents\houdini%HOUDINI_VERSION%\packages"
 
 rem Show diagnostics before copy
 echo USERPROFILE=%USERPROFILE%
+echo HOUDINI_VERSION=%HOUDINI_VERSION%
 echo SRC=%SRC%
 echo DEST_BASE=%DEST_BASE%
 echo DEST=%DEST%
+echo PACKAGES=%PACKAGES%
 
 rem Ensure destinations exist (create final folder explicitly)
 if not exist "%DEST_BASE%" mkdir "%DEST_BASE%"

@@ -4,17 +4,29 @@ This module processes material nodes in Houdini, extracting and converting shade
 """
 import logging
 from importlib import reload
-from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-                               QTextEdit, QListWidget, QMenuBar, QMenu, QAction, QMessageBox, QDialog, QCheckBox,
-                               QComboBox)
-from PySide2 import QtCore
-
-from Material_Processor import material_processor, material_standardizer
 
 import hou
+from PySide2 import QtCore
+from PySide2.QtWidgets import (
+    QAction,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QMainWindow,
+    QMenu,
+    QMenuBar,
+    QMessageBox,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-
-
+from Material_Processor import material_processor, material_standardizer
 
 
 class QTextEditLogger(logging.Handler):
