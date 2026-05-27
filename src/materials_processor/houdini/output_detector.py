@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 
 try:
     import hou
-except:
+except ImportError:
     # temp to make the module work with substance painter
     logger.warning("materialProcessor running outside of Houdini!")
     hou = None
