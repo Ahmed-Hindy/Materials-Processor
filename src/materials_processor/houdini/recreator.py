@@ -527,28 +527,8 @@ class NodeRecreator:
                 logger.warning("Ignoring Output connections from input null node: '%s'", new_connected_node_info['node_name'])
                 continue
 
-            source_output_name = new_connected_node_info.get('connected_output_name')
-            source_output_index = 0
-            if source_output_name:
-                resolved_output_index = new_connected_node.outputIndex(source_output_name)
-                if resolved_output_index not in [-1, -999]:
-                    source_output_index = resolved_output_index
-                else:
-                    logger.warning(
-                        "Source node '%s' has no output '%s', using output index 0.",
-                        new_connected_node.path(),
-                        source_output_name,
-                    )
-
-            logger.info(
-                "Setting input for %s[%s] to '%s[%s]' for output type: '%s'",
-                output_node.path(),
-                output_index,
-                new_connected_node.path(),
-                source_output_index,
-                generic_output_type,
-            )
-            output_node.setInput(output_index, new_connected_node, source_output_index)
+            logger.info("Setting input for %s[%s] to '%s[0]' for output type: '%s'", output_node.path(), output_index, new_connected_node.path(), generic_output_type)
+            output_node.setInput(output_index, new_connected_node)
 
         return True
 
