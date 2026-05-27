@@ -1,3 +1,5 @@
+"""Recreate generic material graphs as Houdini shader networks."""
+
 import logging
 from typing import List
 

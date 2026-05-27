@@ -1,3 +1,5 @@
+"""USD material graph traversal."""
+
 import logging
 import re
 

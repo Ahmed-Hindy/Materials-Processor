@@ -1,3 +1,5 @@
+"""Public USD command helpers."""
+
 import logging
 import traceback
 

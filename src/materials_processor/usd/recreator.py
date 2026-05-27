@@ -1,3 +1,5 @@
+"""Recreate generic material graphs as USD material networks."""
+
 import logging
 import os
 import pprint
