@@ -1,11 +1,12 @@
-"""Public USD command helpers."""
-
+import logging
 import traceback
 
 from materials_processor.houdini import commands as houdini_commands
 from materials_processor.standardizer import NodeStandardizer
 from materials_processor.usd.recreator import USDMaterialRecreator
 from materials_processor.usd.traverser import USDTraverser
+
+logger = logging.getLogger(__name__)
 
 def get_material_type(usd_material):
     """
@@ -46,9 +47,7 @@ def test(stage, mat_node, target_renderer="mtlx"):
     if not (material_type and nodeinfo_list and output_connections):
         return
 
-    print("/////////////////////////////////////////////")
-    print("/////////////////////////////////////////////")
-    print("/////////////////////////////////////////////")
+    logger.info("Starting USDMaterialRecreator test")
     """
     DEBUG: material_type='arnold'
     DEBUG: node_info_list=[
@@ -62,7 +61,7 @@ def test(stage, mat_node, target_renderer="mtlx"):
     try:
         USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer=target_renderer)
     except Exception:
-        traceback.print_exc()
+        logger.exception("Exception in test")
 
 
 def test2(stage, usd_material, target_renderer="arnold"):
@@ -81,7 +80,7 @@ def test2(stage, usd_material, target_renderer="arnold"):
 
     material_type = get_material_type(usd_material)
     if not material_type :
-        print("Couldn't determine Input material type.")
+        logger.error("Couldn't determine Input material type.")
         return None
 
     nested_nodes_dict, output_nodes_dict  = USDTraverser(stage, mat_prim, material_type).run()
@@ -147,6 +146,6 @@ def test2(stage, usd_material, target_renderer="arnold"):
     try:
         USDMaterialRecreator(stage, "__material", nodeinfo_list, output_connections,
                              target_renderer=target_renderer)
-    except:
-        traceback.print_exc()
+    except Exception:
+        logger.exception("Exception in test2")
 

@@ -1,5 +1,4 @@
-"""Recreate generic material graphs as USD material networks."""
-
+import logging
 import os
 import pprint
 
@@ -7,6 +6,8 @@ from pxr import Gf, Sdf, Usd, UsdGeom, UsdShade
 
 from materials_processor.mappings import REGULAR_PARAM_NAMES_TO_GENERIC, convert_generic
 from materials_processor.usd.mappings import GENERIC_NODE_TYPES_TO_REGULAR_USD, OUT_PRIM_DICT, _ATTRIB_TYPE_CASTERS
+
+logger = logging.getLogger(__name__)
 
 class USDMaterialRecreator:
     """
@@ -96,30 +97,29 @@ class USDMaterialRecreator:
             KeyError: If node_type is not found in the parameter-name mapping.
         """
         if not parameters:
-            print(f"WARNING: No parameters found for shader: '{shader.GetPath().pathString}'")
+            logger.warning("No parameters found for shader: '%s'", shader.GetPath().pathString)
             return
 
         # look up standardized mapping for this node type
         std_parm_map: dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
         if not std_parm_map:
-            print(f"WARNING: No generic parameter mappings found for node type: '{node_type}'")
+            logger.warning("No generic parameter mappings found for node type: '%s'", node_type)
             return
 
         for param in parameters:
             # DEBUG: param=NodeParameter(generic_name='base_color', generic_type='float3', value=(0.800000011920929, 0.800000011920929, 0.800000011920929))
             if param.direction != 'input':
-                print(f"WARNING: Parameter '{param.generic_name}' is not an input parameter for node type '{node_type}'. Skipping.")
+                logger.warning("Parameter '%s' is not an input parameter for node type '%s'. Skipping.", param.generic_name, node_type)
                 continue
             if not param.generic_name:
-                print(f"WARNING: Parameter of value:'{param.value}' has no generic_name for node type '{node_type}'. Skipping.")
+                logger.warning("Parameter of value:'%s' has no generic_name for node type '%s'. Skipping.", param.value, node_type)
                 continue
 
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
             # DEBUG: parm_new_name=['base_color']
 
             if not parm_new_name:
-                print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
-                      f" for node type '{node_type}'. Skipping.")
+                logger.warning("No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.", param.generic_name, node_type)
                 continue  # skip unsupported params
 
             parm_new_name = parm_new_name[0]
@@ -129,14 +129,14 @@ class USDMaterialRecreator:
 
             val_type = _ATTRIB_TYPE_CASTERS.get(param.generic_type)
             if not val_type:
-                print(f"WARNING: parm: '{parm_new_name}' has no type!, {val_type=}")
+                logger.warning("parm: '%s' has no type!, val_type=%s", parm_new_name, val_type)
                 continue
 
             inp = shader.CreateInput(parm_new_name, val_type)
             try:
                 inp.Set(val)
             except Exception as e:
-                print(f"ERROR: failed to set input '{parm_new_name}' to '{val}[{type(val)}]' for value_type: {param.generic_type}->{val_type}, '{e=}\n")
+                logger.error("failed to set input '%s' to '%s[%s]' for value_type: %s->%s, error: %s", parm_new_name, val, type(val), param.generic_type, val_type, e)
 
 
     def create_material_prim(self):
@@ -229,7 +229,7 @@ class USDMaterialRecreator:
         mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{self.material_name}")
         mat_usdshade = UsdShade.Material.Get(self.stage, mat_primpath)
 
-        print(f"DEBUG: self.created_out_primpaths: {pprint.pformat(self.created_out_primpaths, sort_dicts=False)}")
+        logger.debug("self.created_out_primpaths: %s", pprint.pformat(self.created_out_primpaths, sort_dicts=False))
         for generic_output, out_dict in self.orig_output_connections.items():
             # DEBUG: generic_output='GENERIC::output_surface'
             # DEBUG: out_dict: {'node_name': 'OUT_material',
@@ -260,25 +260,25 @@ class USDMaterialRecreator:
         first child whose prim has a non‐empty info:id.
         Returns (dst_prim, dst_nodeinfo) or (None, None).
         """
-        print(f"DEBUG: prim: '{nodeinfo.node_path}': children_list: {nodeinfo.children_list}")
+        logger.debug("prim: '%s': children_list: %s", nodeinfo.node_path, nodeinfo.children_list)
         if parent_nodeinfo:
-            print(f"DEBUG: parent: '{parent_nodeinfo.node_path}'")
+            logger.debug("parent: '%s'", parent_nodeinfo.node_path)
         for conn_index, conn in nodeinfo.connection_info.items():
-            print(f"DEBUG: node: parent node_path: '{conn['output']['node_path']}'")
+            logger.debug("node: parent node_path: '%s'", conn['output']['node_path'])
             if parent_nodeinfo and conn['output']['node_path'] != parent_nodeinfo.node_path:
-                print("DEBUG: Invalid parent, skipping connection!")
+                logger.debug("Invalid parent, skipping connection!")
                 continue
 
-            print(f"DEBUG: node: {conn['input']['parm_name']} -> {conn['output']['parm_name']}")
+            logger.debug("node: %s -> %s", conn['input']['parm_name'], conn['output']['parm_name'])
             for child_nodeinfo in nodeinfo.children_list:
                 child_path = self.old_new_map[child_nodeinfo.node_path]
                 prim = self.stage.GetPrimAtPath(Sdf.Path(child_path))
-                print(f"DEBUG: child prim: '{child_path}'")
+                logger.debug("child prim: '%s'", child_path)
                 if prim and prim.GetAttribute('info:id').Get():
                     for c_conn_index, c_conn in child_nodeinfo.connection_info.items():
-                        print(f"DEBUG: child: {c_conn['input']['parm_name']} -> {c_conn['output']['parm_name']}\n")
+                        logger.debug("child: %s -> %s", c_conn['input']['parm_name'], c_conn['output']['parm_name'])
                         if nodeinfo and c_conn['output']['node_path'] != nodeinfo.node_path:
-                            print("DEBUG: Invalid node, skipping connection!")
+                            logger.debug("Invalid node, skipping connection!")
                             continue
 
                         return prim, c_conn
@@ -293,11 +293,11 @@ class USDMaterialRecreator:
         try:
             src_api = UsdShade.Shader(src_prim)
             dst_api = UsdShade.Shader(dst_prim)
-            print(f"→ Connecting prims: {src_prim.GetPath().pathString}[{src_parm}] -> {dst_prim.GetPath().pathString}[{dst_parm}]")
+            logger.info("Connecting prims: %s[%s] -> %s[%s]", src_prim.GetPath().pathString, src_parm, dst_prim.GetPath().pathString, dst_parm)
             inp = dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
             inp.ConnectToSource(src_api.ConnectableAPI(), src_parm)
         except Exception as e:
-            print(f"FAILED to connect {src_prim.GetPath()}[{src_parm}] -> {dst_prim.GetPath().pathString}[{dst_parm}]: {e}")
+            logger.error("FAILED to connect %s[%s] -> %s[%s]: %s", src_prim.GetPath(), src_parm, dst_prim.GetPath().pathString, dst_parm, e)
 
     def set_shader_connections(self, nodeinfo_list, parent_node=None):
         """
@@ -312,26 +312,26 @@ class USDMaterialRecreator:
                 src_prim = self.stage.GetPrimAtPath(Sdf.Path(src_path)) if src_path else None
                 dst_prim = self.stage.GetPrimAtPath(Sdf.Path(dst_path)) if dst_path else None
 
-                print(f"\nIteration:'{conn_index}',  '{src_path}[{src_parm}] → {dst_path}[{dst_parm}]':")
+                logger.debug("Iteration: '%s', '%s[%s] -> %s[%s]'", conn_index, src_path, src_parm, dst_path, dst_parm)
                 if not (src_prim and dst_prim and src_prim.IsValid() and dst_prim.IsValid()):
-                    print(f"SKIPPING connection, invalid prims found src:{src_prim}, dst:{dst_prim}")
+                    logger.warning("SKIPPING connection, invalid prims found src:%s, dst:%s", src_prim, dst_prim)
                     continue
                 if not src_prim.GetAttribute('info:id').Get() and not dst_prim.GetAttribute('info:id').Get():
-                    print("SKIPPING connection, both missing 'info:id'")
+                    logger.warning("SKIPPING connection, both missing 'info:id'")
                     continue
                 if dst_prim.GetTypeName() == 'Material':
-                    print("SKIPPING connection, dst_prim's primitive type is a Material not a Shader!")
+                    logger.warning("SKIPPING connection, dst_prim's primitive type is a Material not a Shader!")
                     continue
 
                 if not src_prim.GetAttribute('info:id').Get():
-                    print("No info:id found, searching children…")
+                    logger.debug("No info:id found, searching children...")
                     new_src_prim, new_conn = self._find_valid_src(nodeinfo)
                     if not new_src_prim:
-                        print(f"SKIPPING child connection '{src_path}→{dst_path}': _find_valid_src() didn't find anything!")
+                        logger.warning("SKIPPING child connection '%s -> %s': _find_valid_src() didn't find anything!", src_path, dst_path)
                         continue
 
-                    print(f"DEBUG: {new_src_prim=}")
-                    print(f"DEBUG: new_conn: {pprint.pformat(new_conn, sort_dicts=False)}")
+                    logger.debug("new_src_prim=%s", new_src_prim)
+                    logger.debug("new_conn: %s", pprint.pformat(new_conn, sort_dicts=False))
                     self._connect_pair(new_src_prim, dst_prim, new_conn['input']['parm_name'], dst_parm)
                     continue
 
@@ -356,7 +356,7 @@ class USDMaterialRecreator:
         transmissive_matnames_list = ['glass', 'glas']
         is_transmissive = any(substring in material_name.lower() for substring in transmissive_matnames_list)
         if is_transmissive:
-            print(f"DEBUG:  Detected Transmissive Material: '{material_name}'")
+            logger.debug("Detected Transmissive Material: '%s'", material_name)
 
         return is_transmissive
 
@@ -389,7 +389,7 @@ class USDMaterialRecreator:
             tex_filepath = tex_dict['path']
             tex_type = tex_type.lower()  # assume all lowercase
             if tex_type not in texture_types_to_inputs:
-                print(f"WARNING:  tex_type: '{tex_type}' not supported yet for usdpreview")
+                logger.warning("tex_type: '%s' not supported yet for usdpreview", tex_type)
                 continue
 
             if usd_preview_format:
@@ -677,7 +677,7 @@ class USDMaterialRecreator:
             tex_filepath = tex_dict['path']
             tex_type = tex_type.lower()  # assume all lowercase
             if tex_type not in texture_types_to_inputs:
-                print(f"WARNING:  tex_type: '{tex_type}' not supported yet for arnold")
+                logger.warning("tex_type: '%s' not supported yet for arnold", tex_type)
                 continue
 
             input_name = texture_types_to_inputs[tex_type]
@@ -838,7 +838,7 @@ class USDMaterialRecreator:
             tex_filepath = tex_dict['path']
             tex_type = tex_type.lower()  # assume all lowercase
             if tex_type not in texture_types_to_inputs:
-                print(f"WARNING:  tex_type: '{tex_type}' not supported yet for MTLX")
+                logger.warning("tex_type: '%s' not supported yet for MTLX", tex_type)
                 continue
 
             input_name = texture_types_to_inputs[tex_type]
@@ -950,29 +950,29 @@ class USDMaterialRecreator:
         UsdGeom.Scope.Define(self.stage, Sdf.Path(self.parent_scope_path))
 
         # 2. create output material prims
-        print("INFO: STARTING create_material_prim()....")
+        logger.info("STARTING create_material_prim()....")
         self.create_material_prim()
-        print("INFO: FINISHED create_material_prim()\n\n\n")
+        logger.info("FINISHED create_material_prim()")
 
-        print(f"DEBUG: {self.created_out_primpaths=}")
-        print(f"DEBUG: 1 {self.old_new_map=}\n")
+        logger.debug("self.created_out_primpaths=%s", self.created_out_primpaths)
+        logger.debug("1 self.old_new_map=%s", self.old_new_map)
 
         # 3. create child shader prims
-        print("INFO: STARTING create_child_shaders()....")
+        logger.info("STARTING create_child_shaders()....")
         self.create_child_shaders(self.nodeinfo_list)
-        print("INFO: FINISHED _create_child_shaders()\n\n\n")
+        logger.info("FINISHED _create_child_shaders()")
 
         # 4. set up output connections
-        print("INFO: STARTING set_output_connections()....")
+        logger.info("STARTING set_output_connections()....")
         self.set_output_connections()
-        print("INFO: FINISHED _set_output_connections()\n\n\n")
+        logger.info("FINISHED _set_output_connections()")
 
-        print(f"DEBUG: 2 {self.old_new_map=}\n")
+        logger.debug("2 self.old_new_map=%s", self.old_new_map)
 
         # 5. set up inter-shader connections
-        print("INFO: STARTING set_shader_connections()....")
+        logger.info("STARTING set_shader_connections()....")
         self.set_shader_connections(self.nodeinfo_list)
-        print("INFO: FINISHED set_shader_connections()\n\n\n")
+        logger.info("FINISHED set_shader_connections()")
 
 
 

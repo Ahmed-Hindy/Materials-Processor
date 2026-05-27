@@ -1,5 +1,4 @@
-"""USD material graph traversal."""
-
+import logging
 import re
 
 from pxr import Gf, Sdf, UsdShade
@@ -10,6 +9,8 @@ from materials_processor.usd.mappings import (
     SKIPPED_ATTRIBS,
 )
 
+logger = logging.getLogger(__name__)
+
 def split_trailing_number(s: str):
     try:
         m = re.match(r'^(.*?)(\d+)$', s)
@@ -19,7 +20,7 @@ def split_trailing_number(s: str):
         else:
             return s, 1
     except Exception as e:
-        print(f"{s=}, {type(s)=}, {e=}")
+        logger.error("%s, %s, %s", s, type(s), e)
 
 
 
@@ -287,13 +288,13 @@ class USDTraverser:
         }
         if parent_shader is not None:
             shader_connections = shader.GetInputs()
-            print("DEBUG: Getting Inputs!")
+            logger.debug("Getting Inputs!")
         else:
             shader_connections = shader.GetOutputs()
-            print("DEBUG: Getting Outputs!")
+            logger.debug("Getting Outputs!")
 
         if not shader_connections:
-            print(f"WARNING: No Outputs!, {shader_prim=}")
+            logger.warning("No Outputs!, shader_prim=%s", shader_prim)
             return {shader_prim.GetPath().pathString: node_dict}
 
         count = 0

@@ -113,16 +113,13 @@ class MyMainWindow(QMainWindow):
         about_menu.addAction(about_action)
 
         # Configure logger to use QTextEditLogger
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("materials_processor")
         self.logger.setLevel(logging.DEBUG)
-
-        # Remove all handlers associated with the root logger object
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
 
         text_edit_handler = QTextEditLogger(self.log_area)
         text_edit_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
         self.logger.addHandler(text_edit_handler)
+
 
         # Store preferences
         self.preferences = {

@@ -1,10 +1,12 @@
-"""Houdini material graph traversal."""
+import logging
+
+logger = logging.getLogger(__name__)
 
 try:
     import hou
 except:
     # temp to make the module work with substance painter
-    print("materialProcessor running outside of Houdini!")
+    logger.warning("materialProcessor running outside of Houdini!")
     hou = None
 
 class NodeTraverser:
@@ -109,7 +111,7 @@ class NodeTraverser:
                 connected_output_datatype = connection.outputDataType()
                 output_type = output_node.parm('parmname').eval()
                 if output_type not in ['surface', 'displacement']:
-                    print(f"WARNING: Unknown MaterialX output type '{output_node.name()}/{output_type}' detected, skipping.")
+                    logger.warning("Unknown MaterialX output type '%s/%s' detected, skipping.", output_node.name(), output_type)
                     continue
 
                 output_nodes[output_type] = {
@@ -307,7 +309,7 @@ class NodeTraverser:
                  }
              }
         """
-        print(f"detect_output_nodes START for {material_node.path()}")
+        logger.info("detect_output_nodes START for %s", material_node.path())
         if material_type == 'arnold':
             output_nodes = self._detect_arnold_output_nodes(material_node)
         elif material_type == 'mtlx':
