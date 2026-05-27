@@ -7,8 +7,10 @@ from materials_processor.houdini import commands as houdini_commands
 from materials_processor.standardizer import NodeStandardizer
 from materials_processor.usd.recreator import USDMaterialRecreator
 from materials_processor.usd.traverser import USDTraverser
+from materials_processor.logging_config import setup_file_logging
 
 logger = logging.getLogger(__name__)
+setup_file_logging()
 
 def get_material_type(usd_material):
     """
@@ -76,8 +78,6 @@ def test2(stage, usd_material, target_renderer="arnold"):
         None
     """
     import hou
-    from materials_processor.logging_config import setup_file_logging
-    setup_file_logging()
 
     mat_prim = usd_material.GetPrim()
     mat_name = mat_prim.GetName()

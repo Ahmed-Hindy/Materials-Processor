@@ -10,8 +10,10 @@ from materials_processor.houdini.traverser import NodeTraverser, get_material_ty
 from materials_processor import io
 from materials_processor.mappings import FORMAT_CHOICES
 from materials_processor.standardizer import NodeStandardizer
+from materials_processor.logging_config import setup_file_logging
 
 logger = logging.getLogger(__name__)
+setup_file_logging()
 
 def ingest_material(material_node):
     try:
@@ -123,8 +125,6 @@ def convert_material_from_opmenu(kwargs):
          }
     """
     import os  # noqa: F811
-    from materials_processor.logging_config import setup_file_logging
-    setup_file_logging()
 
     if not  kwargs.get('items'):
         return
