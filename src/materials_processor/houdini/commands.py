@@ -124,9 +124,8 @@ def convert_material_from_opmenu(kwargs):
          'cmdclick': False
          }
     """
-    import os  # noqa: F811
 
-    if not  kwargs.get('items'):
+    if not kwargs.get('items'):
         return
 
     node = kwargs["node"]
