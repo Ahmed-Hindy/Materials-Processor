@@ -5,6 +5,8 @@ This module processes material nodes in Houdini, extracting and converting shade
 import logging
 from importlib import reload
 
+from materials_processor.logging_config import setup_file_logging
+
 import hou
 from PySide2 import QtCore
 from PySide2.QtWidgets import (
@@ -121,7 +123,6 @@ class MyMainWindow(QMainWindow):
         self.logger.addHandler(text_edit_handler)
 
         # Configure proper and safe rotating file logging
-        from materials_processor.logging_config import setup_file_logging
         setup_file_logging()
 
 
