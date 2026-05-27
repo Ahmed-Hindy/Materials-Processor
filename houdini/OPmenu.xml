@@ -23,9 +23,9 @@ return False
 
         <scriptCode><![CDATA[
 from importlib import reload
-from Material_Processor import material_processor
-reload(material_processor)
-material_processor.convert_material_from_opmenu(kwargs)
+from materials_processor.houdini import commands
+reload(commands)
+commands.convert_material_from_opmenu(kwargs)
         ]]></scriptCode>
       </scriptItem>
 

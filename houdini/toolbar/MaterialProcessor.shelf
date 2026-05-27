@@ -13,11 +13,11 @@
 
   <tool name="material_processor_ui" label="[GUI] material processor" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
     <script scriptType="python"><![CDATA[from importlib import reload
-from Material_Processor import PySide2_ui
-reload(PySide2_ui)
+from materials_processor import ui
+reload(ui)
 
 
-PySide2_ui.show_my_main_window()
+ui.show_my_main_window()
 ]]></script>
   </tool>
 
@@ -25,32 +25,32 @@ PySide2_ui.show_my_main_window()
     <helpText><![CDATA[Select your materials first then run this script.]]></helpText>
     <script scriptType="python"><![CDATA[from importlib import reload
 import hou
-from Material_Processor import material_processor
-reload(material_processor)
+from materials_processor.houdini import commands
+reload(commands)
 
 target_context = hou.node('/mat')
 selected_nodes = hou.selectedNodes()
 if selected_nodes:
     for node in selected_nodes:
         parent = node.parent()
-        material_processor.run(node, parent)
-    
-    
-    
+        commands.run(node, parent)
+
+
+
 # node = hou.node('/mat/material_arnold_ORIG')
 # node = hou.node('/mat/principledshader_ORIG')
-# material_processor.test()
+# commands.test()
 ]]></script>
   </tool>
 
   <tool name="material_processor_test" label="[TEST] material processor" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
     <script scriptType="python"><![CDATA[from importlib import reload
-from Material_Processor import material_processor
-reload(material_processor)
+from materials_processor.houdini import commands
+reload(commands)
 import hou
 
 
-material_processor.test_hou()
+commands.test_hou()
 
 ]]></script>
   </tool>
