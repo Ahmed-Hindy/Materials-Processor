@@ -37,6 +37,12 @@ HOUDINI_ARNOLD_FULL = HoudiniJsonFixture(
     traversed_nodes_file="houdini_arnold_full_traversed_nodes.json",
     output_nodes_file="houdini_arnold_full_output_nodes.json",
 )
+HOUDINI_PRINCIPLED_TO_MTLX = HoudiniJsonFixture(
+    material_name="principledshader",
+    material_type="principledshader",
+    traversed_nodes_file="houdini_principled_to_mtlx_traversed_nodes.json",
+    output_nodes_file="houdini_principled_to_mtlx_output_nodes.json",
+)
 
 
 USD_CONVERSION_CASES = [
@@ -120,6 +126,29 @@ USD_CONVERSION_CASES = [
             "displacement": "Redshift:displacement",
         },
         id="houdini-arnold-to-usd-redshift",
+    ),
+    pytest.param(
+        HOUDINI_PRINCIPLED_TO_MTLX,
+        "mtlx",
+        {
+            "ND_standard_surface_surfaceshader",
+            "ND_image_color3",
+            "ND_bump_vector3",
+        },
+        {
+            "surface": "mtlx:surface",
+            "displacement": "mtlx:displacement",
+        },
+        marks=pytest.mark.xfail(
+            raises=KeyError,
+            strict=True,
+            reason=(
+                "Current principled-to-MTLX JSON references displacement at "
+                "/mat/principledshader/mtlxdisplacement, but the traversed node path is "
+                "/mat/principledshaderl/mtlxdisplacement."
+            ),
+        ),
+        id="houdini-principled-to-usd-mtlx",
     ),
 ]
 

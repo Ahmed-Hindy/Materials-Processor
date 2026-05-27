@@ -1,0 +1,246 @@
+{
+    "/mat/principledshader/surface_output": {
+        "node_name": "surface_output",
+        "node_path": "/mat/principledshader/surface_output",
+        "node_type": "subnetconnector",
+        "node_position": [
+            0,
+            0
+        ],
+        "node_parms": [],
+        "connections_dict": {},
+        "children_list": [
+            {
+                "node_name": "mtlxstandard_surface",
+                "node_path": "/mat/principledshader/mtlxstandard_surface",
+                "node_type": "mtlxstandard_surface",
+                "node_position": [
+                    -3,
+                    0
+                ],
+                "node_parms": [],
+                "connections_dict": {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "mtlxstandard_surface",
+                            "node_path": "/mat/principledshader/mtlxstandard_surface",
+                            "node_type": "mtlxstandard_surface",
+                            "node_index": 0,
+                            "parm_name": "out"
+                        },
+                        "output": {
+                            "node_name": "surface_output",
+                            "node_path": "/mat/principledshader/surface_output",
+                            "node_type": "subnetconnector",
+                            "node_index": 0,
+                            "parm_name": "suboutput"
+                        }
+                    }
+                },
+                "children_list": [
+                    {
+                        "node_name": "image_diffuse",
+                        "node_path": "/mat/principledshader/image_diffuse",
+                        "node_type": "mtlximage",
+                        "node_position": [
+                            -6,
+                            0
+                        ],
+                        "node_parms": {
+                            "input": [
+                                {
+                                    "generic_name": "file",
+                                    "value": "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_diff_2k.jpg",
+                                    "type": "string1",
+                                    "direction": "input"
+                                }
+                            ],
+                            "output": []
+                        },
+                        "connections_dict": {
+                            "connection_0": {
+                                "input": {
+                                    "node_name": "image_diffuse",
+                                    "node_path": "/mat/principledshader/image_diffuse",
+                                    "node_type": "mtlximage",
+                                    "node_index": 0,
+                                    "parm_name": "out"
+                                },
+                                "output": {
+                                    "node_name": "mtlxstandard_surface",
+                                    "node_path": "/mat/principledshader/mtlxstandard_surface",
+                                    "node_type": "mtlxstandard_surface",
+                                    "node_index": 1,
+                                    "parm_name": "base_color"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "node_name": "image_roughness",
+                        "node_path": "/mat/principledshader/image_roughness",
+                        "node_type": "mtlximage",
+                        "node_position": [
+                            -6,
+                            -6
+                        ],
+                        "node_parms": {
+                            "input": [
+                                {
+                                    "generic_name": "file",
+                                    "value": "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_rough_2k.jpg",
+                                    "type": "string1",
+                                    "direction": "input"
+                                }
+                            ],
+                            "output": []
+                        },
+                        "connections_dict": {
+                            "connection_0": {
+                                "input": {
+                                    "node_name": "image_roughness",
+                                    "node_path": "/mat/principledshader/image_roughness",
+                                    "node_type": "mtlximage",
+                                    "node_index": 0,
+                                    "parm_name": "out"
+                                },
+                                "output": {
+                                    "node_name": "mtlxstandard_surface",
+                                    "node_path": "/mat/principledshader/mtlxstandard_surface",
+                                    "node_type": "mtlxstandard_surface",
+                                    "node_index": 6,
+                                    "parm_name": "specular_roughness"
+                                }
+                            }
+                        }
+                    },
+                    {
+                        "node_name": "mtlxnormalmap1",
+                        "node_path": "/mat/principledshader/mtlxnormalmap1",
+                        "node_type": "mtlxnormalmap::2.0",
+                        "node_position": [
+                            -6,
+                            -12
+                        ],
+                        "node_parms": {
+                            "input": [],
+                            "output": []
+                        },
+                        "connections_dict": {
+                            "connection_0": {
+                                "input": {
+                                    "node_name": "mtlxnormalmap1",
+                                    "node_path": "/mat/principledshader/mtlxnormalmap1",
+                                    "node_type": "mtlxnormalmap::2.0",
+                                    "node_index": 0,
+                                    "parm_name": "out"
+                                },
+                                "output": {
+                                    "node_name": "mtlxstandard_surface",
+                                    "node_path": "/mat/principledshader/mtlxstandard_surface",
+                                    "node_type": "mtlxstandard_surface",
+                                    "node_index": 40,
+                                    "parm_name": "normal"
+                                }
+                            }
+                        },
+                        "children_list": [
+                            {
+                                "node_name": "image_normal",
+                                "node_path": "/mat/principledshader/image_normal",
+                                "node_type": "mtlximage",
+                                "node_position": [
+                                    -9,
+                                    -7
+                                ],
+                                "node_parms": {
+                                    "input": [
+                                        {
+                                            "generic_name": "file",
+                                            "value": "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_nor_2k.jpg",
+                                            "type": "string1",
+                                            "direction": "input"
+                                        }
+                                    ],
+                                    "output": [
+                                        {
+                                            "generic_name": "out",
+                                            "value": null,
+                                            "type": "xyzw3",
+                                            "direction": "output"
+                                        }
+                                    ]
+                                },
+                                "connections_dict": {
+                                    "connection_0": {
+                                        "input": {
+                                            "node_name": "image_normal",
+                                            "node_path": "/mat/principledshader/image_normal",
+                                            "node_type": "mtlximage",
+                                            "node_index": 0,
+                                            "parm_name": "out",
+                                            "data_type": "color"
+                                        },
+                                        "output": {
+                                            "node_name": "mtlxnormalmap1",
+                                            "node_path": "/mat/principledshader/mtlxnormalmap1",
+                                            "node_type": "mtlxnormalmap::2.0",
+                                            "node_index": 0,
+                                            "parm_name": "in",
+                                            "data_type": "vector"
+                                        }
+                                    }
+                                },
+                                "children_list": []
+                            }
+                        ]
+                    }
+                ]
+            }
+        ]
+    },
+    "/mat/principledshader/displacement_output": {
+        "node_name": "displacement_output",
+        "node_path": "/mat/principledshader/displacement_output",
+        "node_type": "subnetconnector",
+        "node_position": [
+            -4,
+            1
+        ],
+        "node_parms": [],
+        "connections_dict": {},
+        "children_list": [
+            {
+                "node_name": "mtlxdisplacement",
+                "node_path": "/mat/principledshaderl/mtlxdisplacement",
+                "node_type": "mtlxdisplacement",
+                "node_position": [
+                    0,
+                    -3
+                ],
+                "node_parms": {},
+                "connections_dict": {
+                    "connection_0": {
+                        "input": {
+                            "node_name": "mtlxdisplacement",
+                            "node_path": "/mat/principledshader/mtlxdisplacement",
+                            "node_type": "mtlxdisplacement",
+                            "node_index": 0,
+                            "parm_name": "out",
+                            "data_type": "displacement"
+                        },
+                        "output": {
+                            "node_name": "displacement_output",
+                            "node_path": "/mat/principledshaderl/displacement_output",
+                            "node_type": "subnetconnector",
+                            "node_index": 0,
+                            "parm_name": "suboutput",
+                            "data_type": "displacement"
+                        }
+                    }
+                },
+                "children_list": []
+            }
+        ]
+    }
+}
