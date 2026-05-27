@@ -108,13 +108,13 @@ class USDGraphBuilder:
 
         Populates self.old_new_map for each Houdini output node.
         """
-        for out_dict in self.orig_output_connections.values():
+        for output_connection in self.orig_output_connections.values():
             mat_primname = self.material_name
             mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{mat_primname}")
             UsdShade.Material.Define(self.stage, Sdf.Path(mat_primpath))
 
             self.created_out_primpaths.append(mat_primpath)
-            self.old_new_map[out_dict['node_path']] = mat_primpath.pathString
+            self.old_new_map[output_connection.node_path] = mat_primpath.pathString
 
 
     def create_child_shaders(self, nodeinfo_list):
@@ -155,9 +155,9 @@ class USDGraphBuilder:
         mat_usdshade = UsdShade.Material.Get(self.stage, mat_primpath)
 
         logger.debug("self.created_out_primpaths: %s", pprint.pformat(self.created_out_primpaths, sort_dicts=False))
-        for generic_output, out_dict in self.orig_output_connections.items():
-            src_path = self.old_new_map[out_dict['connected_node_path']]
-            dst_path = self.old_new_map[out_dict['node_path']]
+        for generic_output, output_connection in self.orig_output_connections.items():
+            src_path = self.old_new_map[output_connection.connected_node_path]
+            dst_path = self.old_new_map[output_connection.node_path]
             if dst_path not in [x.pathString for x in self.created_out_primpaths]:
                 continue
 
@@ -177,20 +177,20 @@ class USDGraphBuilder:
         if parent_nodeinfo:
             logger.debug("parent: '%s'", parent_nodeinfo.node_path)
         for conn_index, conn in nodeinfo.connection_info.items():
-            logger.debug("node: parent node_path: '%s'", conn['output']['node_path'])
-            if parent_nodeinfo and conn['output']['node_path'] != parent_nodeinfo.node_path:
+            logger.debug("node: parent node_path: '%s'", conn.output.node_path)
+            if parent_nodeinfo and conn.output.node_path != parent_nodeinfo.node_path:
                 logger.debug("Invalid parent, skipping connection!")
                 continue
 
-            logger.debug("node: %s -> %s", conn['input']['parm_name'], conn['output']['parm_name'])
+            logger.debug("node: %s -> %s", conn.input.parm_name, conn.output.parm_name)
             for child_nodeinfo in nodeinfo.children_list:
                 child_path = self.old_new_map[child_nodeinfo.node_path]
                 prim = self.stage.GetPrimAtPath(Sdf.Path(child_path))
                 logger.debug("child prim: '%s'", child_path)
                 if prim and prim.GetAttribute('info:id').Get():
                     for c_conn_index, c_conn in child_nodeinfo.connection_info.items():
-                        logger.debug("child: %s -> %s", c_conn['input']['parm_name'], c_conn['output']['parm_name'])
-                        if nodeinfo and c_conn['output']['node_path'] != nodeinfo.node_path:
+                        logger.debug("child: %s -> %s", c_conn.input.parm_name, c_conn.output.parm_name)
+                        if nodeinfo and c_conn.output.node_path != nodeinfo.node_path:
                             logger.debug("Invalid node, skipping connection!")
                             continue
 
@@ -218,10 +218,10 @@ class USDGraphBuilder:
         """
         for nodeinfo in nodeinfo_list:
             for conn_index, conn in nodeinfo.connection_info.items():
-                src_path = self.old_new_map.get(conn['input']['node_path'])
-                dst_path = self.old_new_map.get(conn['output']['node_path'])
-                src_parm = conn['input']['parm_name']
-                dst_parm = conn['output']['parm_name']
+                src_path = self.old_new_map.get(conn.input.node_path)
+                dst_path = self.old_new_map.get(conn.output.node_path)
+                src_parm = conn.input.parm_name
+                dst_parm = conn.output.parm_name
                 src_prim = self.stage.GetPrimAtPath(Sdf.Path(src_path)) if src_path else None
                 dst_prim = self.stage.GetPrimAtPath(Sdf.Path(dst_path)) if dst_path else None
 
@@ -245,7 +245,7 @@ class USDGraphBuilder:
 
                     logger.debug("new_src_prim=%s", new_src_prim)
                     logger.debug("new_conn: %s", pprint.pformat(new_conn, sort_dicts=False))
-                    self._connect_pair(new_src_prim, dst_prim, new_conn['input']['parm_name'], dst_parm)
+                    self._connect_pair(new_src_prim, dst_prim, new_conn.input.parm_name, dst_parm)
                     continue
 
 

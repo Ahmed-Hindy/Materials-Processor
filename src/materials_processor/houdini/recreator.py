@@ -267,7 +267,7 @@ class NodeRecreator:
             logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
             return
 
-        for generic_output_type, output_info in self.orig_output_connections.items():
+        for generic_output_type, output_connection in self.orig_output_connections.items():
             # e.g. generic_output_type = "GENERIC::output_surface"
             # e.g. output_info         = {'node_path': '/mat/material_mtlx_ORIG/surface_output',
             #                             'node_name': 'surface_output', ???
@@ -280,19 +280,19 @@ class NodeRecreator:
             created_output_node: hou.VopNode = hou.node(new_output_nodepath)
 
 
-            self.old_new_node_map[output_info['node_path']] = {'node_name': created_output_node.name(),
-                                                               'node_path': created_output_node.path(),
-                                                               'is_output': True,
-                                                               'output_type': generic_output_type,
-                                                               }
+            self.old_new_node_map[output_connection.node_path] = {'node_name': created_output_node.name(),
+                                                                  'node_path': created_output_node.path(),
+                                                                  'is_output': True,
+                                                                  'output_type': generic_output_type,
+                                                                  }
 
             self.new_output_connections[generic_output_type] = {'node': created_output_node,
                                                                 'node_name': created_output_node.name(),
                                                                 'node_path': created_output_node.path(),
-                                                                'connected_node_name': output_info['connected_node_name'],
-                                                                'connected_input_index': output_info['connected_input_index'],
-                                                                'connected_input_name': output_info['connected_input_name'],
-                                                                'connected_output_name': output_info['connected_output_name'],
+                                                                'connected_node_name': output_connection.connected_node_name,
+                                                                'connected_input_index': output_connection.connected_input_index,
+                                                                'connected_input_name': output_connection.connected_input_name,
+                                                                'connected_output_name': output_connection.connected_output_name,
                                                                 }
         return None
 
@@ -557,13 +557,13 @@ class NodeRecreator:
         """
         for conn in src_nodeinfo.connection_info.values():
             # print(f"DEBUG: ///conn: {pprint.pformat(conn, sort_dicts=False)}")
-            logger.debug("connecting src node: '%s[%s][%s]' to dest node: '%s[%s][%s]'", src_nodeinfo.node_name, conn['input']['node_index'], conn['input']['parm_name'], dest_node.name(), conn['output']['node_index'], conn['output']['parm_name'])
-            src_node_name = conn['input']['node_name']
-            src_parm_name = conn['input']['parm_name']
-            dest_node_name = conn['output']['node_name']
-            dest_parm_name = conn['output']['parm_name']
+            logger.debug("connecting src node: '%s[%s][%s]' to dest node: '%s[%s][%s]'", src_nodeinfo.node_name, conn.input.node_index, conn.input.parm_name, dest_node.name(), conn.output.node_index, conn.output.parm_name)
+            src_node_name = conn.input.node_name
+            src_parm_name = conn.input.parm_name
+            dest_node_name = conn.output.node_name
+            dest_parm_name = conn.output.parm_name
             dest_node_type = dest_node.type().name()
-            src_node_type  = conn['input']['node_type']
+            src_node_type = conn.input.node_type
 
             # find the source (input) node
             src_node = self._get_input_node(src_node_name)
