@@ -2,6 +2,7 @@ import copy
 
 from materials_processor import io, mappings, standardizer
 from materials_processor.houdini import commands, traverser
+from materials_processor.houdini.recreator import NodeRecreator
 
 
 class FakeNodeType:
@@ -119,6 +120,8 @@ def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatc
         pass
 
     class FakeRecreator:
+        was_run = False
+
         def __init__(
             self,
             nodeinfo_list,
@@ -128,6 +131,9 @@ def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatc
             material_name,
         ):
             created_renderers.append(target_renderer)
+
+        def run(self):
+            self.__class__.was_run = True
 
     monkeypatch.delenv("HTOA", raising=False)
     monkeypatch.delenv("REDSHIFT_COREDATAPATH", raising=False)
@@ -144,7 +150,20 @@ def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatc
 
     assert displayed_buttons == ["Principled Shader", "MTLX", "Cancel"]
     assert created_renderers == ["mtlx"]
+    assert FakeRecreator.was_run
     assert mappings.FORMAT_CHOICES == original_choices
+
+
+def test_houdini_recreator_constructor_does_not_run():
+    recreator = NodeRecreator(
+        nodeinfo_list=[],
+        output_connections={},
+        target_context=object(),
+        target_renderer="arnold",
+    )
+
+    assert recreator.material_node is None
+    assert recreator.new_output_connections == {}
 
 
 def test_setup_file_logging_configures_file_logger_safely(tmp_path):

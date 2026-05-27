@@ -66,9 +66,6 @@ class NodeRecreator:
         #                                                   }
         #                                               }
 
-        self.run()
-
-
     @staticmethod
     def create_mtlx_init_shader(matnet=None, material_name=None):
         """
