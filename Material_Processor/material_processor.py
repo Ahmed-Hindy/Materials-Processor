@@ -4,9 +4,8 @@ This module processes material nodes in Houdini, extracting and converting shade
 """
 import traceback
 import pprint
-from typing import Dict, List
 from importlib import reload, resources
-
+from typing import Dict, List
 
 from Material_Processor import material_classes, utils_io
 from Material_Processor.material_classes import NodeInfo, NodeParameter
@@ -81,7 +80,7 @@ class NodeTraverser:
                 arnold_output = child
                 break
         if not arnold_output:
-            raise Exception(f"No Output Node detected for Arnold Material")
+            raise Exception("No Output Node detected for Arnold Material")
 
         output_nodes = {}
         connections = arnold_output.inputConnections()
@@ -183,7 +182,7 @@ class NodeTraverser:
                 redshift_output = child
                 break
         if not redshift_output:
-            raise Exception(f"No Output Node detected for 'redshift_vopnet' Material")
+            raise Exception("No Output Node detected for 'redshift_vopnet' Material")
 
         output_nodes = {}
         connections = redshift_output.inputConnections()
@@ -243,7 +242,7 @@ class NodeTraverser:
                 redshift_output = child
                 break
         if not redshift_output:
-            raise Exception(f"No Output Node detected for 'rs usd materialbuilder' Material")
+            raise Exception("No Output Node detected for 'rs usd materialbuilder' Material")
 
         output_nodes = {}
         connections = redshift_output.inputConnections()
@@ -1590,24 +1589,24 @@ class NodeRecreator:
         # print(f"{self.material_node=}, {self.standardizer.output_nodes_dict=}, {self.new_output_connections=}")
 
         # Create output nodes first:
-        print(f"INFO: STARTING create_output_nodes()....")
+        print("INFO: STARTING create_output_nodes()....")
         self.create_output_nodes()
-        print(f"INFO: DONE create_output_nodes()....\n\n\n")
+        print("INFO: DONE create_output_nodes()....\n\n\n")
 
         # Create Child nodes:
-        print(f"INFO: STARTING create_shader_nodes()....")
+        print("INFO: STARTING create_shader_nodes()....")
         self.create_shader_nodes(self.nodeinfo_list)
-        print(f"INFO: DONE create_shader_nodes()....")
+        print("INFO: DONE create_shader_nodes()....")
 
         # connect child nodes to each other:
-        print(f"INFO: STARTING _set_node_inputs()....")
+        print("INFO: STARTING _set_node_inputs()....")
         self.set_node_connections(self.nodeinfo_list)
-        print(f"INFO: DONE _set_node_inputs()....\n\n\n")
+        print("INFO: DONE _set_node_inputs()....\n\n\n")
 
         # connect output nodes to child nodes:
-        print(f"INFO: STARTING _set_output_connections()....")
+        print("INFO: STARTING _set_output_connections()....")
         self.set_output_connections()
-        print(f"INFO: DONE _set_output_connections()....\n\n\n")
+        print("INFO: DONE _set_output_connections()....\n\n\n")
 
 
 
@@ -1652,8 +1651,8 @@ def ingest_material(material_node):
     try:
         material_type = get_material_type(material_node)
         if not material_type:
-            print(f"Couldn't determine Input material type, "
-                  f"currently only Arnold, MTLX, Redshift Standard Material and Principled Shader are supported!")
+            print("Couldn't determine Input material type, "
+                  "currently only Arnold, MTLX, Redshift Standard Material and Principled Shader are supported!")
             return None, None, None
 
         print("INFO: NodeTraverser() START----------------------")
@@ -1765,14 +1764,14 @@ def convert_material_from_opmenu(kwargs):
     node = kwargs["node"]
 
     # display a choice dialog for the user to select the target renderer
-    allowed_types = material_standardizer.FORMAT_CHOICES
+    allowed_types = material_standardizer.FORMAT_CHOICES.copy()
     if 'HTOA' not in os.environ:
-        del allowed_types['arnold']
+        allowed_types.pop('arnold', None)
     if 'REDSHIFT_COREDATAPATH' not in os.environ:
-        del allowed_types['rs_usd_material_builder']
+        allowed_types.pop('rs_usd_material_builder', None)
 
     allowed_types['cancel'] = 'Cancel'
-    names, labels = zip(*allowed_types.items())
+    names, labels = zip(*allowed_types.items(), strict=False)
 
     choice = hou.ui.displayMessage(
         text="Select Target Renderer",
@@ -1826,11 +1825,10 @@ def test():
     Test function to validate the node traversal, standardization, and recreation process.
     """
     target_renderer = 'mtlx'
-    material_type = 'arnold'
+    material_type = 'mtlx'
 
-    node_tree = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_node_tree.json")
-    output_nodes = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_output_tree.json")
-    # output_nodes_dict = utils_io.load_node_tree_json("example_output_nodes.json")  # if stored separately
+    node_tree = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_traversed_nodes_dict.json")
+    output_nodes = utils_io.load_node_tree_json(resources.files("Material_Processor.tests") / "example_output_nodes_dict.json")
 
     standardizer = material_standardizer.NodeStandardizer(
         traversed_nodes_dict=node_tree,

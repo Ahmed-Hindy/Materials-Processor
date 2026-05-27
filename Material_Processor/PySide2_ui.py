@@ -4,17 +4,29 @@ This module processes material nodes in Houdini, extracting and converting shade
 """
 import logging
 from importlib import reload
-from PySide2.QtWidgets import (QApplication, QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton,
-                               QTextEdit, QListWidget, QMenuBar, QMenu, QAction, QMessageBox, QDialog, QCheckBox,
-                               QComboBox)
-from PySide2 import QtCore
-
-from Material_Processor import material_processor, material_standardizer
 
 import hou
+from PySide2 import QtCore
+from PySide2.QtWidgets import (
+    QAction,
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QMainWindow,
+    QMenu,
+    QMenuBar,
+    QMessageBox,
+    QPushButton,
+    QTextEdit,
+    QVBoxLayout,
+    QWidget,
+)
 
-
-
+from Material_Processor import material_processor, material_standardizer
 
 
 class QTextEditLogger(logging.Handler):
@@ -61,7 +73,7 @@ class MyMainWindow(QMainWindow):
         layout.addWidget(format_label)
 
         # display a choice dialog for the user to select the target renderer
-        self.format_names, self.format_labels = zip(*material_standardizer.FORMAT_CHOICES.items())
+        self.format_names, self.format_labels = zip(*material_standardizer.FORMAT_CHOICES.items(), strict=False)
         self.format_combobox = QComboBox()
         self.format_combobox.addItems(list(self.format_labels))  # Add your formats here
         layout.addWidget(self.format_combobox)

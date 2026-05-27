@@ -24,8 +24,8 @@ and Redshift as regular nodes and usd prims.
 - On Windows: run the included batch installer `install_houdini_win.bat`.
   - Double-click `install_houdini_win.bat` in File Explorer.
   - The script copies the project folder to `%USERPROFILE%\Documents\HoudiniTools`.
-  - the script also copies the `Axe_Material_Processor.json` file to `%USERPROFILE%\Documents\houdini20.5\packages` directory.
-  - if you want to install to a different Houdini version, copy the json file to `%USERPROFILE%\Documents\houdini<HOUDINI_VERSION>\packages`
+  - The script also copies `Axe_Material_Processor.json` to `%USERPROFILE%\Documents\houdini21.0\packages`.
+  - To install to a different Houdini version, run `install_houdini_win.bat <HOUDINI_VERSION>`, for example `install_houdini_win.bat 20.5`.
   - If you encounter permission or auditing errors, run .bat file as Administrator.
   - After installation, restart Houdini to load the tool.
 

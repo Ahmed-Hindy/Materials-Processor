@@ -9,7 +9,6 @@ from typing import Dict
 from Material_Processor import utils_io
 from Material_Processor.material_classes import NodeParameter, NodeInfo
 
-
 ###################################### CONSTANTS ######################################
 
 TEMP_DIR = f"{tempfile.gettempdir()}/MaterialProcessorTemp"

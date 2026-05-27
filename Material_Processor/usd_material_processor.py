@@ -7,9 +7,11 @@ import re
 import pprint
 from typing import List
 from importlib import reload
+
 from pxr import Usd, UsdGeom, UsdShade, Sdf, Gf
 
 from Material_Processor import material_standardizer, material_processor
+
 reload(material_standardizer)
 reload(material_processor)
 
@@ -474,10 +476,10 @@ class USDTraverser:
         }
         if parent_shader is not None:
             shader_connections = shader.GetInputs()
-            print(f"DEBUG: Getting Inputs!")
+            print("DEBUG: Getting Inputs!")
         else:
             shader_connections = shader.GetOutputs()
-            print(f"DEBUG: Getting Outputs!")
+            print("DEBUG: Getting Outputs!")
 
         if not shader_connections:
             print(f"WARNING: No Outputs!, {shader_prim=}")
@@ -823,7 +825,7 @@ class USDMaterialRecreator:
         for conn_index, conn in nodeinfo.connection_info.items():
             print(f"DEBUG: node: parent node_path: '{conn['output']['node_path']}'")
             if parent_nodeinfo and conn['output']['node_path'] != parent_nodeinfo.node_path:
-                print(f"DEBUG: Invalid parent, skipping connection!")
+                print("DEBUG: Invalid parent, skipping connection!")
                 continue
 
             print(f"DEBUG: node: {conn['input']['parm_name']} -> {conn['output']['parm_name']}")
@@ -835,7 +837,7 @@ class USDMaterialRecreator:
                     for c_conn_index, c_conn in child_nodeinfo.connection_info.items():
                         print(f"DEBUG: child: {c_conn['input']['parm_name']} -> {c_conn['output']['parm_name']}\n")
                         if nodeinfo and c_conn['output']['node_path'] != nodeinfo.node_path:
-                            print(f"DEBUG: Invalid node, skipping connection!")
+                            print("DEBUG: Invalid node, skipping connection!")
                             continue
 
                         return prim, c_conn
@@ -874,14 +876,14 @@ class USDMaterialRecreator:
                     print(f"SKIPPING connection, invalid prims found src:{src_prim}, dst:{dst_prim}")
                     continue
                 if not src_prim.GetAttribute('info:id').Get() and not dst_prim.GetAttribute('info:id').Get():
-                    print(f"SKIPPING connection, both missing 'info:id'")
+                    print("SKIPPING connection, both missing 'info:id'")
                     continue
                 if dst_prim.GetTypeName() == 'Material':
-                    print(f"SKIPPING connection, dst_prim's primitive type is a Material not a Shader!")
+                    print("SKIPPING connection, dst_prim's primitive type is a Material not a Shader!")
                     continue
 
                 if not src_prim.GetAttribute('info:id').Get():
-                    print(f"No info:id found, searching children…")
+                    print("No info:id found, searching children…")
                     new_src_prim, new_conn = self._find_valid_src(nodeinfo)
                     if not new_src_prim:
                         print(f"SKIPPING child connection '{src_path}→{dst_path}': _find_valid_src() didn't find anything!")
@@ -1507,29 +1509,29 @@ class USDMaterialRecreator:
         UsdGeom.Scope.Define(self.stage, Sdf.Path(self.parent_scope_path))
 
         # 2. create output material prims
-        print(f"INFO: STARTING create_material_prim()....")
+        print("INFO: STARTING create_material_prim()....")
         self.create_material_prim()
-        print(f"INFO: FINISHED create_material_prim()\n\n\n")
+        print("INFO: FINISHED create_material_prim()\n\n\n")
 
         print(f"DEBUG: {self.created_out_primpaths=}")
         print(f"DEBUG: 1 {self.old_new_map=}\n")
 
         # 3. create child shader prims
-        print(f"INFO: STARTING create_child_shaders()....")
+        print("INFO: STARTING create_child_shaders()....")
         self.create_child_shaders(self.nodeinfo_list)
-        print(f"INFO: FINISHED _create_child_shaders()\n\n\n")
+        print("INFO: FINISHED _create_child_shaders()\n\n\n")
 
         # 4. set up output connections
-        print(f"INFO: STARTING set_output_connections()....")
+        print("INFO: STARTING set_output_connections()....")
         self.set_output_connections()
-        print(f"INFO: FINISHED _set_output_connections()\n\n\n")
+        print("INFO: FINISHED _set_output_connections()\n\n\n")
 
         print(f"DEBUG: 2 {self.old_new_map=}\n")
 
         # 5. set up inter-shader connections
-        print(f"INFO: STARTING set_shader_connections()....")
+        print("INFO: STARTING set_shader_connections()....")
         self.set_shader_connections(self.nodeinfo_list)
-        print(f"INFO: FINISHED set_shader_connections()\n\n\n")
+        print("INFO: FINISHED set_shader_connections()\n\n\n")
 
 
 
@@ -1557,7 +1559,7 @@ def get_material_type(usd_material):
     if len(material_list) > 1:
         raise NotImplementedError(f"ERROR: multiple material types found: '{material_list}', Script only supports one material type at a time.")
     if len(material_list) == 0:
-        raise NotImplementedError(f"ERROR: Couldn't determine Input material type.")
+        raise NotImplementedError("ERROR: Couldn't determine Input material type.")
 
     material_type = material_list[0]
 
@@ -1608,7 +1610,7 @@ def test2(stage, usd_material, target_renderer="arnold"):
 
     material_type = get_material_type(usd_material)
     if not material_type :
-        print(f"Couldn't determine Input material type.")
+        print("Couldn't determine Input material type.")
         return None
 
     nested_nodes_dict, output_nodes_dict  = USDTraverser(stage, mat_prim, material_type).run()
@@ -1672,7 +1674,7 @@ def test2(stage, usd_material, target_renderer="arnold"):
     nodeinfo_list, output_connections = standardizer.run()
 
     try:
-        USDMaterialRecreator(stage, f"__material", nodeinfo_list, output_connections,
+        USDMaterialRecreator(stage, "__material", nodeinfo_list, output_connections,
                              target_renderer=target_renderer)
     except:
         traceback.print_exc()

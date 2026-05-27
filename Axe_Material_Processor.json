@@ -1,8 +1,8 @@
 {
     "enable" : true,
     "env": [
-        {"PYTHONPATH":  "$USERPROFILE/Documents/houdiniTools/Materials-Processor"},
-        {"HOUDINI_PATH": "$USERPROFILE/Documents/houdiniTools/Materials-Processor/Houdini"}
+        {"PYTHONPATH":  "$USERPROFILE/Documents/HoudiniTools/Materials-Processor"},
+        {"HOUDINI_PATH": "$USERPROFILE/Documents/HoudiniTools/Materials-Processor/Houdini"}
     ]
 }
 
