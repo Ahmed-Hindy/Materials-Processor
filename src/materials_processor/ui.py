@@ -26,7 +26,8 @@ from PySide2.QtWidgets import (
     QWidget,
 )
 
-from Material_Processor import material_processor, material_standardizer
+from materials_processor.houdini import commands
+from materials_processor.mappings import FORMAT_CHOICES
 
 
 class QTextEditLogger(logging.Handler):
@@ -73,7 +74,7 @@ class MyMainWindow(QMainWindow):
         layout.addWidget(format_label)
 
         # display a choice dialog for the user to select the target renderer
-        self.format_names, self.format_labels = zip(*material_standardizer.FORMAT_CHOICES.items())
+        self.format_names, self.format_labels = zip(*FORMAT_CHOICES.items())
         self.format_combobox = QComboBox()
         self.format_combobox.addItems(list(self.format_labels))  # Add your formats here
         layout.addWidget(self.format_combobox)
@@ -134,7 +135,7 @@ class MyMainWindow(QMainWindow):
         Args:
             
         """
-        material_processor.run(node, target_context, target_format=target_format)
+        commands.run(node, target_context, target_format=target_format)
 
 
     def run(self):
@@ -142,7 +143,7 @@ class MyMainWindow(QMainWindow):
         main run method. Invoked by the "Convert Materials" button".
         :return: None
         """
-        reload(material_processor)
+        reload(commands)
         selected_nodes = [self.node_list.item(i).text() for i in range(self.node_list.count())]
         selected_index = self.format_combobox.currentIndex()
         target_format = self.format_names[selected_index]

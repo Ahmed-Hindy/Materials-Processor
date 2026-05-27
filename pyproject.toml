@@ -5,16 +5,23 @@ description = "Houdini material ingestion, standardization, and conversion tools
 requires-python = ">=3.11"
 dependencies = []
 
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [dependency-groups]
 dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.14",
 ]
 
+[tool.hatch.build.targets.wheel]
+packages = ["src/materials_processor"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
-pythonpath = ["."]
+pythonpath = ["src"]
 
 [tool.ruff]
 line-length = 120

@@ -1,6 +1,7 @@
 import copy
 
-from Material_Processor import material_processor, material_standardizer, utils_io
+from materials_processor import io, mappings, standardizer
+from materials_processor.houdini import commands, traverser
 
 
 class FakeNodeType:
@@ -34,22 +35,22 @@ class FakeNode:
 
 
 def test_get_material_type_detects_supported_houdini_nodes():
-    assert material_processor.get_material_type(FakeNode("arnold_materialbuilder")) == "arnold"
-    assert material_processor.get_material_type(FakeNode("redshift_vopnet")) == "redshift_vopnet"
-    assert material_processor.get_material_type(FakeNode("rs_usd_material_builder")) == "rs_usd_material_builder"
-    assert material_processor.get_material_type(FakeNode("principledshader::2.0")) == "principledshader"
+    assert traverser.get_material_type(FakeNode("arnold_materialbuilder")) == "arnold"
+    assert traverser.get_material_type(FakeNode("redshift_vopnet")) == "redshift_vopnet"
+    assert traverser.get_material_type(FakeNode("rs_usd_material_builder")) == "rs_usd_material_builder"
+    assert traverser.get_material_type(FakeNode("principledshader::2.0")) == "principledshader"
 
 
 def test_get_material_type_detects_mtlx_subnet_from_children():
     material_node = FakeNode("subnet", children=[FakeNode("mtlxstandard_surface")])
 
-    assert material_processor.get_material_type(material_node) == "mtlx"
+    assert traverser.get_material_type(material_node) == "mtlx"
 
 
 def test_material_processor_test_helper_uses_checked_in_fixtures(tmp_path, monkeypatch):
-    monkeypatch.setattr(material_standardizer, "TEMP_DIR", str(tmp_path))
+    monkeypatch.setattr(standardizer, "TEMP_DIR", str(tmp_path))
 
-    nodeinfo_list, output_connections = material_processor.test()
+    nodeinfo_list, output_connections = commands.test()
 
     assert nodeinfo_list
     assert output_connections == {
@@ -75,15 +76,15 @@ def test_material_processor_test_helper_uses_checked_in_fixtures(tmp_path, monke
 
 
 def test_standardizer_preserves_runtime_connection_mapping(tmp_path, monkeypatch):
-    monkeypatch.setattr(material_standardizer, "TEMP_DIR", str(tmp_path))
-    traversed_nodes = utils_io.load_node_tree_json(
-        "Material_Processor/tests/example_traversed_nodes_dict.json"
+    monkeypatch.setattr(standardizer, "TEMP_DIR", str(tmp_path))
+    traversed_nodes = io.load_node_tree_json(
+        "src/materials_processor/fixtures/example_traversed_nodes_dict.json"
     )
-    output_nodes = utils_io.load_node_tree_json(
-        "Material_Processor/tests/example_output_nodes_dict.json"
+    output_nodes = io.load_node_tree_json(
+        "src/materials_processor/fixtures/example_output_nodes_dict.json"
     )
 
-    nodeinfo_list, output_connections = material_standardizer.NodeStandardizer(
+    nodeinfo_list, output_connections = standardizer.NodeStandardizer(
         traversed_nodes_dict=traversed_nodes,
         output_nodes_dict=output_nodes,
         material_type="mtlx",
@@ -100,7 +101,7 @@ def test_standardizer_preserves_runtime_connection_mapping(tmp_path, monkeypatch
 
 
 def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatch):
-    original_choices = copy.deepcopy(material_standardizer.FORMAT_CHOICES)
+    original_choices = copy.deepcopy(mappings.FORMAT_CHOICES)
     displayed_buttons = []
     created_renderers = []
 
@@ -130,17 +131,17 @@ def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatc
 
     monkeypatch.delenv("HTOA", raising=False)
     monkeypatch.delenv("REDSHIFT_COREDATAPATH", raising=False)
-    monkeypatch.setattr(material_processor, "hou", FakeHou)
+    monkeypatch.setattr(commands, "hou", FakeHou)
     monkeypatch.setattr(
-        material_processor,
+        commands,
         "ingest_material",
         lambda node: ("mtlx", [object()], {"GENERIC::output_surface": {}}),
     )
-    monkeypatch.setattr(material_processor, "NodeRecreator", FakeRecreator)
+    monkeypatch.setattr(commands, "NodeRecreator", FakeRecreator)
 
     node = FakeInputNode("subnet", path="/mat/material1")
-    material_processor.convert_material_from_opmenu({"items": [node], "node": node})
+    commands.convert_material_from_opmenu({"items": [node], "node": node})
 
     assert displayed_buttons == ["Principled Shader", "MTLX", "Cancel"]
     assert created_renderers == ["mtlx"]
-    assert material_standardizer.FORMAT_CHOICES == original_choices
+    assert mappings.FORMAT_CHOICES == original_choices
