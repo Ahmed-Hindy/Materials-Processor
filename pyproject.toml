@@ -23,6 +23,9 @@ packages = ["src/materials_processor"]
 testpaths = ["tests"]
 addopts = "-ra"
 pythonpath = ["src"]
+markers = [
+    "hython: local Houdini integration tests that run through hython when available",
+]
 
 [tool.ruff]
 line-length = 120
