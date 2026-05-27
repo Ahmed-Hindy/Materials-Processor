@@ -13,6 +13,7 @@ build-backend = "hatchling.build"
 dev = [
     "pytest>=9.0.3",
     "ruff>=0.15.14",
+    "usd-core>=26.5",
 ]
 
 [tool.hatch.build.targets.wheel]

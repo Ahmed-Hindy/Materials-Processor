@@ -1,0 +1,28 @@
+{
+    "surface": {
+        "node_name": "OUT_material",
+        "node_path": "/mat/arnold_materialbuilder_full/OUT_material",
+        "connected_node_name": "standard_surface1",
+        "connected_node_path": "/mat/arnold_materialbuilder_full/standard_surface1",
+        "connected_input_index": 0,
+        "connected_input_name": "surface",
+        "connected_input_datatype": "bsdf",
+        "connected_output_index": 0,
+        "connected_output_name": "shader",
+        "connected_output_datatype": "bsdf",
+        "generic_type": "GENERIC::output_surface"
+    },
+    "displacement": {
+        "node_name": "OUT_material",
+        "node_path": "/mat/arnold_materialbuilder_full/OUT_material",
+        "connected_node_name": "image_roughness",
+        "connected_node_path": "/mat/arnold_materialbuilder_full/image_roughness",
+        "connected_input_index": 3,
+        "connected_input_name": "displacement",
+        "connected_input_datatype": "float",
+        "connected_output_index": 1,
+        "connected_output_name": "b",
+        "connected_output_datatype": "vector",
+        "generic_type": "GENERIC::output_displacement"
+    }
+}
