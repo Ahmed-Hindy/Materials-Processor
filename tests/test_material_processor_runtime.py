@@ -145,3 +145,58 @@ def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatc
     assert displayed_buttons == ["Principled Shader", "MTLX", "Cancel"]
     assert created_renderers == ["mtlx"]
     assert mappings.FORMAT_CHOICES == original_choices
+
+
+def test_setup_file_logging_configures_file_logger_safely(tmp_path):
+    import logging
+    from materials_processor.logging_config import setup_file_logging
+    
+    test_log_dir = tmp_path / "logs"
+    test_logger_name = "test_materials_processor"
+    
+    handler = setup_file_logging(
+        logger_name=test_logger_name,
+        log_dir=str(test_log_dir),
+        max_bytes=1024,
+        backup_count=2,
+    )
+    
+    assert handler is not None
+    assert isinstance(handler, logging.FileHandler)
+    assert handler.baseFilename.endswith("materials_processor.log")
+    
+    logger = logging.getLogger(test_logger_name)
+    assert handler in logger.handlers
+    
+    handler.close()
+    logger.removeHandler(handler)
+
+
+def test_setup_file_logging_falls_back_on_permission_error(tmp_path, monkeypatch):
+    import logging
+    import os
+    from materials_processor.logging_config import setup_file_logging
+
+    test_log_dir = tmp_path / "inaccessible_logs"
+    test_logger_name = "test_fallback_logger"
+
+    original_makedirs = os.makedirs
+    def mock_makedirs(path, *args, **kwargs):
+        if str(test_log_dir) in str(path):
+            raise PermissionError("Access denied")
+        return original_makedirs(path, *args, **kwargs)
+
+    monkeypatch.setattr(os, "makedirs", mock_makedirs)
+
+    handler = setup_file_logging(
+        logger_name=test_logger_name,
+        log_dir=str(test_log_dir),
+    )
+
+    assert handler is not None
+    assert handler.baseFilename != str(test_log_dir / "materials_processor.log")
+    
+    logger = logging.getLogger(test_logger_name)
+    handler.close()
+    logger.removeHandler(handler)
+

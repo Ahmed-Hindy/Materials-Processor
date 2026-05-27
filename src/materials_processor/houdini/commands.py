@@ -1,5 +1,6 @@
 """Public Houdini command entrypoints for shelf and menu tools."""
 
+import logging
 import os
 import traceback
 from importlib import resources
@@ -9,19 +10,23 @@ from materials_processor.houdini.traverser import NodeTraverser, get_material_ty
 from materials_processor import io
 from materials_processor.mappings import FORMAT_CHOICES
 from materials_processor.standardizer import NodeStandardizer
+from materials_processor.logging_config import setup_file_logging
+
+logger = logging.getLogger(__name__)
+setup_file_logging()
 
 def ingest_material(material_node):
     try:
         material_type = get_material_type(material_node)
         if not material_type:
-            print("Couldn't determine Input material type, "
-                  "currently only Arnold, MTLX, Redshift Standard Material and Principled Shader are supported!")
+            logger.warning("Couldn't determine Input material type, "
+                           "currently only Arnold, MTLX, Redshift Standard Material and Principled Shader are supported!")
             return None, None, None
 
-        print("INFO: NodeTraverser() START----------------------")
+        logger.info("NodeTraverser() START----------------------")
         traverser = NodeTraverser(material_node, material_type=material_type)
         nested_nodes_dict, output_nodes_dict = traverser.run()
-        # print(f"DEBUG: nested_nodes_dict: {pprint.pformat(nested_nodes_dict, sort_dicts=False)}")
+        # logger.debug("nested_nodes_dict: %s", pprint.pformat(nested_nodes_dict, sort_dicts=False))
         # print(f"DEBUG: output_nodes_dict: {pprint.pformat(output_nodes_dict, sort_dicts=False)}")
         # DEBUG: traverser.output_nodes_dict: {
         #     "surface": {
@@ -37,10 +42,10 @@ def ingest_material(material_node):
         # }
         # DEBUG: material_type: 'arnold'
         # DEBUG: material_node: 'arnold_materialbuilder_basic'
-        print("INFO: NodeTraverser() Finished----------------------\n\n\n")
+        logger.info("NodeTraverser() Finished----------------------")
 
 
-        print("INFO: NodeStandardizer() START----------------------")
+        logger.info("NodeStandardizer() START----------------------")
         standardizer = NodeStandardizer(
             traversed_nodes_dict=nested_nodes_dict,
             output_nodes_dict=output_nodes_dict,
@@ -62,12 +67,12 @@ def ingest_material(material_node):
         #                                   }
         # DEBUG: target_context.path()='/mat'
         # DEBUG: target_format='mtlx'
-        print("INFO: NodeStandardizer() Finished----------------------\n\n\n")
+        logger.info("NodeStandardizer() Finished----------------------")
 
         return material_type, nodeinfo_list, output_connections
 
-    except:
-        traceback.print_exc()
+    except Exception:
+        logger.exception("Exception in ingest_material")
         return None, None, None
 
 
@@ -86,17 +91,17 @@ def run(input_material_builder_node, target_context, target_format='arnold'):
         return
 
     try:
-        print("NodeRecreator() START----------------------")
+        logger.info("NodeRecreator() START----------------------")
         recreator = NodeRecreator(
             nodeinfo_list=nodeinfo_list,
             output_connections=output_connections,
             target_context=target_context,
             target_renderer=target_format
         )
-        print("NodeRecreator() Finished----------------------\n\n\n")
-        print(f"Material conversion complete. Converted material from '{material_type}' to '{target_format}'.")
+        logger.info("NodeRecreator() Finished----------------------")
+        logger.info("Material conversion complete. Converted material from '%s' to '%s'.", material_type, target_format)
     except Exception:
-        traceback.print_exc()
+        logger.exception("Exception in run")
         return
 
 
@@ -119,9 +124,8 @@ def convert_material_from_opmenu(kwargs):
          'cmdclick': False
          }
     """
-    import os  # noqa: F811
 
-    if not  kwargs.get('items'):
+    if not kwargs.get('items'):
         return
 
     node = kwargs["node"]
@@ -151,7 +155,7 @@ def convert_material_from_opmenu(kwargs):
     for input_material_builder_node in kwargs['items']:
         # Check if the selected nodes are VOP nodes
         if not isinstance(input_material_builder_node, hou.VopNode):
-            print(f"WARNING: Selected node '{input_material_builder_node.path()}' is not a VOP node. Skipping.")
+            logger.warning("Selected node '%s' is not a VOP node. Skipping.", input_material_builder_node.path())
             continue
 
         # Ingest the material and get the node info and output connections
@@ -161,7 +165,7 @@ def convert_material_from_opmenu(kwargs):
 
         target_context = input_material_builder_node.parent()
         try:
-            print("NodeRecreator() START----------------------")
+            logger.info("NodeRecreator() START----------------------")
             recreator = NodeRecreator(
                 nodeinfo_list=nodeinfo_list,
                 output_connections=output_connections,
@@ -169,10 +173,10 @@ def convert_material_from_opmenu(kwargs):
                 target_renderer=target_format,
                 material_name=input_material_builder_node.name(),
             )
-            print("NodeRecreator() Finished----------------------\n\n\n")
-            print(f"Material conversion complete. Converted material from '{material_type}' to '{target_format}'.")
+            logger.info("NodeRecreator() Finished----------------------")
+            logger.info("Material conversion complete. Converted material from '%s' to '%s'.", material_type, target_format)
         except Exception:
-            traceback.print_exc()
+            logger.exception("Exception in convert_material_from_opmenu for node %s", input_material_builder_node.name())
             continue
 
 

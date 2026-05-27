@@ -1,10 +1,13 @@
 """Recreate generic material graphs as Houdini shader networks."""
 
+import logging
 from typing import List
 
 from materials_processor.mappings import REGULAR_PARAM_NAMES_TO_GENERIC, convert_generic
 from materials_processor.models import NodeInfo, NodeParameter
 from materials_processor.houdini.traverser import hou
+
+logger = logging.getLogger(__name__)
 
 ###################################### CONSTANTS ######################################
 OUTPUT_CONNECTIONS_INDEX_MAP = {
@@ -122,11 +125,11 @@ class NodeRecreator:
             bool: True if successful, False otherwise
         """
         if src_out_parm_name not in ['r', 'g', 'b']:
-            print(f"WARNING: mtlx separate3c node currently only supports splitting of 'r','g','b' channels, "
-                  f"but instead it got a '{src_out_parm_name}'")
+            logger.warning("mtlx separate3c node currently only supports splitting of 'r','g','b' channels, "
+                           "but instead it got a '%s'", src_out_parm_name)
             return False, None
         if dest_in_index is None:
-            print(f"WARNING: dest_in_index is None '{dest_in_index}', but it should be an integer, src_node: '{src_node.name()}'")
+            logger.warning("dest_in_index is None '%s', but it should be an integer, src_node: '%s'", dest_in_index, src_node.name())
             return False, None
 
         try:
@@ -143,11 +146,11 @@ class NodeRecreator:
 
             vec3_split_node.setInput(0, src_node)
             dest_node.setInput(dest_in_index, vec3_split_node, out_index)
-            print(f"INFO: created split node for '{src_node.name()}' to '{dest_node.name()}' for '{src_out_parm_name}' ")
+            logger.info("created split node for '%s' to '%s' for '%s'", src_node.name(), dest_node.name(), src_out_parm_name)
             return True, vec3_split_node
 
         except Exception as e:
-            print(f"ERROR: create_mtlx_vec3_split_node, {dest_in_index=}, {vec3_split_node=}, {out_index=}, error: {e}")
+            logger.error("create_mtlx_vec3_split_node, dest_in_index=%s, vec3_split_node=%s, out_index=%s, error: %s", dest_in_index, vec3_split_node, out_index, e)
             return False, None
 
     @staticmethod
@@ -264,7 +267,7 @@ class NodeRecreator:
         Create or reuse output nodes in the target context.
         """
         if self.target_renderer == 'principledshader':
-            print("DEBUG: PrincipledShader does not require explicit output nodes. Skipping creation.")
+            logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
             return
 
         for generic_output_type, output_info in self.orig_output_connections.items():
@@ -329,36 +332,35 @@ class NodeRecreator:
             parameters (List[NodeParameter]): The list of parameters to apply.
         """
         if not parameters:
-            print(f"No parameters to apply to '{node.path()}'.")
+            logger.info("No parameters to apply to '%s'.", node.path())
             return
 
         node_type = node.type().name()
         std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'), {})
         if not std_parm_map:
-            print(f"WARNING: No generic parameter mappings found for node type: '{node_type}'")
+            logger.warning("No generic parameter mappings found for node type: '%s'", node_type)
             return
 
         for param in parameters:
             if param.direction != 'input':
-                print(f"WARNING: Parameter '{param.generic_name}' is not an input parameter for node type '{node_type}'. Skipping.")
+                logger.warning("Parameter '%s' is not an input parameter for node type '%s'. Skipping.", param.generic_name, node_type)
                 continue
             if not param.generic_name:
-                print(f"WARNING: Parameter of value:'{param.value}' has no generic_name for node type '{node_type}'. Skipping.")
+                logger.warning("Parameter of value:'%s' has no generic_name for node type '%s'. Skipping.", param.value, node_type)
                 continue
 
             # Find the renderer-specific parameter name
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
 
             if not parm_new_name:
-                print(f"WARNING: No renderer-specific parameter found for generic name '{param.generic_name}'"
-                      f" for node type '{node_type}'. Skipping.")
+                logger.warning("No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.", param.generic_name, node_type)
                 continue
 
             parm_new_name = parm_new_name[0]
             hou_parm = node.parmTuple(parm_new_name)
             # print(f"DEBUG: {hou_parm.name()=}, {param.value=}")
             if hou_parm is None:
-                print(f"WARNING: Parm '{parm_new_name}' not found on node '{node.path()}'.")
+                logger.warning("Parm '%s' not found on node '%s'.", parm_new_name, node.path())
                 continue
 
             if not isinstance(param.value, tuple):
@@ -367,7 +369,7 @@ class NodeRecreator:
             try:
                 hou_parm.set(param.value)
             except Exception as e:
-                print(f"ERROR: Failed to set parameter '{param.generic_name}' for node '{node.path()}': {e}")
+                logger.error("Failed to set parameter '%s' for node '%s': %s", param.generic_name, node.path(), e)
                 continue
             # print(f"Set parameter '{renderer_specific_name}' on node '{node.path()}' to '{param.value}'")
 
@@ -390,7 +392,7 @@ class NodeRecreator:
                           node.type().name() == new_node_type and node not in self.reused_nodes.values()]
         if existing_nodes:
             node = existing_nodes[0]
-            print(f"Using existing node: {node.path()} of type {node.type().name()}")
+            logger.info("Using existing node: %s of type %s", node.path(), node.type().name())
             self._apply_parameters(node, node_info.parameters)
             self.reused_nodes[node_info.node_path] = node
             self.old_new_node_map[node_info.node_path] = {'node_name': node.name(),
@@ -399,7 +401,7 @@ class NodeRecreator:
             return node
 
         # Create new node if no reusable node is found
-        print(f"DEBUG: {new_node_type=}, {node_info.node_name=}")
+        logger.debug("Creating node: new_node_type=%s, node_name=%s", new_node_type, node_info.node_name)
         new_node = self.material_node.createNode(new_node_type, node_info.node_name)
         self._apply_parameters(new_node, node_info.parameters)
         self.reused_nodes[node_info.node_path] = new_node
@@ -444,7 +446,7 @@ class NodeRecreator:
         Create nodes in the target context.
         """
         if self.target_renderer == 'principledshader':
-            print("DEBUG: PrincipledShader does not require explicit output nodes. Skipping creation.")
+            logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
             return
 
         self._create_nodes_recursive(nested_nodes_info)
@@ -456,7 +458,7 @@ class NodeRecreator:
         Set connections for the output nodes in the recreated material.
         """
         if self.target_renderer == 'principledshader':
-            print("DEBUG: PrincipledShader does not require explicit output nodes. Skipping creation.")
+            logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
             return
 
         renderer_output_connections = OUTPUT_CONNECTIONS_INDEX_MAP.get(self.target_renderer)
@@ -522,14 +524,13 @@ class NodeRecreator:
 
             new_connected_node: hou.VopNode = self.material_node.node(new_connected_node_info.get('connected_node_name'))
             if not new_connected_node:
-                print(f"WARNING: Connections for node:'{new_connected_node_info['node_name']}' not found!")
+                logger.warning("Connections for node:'%s' not found!", new_connected_node_info['node_name'])
                 continue
             if new_connected_node.type().name() == 'null':
-                print(f"WARNING: Ignoring Output connections from input null node: '{new_connected_node_info['node_name']}'")
+                logger.warning("Ignoring Output connections from input null node: '%s'", new_connected_node_info['node_name'])
                 continue
 
-            print(f"INFO: Setting input for {output_node.path()}[{output_index}] "
-                  f"to '{new_connected_node.path()}[0]' for output type: '{generic_output_type}', ")
+            logger.info("Setting input for %s[%s] to '%s[0]' for output type: '%s'", output_node.path(), output_index, new_connected_node.path(), generic_output_type)
             output_node.setInput(output_index, new_connected_node)
 
         return True
@@ -543,12 +544,12 @@ class NodeRecreator:
         mapping = self.old_new_node_map.get(old_path, {})
         new_path = mapping.get('node_path')
         if not new_path:
-            print(f"WARNING: Couldn't find new node for '{old_path}'.")
+            logger.warning("Couldn't find new node for '%s'.", old_path)
             return None
 
         node = hou.node(new_path)
         if not node:
-            print(f"WARNING: New node path '{new_path}' does not exist in the scene.")
+            logger.warning("New node path '%s' does not exist in the scene.", new_path)
             return None
 
         return node
@@ -559,8 +560,7 @@ class NodeRecreator:
         """
         for conn in src_nodeinfo.connection_info.values():
             # print(f"DEBUG: ///conn: {pprint.pformat(conn, sort_dicts=False)}")
-            print(f"\nDEBUG: connecting src node: '{src_nodeinfo.node_name}[{conn['input']['node_index']}][{conn['input']['parm_name']}]' to "
-                  f"dest node: '{dest_node.name()}[{conn['output']['node_index']}][{conn['output']['parm_name']}]'")
+            logger.debug("connecting src node: '%s[%s][%s]' to dest node: '%s[%s][%s]'", src_nodeinfo.node_name, conn['input']['node_index'], conn['input']['parm_name'], dest_node.name(), conn['output']['node_index'], conn['output']['parm_name'])
             src_node_name = conn['input']['node_name']
             src_parm_name = conn['input']['parm_name']
             dest_node_name = conn['output']['node_name']
@@ -575,7 +575,7 @@ class NodeRecreator:
 
             # skip wiring if this is one of our designated outputs
             if self._is_output_node(dest_node.name()):
-                print(f"WARNING: Skipping connection for '{dest_node_name} → {dest_node.name()}' (it's an output node).")
+                logger.warning("Skipping connection for '%s -> %s' (it's an output node).", dest_node_name, dest_node.name())
                 continue
 
             # look up the standardized parameter names to use for the connection:
@@ -615,7 +615,7 @@ class NodeRecreator:
         path = f"{self.material_node.path()}/{node_name}"
         node = hou.node(path)
         if not node:
-            print(f"WARNING: Input node '{node_name}' not found at '{path}'.")
+            logger.warning("Input node '%s' not found at '%s'.", node_name, path)
         return node
 
     def _is_output_node(self, nodename):
@@ -643,7 +643,7 @@ class NodeRecreator:
             if dest_idx_by_name not in [-1, -999]:
                 dest_idx = dest_idx_by_name
             else:
-                print(f"WARNING: dest: '{dest_node.name()}' has no parm: '{dest_parm}', using provided index: {dest_idx}.")
+                logger.warning("dest: '%s' has no parm: '%s', using provided index: %s.", dest_node.name(), dest_parm, dest_idx)
 
         if not src_idx:
             src_idx = 0
@@ -651,7 +651,7 @@ class NodeRecreator:
             if src_idx_by_name not in [-1, -999]:
                 src_idx = src_idx_by_name
             else:
-                print(f"WARNING: src: '{src_node.name()}' has no parm: '{src_parm}', using provided index: {src_idx}.")
+                logger.warning("src: '%s' has no parm: '%s', using provided index: %s.", src_node.name(), src_parm, src_idx)
 
 
         # if it's a node that needs splitting, we split the channels
@@ -663,10 +663,10 @@ class NodeRecreator:
 
         try:
             dest_node.setInput(dest_idx, src_node, src_idx)
-            print(f"INFO: Connected '{src_node.name()}'[{src_idx}] → '{dest_node.name()}'[{dest_idx}].")
+            logger.info("Connected '%s'[%s] -> '%s'[%s].", src_node.name(), src_idx, dest_node.name(), dest_idx)
             return True
         except Exception as e:
-            print(f"WARNING: Failed to connect '{src_node.name()}[{src_idx}]' → '{dest_node.name()}[{dest_idx}]': {e}")
+            logger.warning("Failed to connect '%s[%s]' -> '%s[%s]': %s", src_node.name(), src_idx, dest_node.name(), dest_idx, e)
             return False
 
     def set_node_connections(self, nodeinfo_list, parent_node=None):
@@ -674,7 +674,7 @@ class NodeRecreator:
         Top-level entry: recurse over a list of NodeInfo and wire them up.
         """
         if not nodeinfo_list:
-            print("WARNING: Empty node list, nothing to connect.")
+            logger.warning("Empty node list, nothing to connect.")
             return
 
         for i, node_info in enumerate(nodeinfo_list):
@@ -683,7 +683,7 @@ class NodeRecreator:
                 continue
 
             if not node_info.connection_info:
-                print(f"WARNING: '{current_node.name()}': No Input Connections found. Skipping.")
+                logger.warning("'%s': No Input Connections found. Skipping.", current_node.name())
             else:
                 # actual connection logic:
                 self._process_connections_for_node(node_info, current_node)
@@ -703,24 +703,24 @@ class NodeRecreator:
         # print(f"{self.material_node=}, {self.standardizer.output_nodes_dict=}, {self.new_output_connections=}")
 
         # Create output nodes first:
-        print("INFO: STARTING create_output_nodes()....")
+        logger.info("STARTING create_output_nodes()....")
         self.create_output_nodes()
-        print("INFO: DONE create_output_nodes()....\n\n\n")
+        logger.info("DONE create_output_nodes()....")
 
         # Create Child nodes:
-        print("INFO: STARTING create_shader_nodes()....")
+        logger.info("STARTING create_shader_nodes()....")
         self.create_shader_nodes(self.nodeinfo_list)
-        print("INFO: DONE create_shader_nodes()....")
+        logger.info("DONE create_shader_nodes()....")
 
         # connect child nodes to each other:
-        print("INFO: STARTING _set_node_inputs()....")
+        logger.info("STARTING _set_node_inputs()....")
         self.set_node_connections(self.nodeinfo_list)
-        print("INFO: DONE _set_node_inputs()....\n\n\n")
+        logger.info("DONE _set_node_inputs()....")
 
         # connect output nodes to child nodes:
-        print("INFO: STARTING _set_output_connections()....")
+        logger.info("STARTING _set_output_connections()....")
         self.set_output_connections()
-        print("INFO: DONE _set_output_connections()....\n\n\n")
+        logger.info("DONE _set_output_connections()....")
 
 
 

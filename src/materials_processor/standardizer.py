@@ -1,5 +1,6 @@
 """Standardize traversed material graphs into generic node descriptions."""
 
+import logging
 import pprint
 import tempfile
 from typing import Dict
@@ -11,6 +12,8 @@ from materials_processor.mappings import (
     STANDARDIZER_SUPPORTED_SOURCE_TYPES,
 )
 from materials_processor.models import NodeInfo, NodeParameter
+
+logger = logging.getLogger(__name__)
 
 TEMP_DIR = f"{tempfile.gettempdir()}/MaterialProcessorTemp"
 
@@ -91,7 +94,7 @@ class NodeStandardizer:
         _parms_with_no_mapping = []
         generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
         if not generic_parm_names_dict:
-            print(f"WARNING: No generic parameters mapping was found for nodetype: '{node_type}'.")
+            logger.warning("No generic parameters mapping was found for nodetype: '%s'.", node_type)
             _parms_with_no_mapping.append(node_type)
             return []
 
@@ -136,9 +139,9 @@ class NodeStandardizer:
             ))
 
         if _unsupported_parms_list:
-            print(f"WARNING: Unsupported parameters for node type '{node_type}': {_unsupported_parms_list}")
+            logger.warning("Unsupported parameters for node type '%s': %s", node_type, _unsupported_parms_list)
         if _parms_with_no_generic_name_list:
-            print(f"WARNING: Parameters with no generic name mapping for node type '{node_type}': {_parms_with_no_generic_name_list}\n")
+            logger.warning("Parameters with no generic name mapping for node type '%s': %s", node_type, _parms_with_no_generic_name_list)
 
         return nodeParameter_list
 
@@ -169,7 +172,7 @@ class NodeStandardizer:
         if not connections_dict:
             return {}
 
-        # print(f"DEBUG: connections_dict: {pprint.pformat(connections_dict, sort_dicts=False)}")
+        # logger.debug("connections_dict: %s", pprint.pformat(connections_dict, sort_dicts=False))
         _unsupported_parms_list = []
         _parms_with_no_generic_name_list = []
         _parms_with_no_mapping = []
@@ -184,17 +187,17 @@ class NodeStandardizer:
                 node_type = direction_dict['node_type']
                 generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
                 if not generic_parm_names_dict:
-                    print(f"WARNING: No generic parameters mapping was found for nodetype: '{node_type}'.")
+                    logger.warning("No generic parameters mapping was found for nodetype: '%s'.", node_type)
                     _parms_with_no_mapping.append(node_type)
                     continue
 
                 param = direction_dict['parm_name']
                 generic_name = generic_parm_names_dict.get(param, None)
                 if not generic_name:
-                    print(f"WARNING: No generic name was found for parameter: '{param}' for node_type: '{node_type}'")
+                    logger.warning("No generic name was found for parameter: '%s' for node_type: '%s'", param, node_type)
                     _unsupported_parms_list.append(param)
                     _parms_with_no_generic_name_list.append(param)
-                    # print(f"DEBUG: generic_parm_names_dict: {pprint.pformat(generic_parm_names_dict, sort_dicts=False)}")
+                    # logger.debug("generic_parm_names_dict: %s", pprint.pformat(generic_parm_names_dict, sort_dicts=False))
                     continue
                 new_connections_dict[i][direction]['parm_name'] = generic_name
 
@@ -242,7 +245,7 @@ class NodeStandardizer:
 
         generic_node_type = REGULAR_NODE_TYPES_TO_GENERIC[self.material_type][self.source_type].get(child_node_type)
         if not generic_node_type:
-            print(f"WARNING: No generic type was found for node type: '{child_node_type}'")
+            logger.warning("No generic type was found for node type: '%s'", child_node_type)
 
         return NodeInfo(
             node_type=generic_node_type,
@@ -270,7 +273,7 @@ class NodeStandardizer:
 
         for node_path, node_dict in node_dict.items():
             nodeinfo = self.create_nodeinfo_object(node_path, node_dict)
-            # print(f"DEBUG: node_info_obj connections: {nodeinfo.print_connections()}")
+            # logger.debug("node_info_obj connections: %s", nodeinfo.print_connections())
 
             # Process children
             children_list = node_dict.get('children_list', [])
@@ -283,7 +286,7 @@ class NodeStandardizer:
                 nodeinfo.children_list.extend(child_nodes_info)
 
             nodeinfo_list.append(nodeinfo)
-        # print(f"DEBUG: {len(nodeinfo_list)=}")
+        # logger.debug("nodeinfo_list length = %d", len(nodeinfo_list))
         return nodeinfo_list
 
     def run(self):

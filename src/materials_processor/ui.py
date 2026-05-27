@@ -5,6 +5,8 @@ This module processes material nodes in Houdini, extracting and converting shade
 import logging
 from importlib import reload
 
+from materials_processor.logging_config import setup_file_logging
+
 import hou
 from PySide2 import QtCore
 from PySide2.QtWidgets import (
@@ -28,6 +30,8 @@ from PySide2.QtWidgets import (
 
 from materials_processor.houdini import commands
 from materials_processor.mappings import FORMAT_CHOICES
+
+setup_file_logging()
 
 
 class QTextEditLogger(logging.Handler):
@@ -113,12 +117,8 @@ class MyMainWindow(QMainWindow):
         about_menu.addAction(about_action)
 
         # Configure logger to use QTextEditLogger
-        self.logger = logging.getLogger(__name__)
+        self.logger = logging.getLogger("materials_processor")
         self.logger.setLevel(logging.DEBUG)
-
-        # Remove all handlers associated with the root logger object
-        for handler in logging.root.handlers[:]:
-            logging.root.removeHandler(handler)
 
         text_edit_handler = QTextEditLogger(self.log_area)
         text_edit_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
