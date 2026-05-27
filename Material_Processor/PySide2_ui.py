@@ -73,7 +73,7 @@ class MyMainWindow(QMainWindow):
         layout.addWidget(format_label)
 
         # display a choice dialog for the user to select the target renderer
-        self.format_names, self.format_labels = zip(*material_standardizer.FORMAT_CHOICES.items(), strict=False)
+        self.format_names, self.format_labels = zip(*material_standardizer.FORMAT_CHOICES.items())
         self.format_combobox = QComboBox()
         self.format_combobox.addItems(list(self.format_labels))  # Add your formats here
         layout.addWidget(self.format_combobox)
