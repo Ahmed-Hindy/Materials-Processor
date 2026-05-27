@@ -11,7 +11,7 @@ from materials_processor.mappings import (
     REGULAR_PARAM_NAMES_TO_GENERIC,
     STANDARDIZER_SUPPORTED_SOURCE_TYPES,
 )
-from materials_processor.models import NodeInfo, NodeParameter
+from materials_processor.models import ConnectionEndpoint, NodeConnection, NodeInfo, NodeParameter, OutputConnection
 
 logger = logging.getLogger(__name__)
 
@@ -65,15 +65,7 @@ class NodeStandardizer:
         output_connections = {}
         for key, value in output_nodes_dict.items():
             standardized_key = f"GENERIC::output_{key}"
-            output_connections[standardized_key] = {
-                'node_name': value['node_name'],
-                'node_path': value['node_path'],
-                'connected_node_name': value['connected_node_name'],
-                'connected_node_path': value['connected_node_path'],
-                'connected_input_index': value.get('connected_input_index'),
-                'connected_input_name': value['connected_input_name'],
-                'connected_output_name': value['connected_output_name'],
-            }
+            output_connections[standardized_key] = OutputConnection.from_mapping(value)
         return output_connections
 
 
@@ -180,27 +172,34 @@ class NodeStandardizer:
         new_connections_dict = {}
 
         for i, connection_dict in connections_dict.items():
-            new_connections_dict[i] = connection_dict
-            for direction, direction_dict in connection_dict.items():
-                new_connections_dict[i][direction] = direction_dict
+            connection = NodeConnection.from_mapping(connection_dict)
+            endpoints = {}
+            for direction in connection:
+                endpoint: ConnectionEndpoint = connection[direction]
 
-                node_type = direction_dict['node_type']
+                node_type = endpoint.node_type
                 generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
                 if not generic_parm_names_dict:
                     logger.warning("No generic parameters mapping was found for nodetype: '%s'.", node_type)
                     _parms_with_no_mapping.append(node_type)
+                    endpoints[direction] = endpoint
                     continue
 
-                param = direction_dict['parm_name']
+                param = endpoint.parm_name
                 generic_name = generic_parm_names_dict.get(param, None)
                 if not generic_name:
                     logger.warning("No generic name was found for parameter: '%s' for node_type: '%s'", param, node_type)
                     _unsupported_parms_list.append(param)
                     _parms_with_no_generic_name_list.append(param)
                     # logger.debug("generic_parm_names_dict: %s", pprint.pformat(generic_parm_names_dict, sort_dicts=False))
+                    endpoints[direction] = endpoint
                     continue
-                new_connections_dict[i][direction]['parm_name'] = generic_name
+                endpoints[direction] = endpoint.with_parm_name(generic_name)
 
+            new_connections_dict[i] = NodeConnection(
+                input=endpoints["input"],
+                output=endpoints["output"],
+            )
 
         return new_connections_dict
 

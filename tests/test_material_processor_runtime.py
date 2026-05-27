@@ -3,6 +3,7 @@ import copy
 from materials_processor import io, mappings, standardizer
 from materials_processor.houdini import commands, traverser
 from materials_processor.houdini.recreator import NodeRecreator
+from materials_processor.models import NodeConnection, OutputConnection
 
 
 class FakeNodeType:
@@ -54,7 +55,7 @@ def test_material_processor_test_helper_uses_checked_in_fixtures(tmp_path, monke
     nodeinfo_list, output_connections = commands.test()
 
     assert nodeinfo_list
-    assert output_connections == {
+    assert {key: value.to_dict() for key, value in output_connections.items()} == {
         "GENERIC::output_surface": {
             "node_name": "surface_output",
             "node_path": "/mat/mtlxmaterial_full/surface_output",
@@ -96,9 +97,19 @@ def test_standardizer_preserves_runtime_connection_mapping(tmp_path, monkeypatch
         "GENERIC::output_node",
         "GENERIC::output_node",
     ]
-    assert output_connections["GENERIC::output_surface"]["connected_node_name"] == "mtlxstandard_surface"
+    assert isinstance(output_connections["GENERIC::output_surface"], OutputConnection)
+    assert output_connections["GENERIC::output_surface"].connected_node_name == "mtlxstandard_surface"
     surface_children = nodeinfo_list[0].children_list
     assert any(child.node_type == "GENERIC::standard_surface" for child in surface_children)
+    surface_connection = next(
+        connection
+        for child in surface_children
+        for connection in child.connection_info.values()
+        if isinstance(connection, NodeConnection)
+    )
+    assert surface_connection.input.node_path == "/mat/mtlxmaterial_full/mtlxstandard_surface"
+    assert surface_connection.output.node_path == "/mat/mtlxmaterial_full/surface_output"
+    assert surface_connection.to_dict()["input"]["parm_name"] == "surface"
 
 
 def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatch):
