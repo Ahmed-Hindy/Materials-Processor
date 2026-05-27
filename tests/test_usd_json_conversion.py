@@ -233,3 +233,32 @@ def test_houdini_json_converts_to_usd_renderer_matrix(
 
     assert json.loads(json.dumps(traversed_nodes)) == traversed_nodes
     assert json.loads(json.dumps(output_nodes)) == output_nodes
+
+
+def test_usd_recreator_legacy_texture_collect_builder_smoke():
+    stage = Usd.Stage.CreateInMemory()
+    recreator = USDMaterialRecreator(
+        stage=stage,
+        material_name="smoke_glass",
+        nodeinfo_list=[],
+        output_connections={},
+    )
+    recreator.material_dict = {
+        "basecolor": {"path": "C:/textures/basecolor.exr"},
+        "roughness": {"path": "C:/textures/roughness.exr"},
+    }
+    recreator.is_transmissive = recreator.detect_if_transmissive(recreator.material_name)
+
+    collect = recreator._create_collect_prim(
+        "/texture_smoke",
+        create_usd_preview=True,
+        create_arnold=True,
+        create_mtlx=True,
+    )
+
+    assert collect.GetPrim().IsValid()
+    assert stage.GetPrimAtPath("/texture_smoke/mat_smoke_glass_collect/arnold_standard_surface1").IsValid()
+    assert stage.GetPrimAtPath("/texture_smoke/mat_smoke_glass_collect/mtlx_mtlxstandard_surface1").IsValid()
+    assert stage.GetPrimAtPath(
+        "/texture_smoke/mat_smoke_glass_collect/UsdPreviewMaterial/UsdPreviewNodeGraph/UsdPreviewSurface"
+    ).IsValid()
