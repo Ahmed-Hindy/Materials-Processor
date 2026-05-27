@@ -18,7 +18,7 @@ class USDMaterialRecreator:
         parent_scope_path: str = "/materials",
         target_renderer: str = "arnold",
     ):
-        """Initialize and immediately run the network rebuild."""
+        """Initialize the recreator with material data and target stage."""
         self.stage = stage
         self.material_name = material_name
         self.nodeinfo_list = nodeinfo_list
@@ -36,8 +36,6 @@ class USDMaterialRecreator:
         self.material_map = self.graph_builder.material_map
         self.old_new_map = self.graph_builder.old_new_map
         self.created_out_primpaths = self.graph_builder.created_out_primpaths
-
-        self.run()
 
     def create_material_prim(self):
         """Define output material prims for the standardized graph."""

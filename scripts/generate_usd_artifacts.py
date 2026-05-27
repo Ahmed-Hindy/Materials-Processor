@@ -89,7 +89,7 @@ def _convert(conv: dict, out_dir: Path) -> Path:
             nodeinfo_list=nodeinfo_list,
             output_connections=output_connections,
             target_renderer=conv["target_renderer"],
-        )
+        ).run()
 
     stage.Save()
     return out_path

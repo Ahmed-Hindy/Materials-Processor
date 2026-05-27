@@ -98,6 +98,7 @@ def run(input_material_builder_node, target_context, target_format='arnold'):
             target_context=target_context,
             target_renderer=target_format
         )
+        recreator.run()
         logger.info("NodeRecreator() Finished----------------------")
         logger.info("Material conversion complete. Converted material from '%s' to '%s'.", material_type, target_format)
     except Exception:
@@ -173,6 +174,7 @@ def convert_material_from_opmenu(kwargs):
                 target_renderer=target_format,
                 material_name=input_material_builder_node.name(),
             )
+            recreator.run()
             logger.info("NodeRecreator() Finished----------------------")
             logger.info("Material conversion complete. Converted material from '%s' to '%s'.", material_type, target_format)
         except Exception:
@@ -224,6 +226,7 @@ def test_hou():
             target_context=target_context,
             target_renderer=target_renderer
         )
+        recreator.run()
     except Exception:
         traceback.print_exc()
         return

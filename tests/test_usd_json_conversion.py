@@ -178,7 +178,7 @@ def _build_usd_stage_from_houdini_json(fixture, target_renderer):
             nodeinfo_list=nodeinfo_list,
             output_connections=output_connections,
             target_renderer=target_renderer,
-        )
+        ).run()
 
     return stage
 
@@ -262,3 +262,22 @@ def test_usd_recreator_legacy_texture_collect_builder_smoke():
     assert stage.GetPrimAtPath(
         "/texture_smoke/mat_smoke_glass_collect/UsdPreviewMaterial/UsdPreviewNodeGraph/UsdPreviewSurface"
     ).IsValid()
+
+
+def test_usd_recreator_constructor_does_not_create_material_until_run():
+    nodeinfo_list, output_connections = _load_houdini_fixture(HOUDINI_MTLX_FULL)
+    stage = Usd.Stage.CreateInMemory()
+
+    recreator = USDMaterialRecreator(
+        stage=stage,
+        material_name=HOUDINI_MTLX_FULL.material_name,
+        nodeinfo_list=nodeinfo_list,
+        output_connections=output_connections,
+        target_renderer="mtlx",
+    )
+
+    assert not stage.GetPrimAtPath(HOUDINI_MTLX_FULL.material_path).IsValid()
+
+    recreator.run()
+
+    assert stage.GetPrimAtPath(HOUDINI_MTLX_FULL.material_path).IsValid()

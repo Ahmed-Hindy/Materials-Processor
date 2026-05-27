@@ -63,7 +63,13 @@ def test(stage, mat_node, target_renderer="mtlx"):
     """
 
     try:
-        USDMaterialRecreator(stage, mat_node.name(), nodeinfo_list, output_connections, target_renderer=target_renderer)
+        USDMaterialRecreator(
+            stage,
+            mat_node.name(),
+            nodeinfo_list,
+            output_connections,
+            target_renderer=target_renderer,
+        ).run()
     except Exception:
         logger.exception("Exception in test")
 
@@ -148,8 +154,13 @@ def test2(stage, usd_material, target_renderer="arnold"):
     nodeinfo_list, output_connections = standardizer.run()
 
     try:
-        USDMaterialRecreator(stage, "__material", nodeinfo_list, output_connections,
-                             target_renderer=target_renderer)
+        USDMaterialRecreator(
+            stage,
+            "__material",
+            nodeinfo_list,
+            output_connections,
+            target_renderer=target_renderer,
+        ).run()
     except Exception:
         logger.exception("Exception in test2")
 
