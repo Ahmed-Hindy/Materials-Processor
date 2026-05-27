@@ -2,6 +2,7 @@ backup/
 *rendergallery*
 *copilot.data*
 .claude/
+.kilo/
 
 # Python
 __pycache__/
