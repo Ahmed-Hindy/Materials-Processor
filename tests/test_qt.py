@@ -7,22 +7,21 @@ from materials_processor import qt
 
 
 def test_binding_candidates_prefers_requested_binding(monkeypatch):
+    monkeypatch.delenv(qt.QT_BACKEND_ENV, raising=False)
     monkeypatch.delenv(qt.QT_BINDING_ENV, raising=False)
-    monkeypatch.setattr(qt, "isUIAvailable", False)
 
     assert qt.binding_candidates("pyside2")[0] == ("PySide2", "pyside2")
 
 
 def test_binding_candidates_honors_environment(monkeypatch):
-    monkeypatch.setenv(qt.QT_BINDING_ENV, "PySide2")
-    monkeypatch.setattr(qt, "isUIAvailable", False)
+    monkeypatch.setenv(qt.QT_BACKEND_ENV, "PySide2")
 
     assert qt.binding_candidates()[0] == ("PySide2", "pyside2")
 
 
-def test_binding_candidates_prefers_pyside2_inside_houdini_ui(monkeypatch):
-    monkeypatch.setenv(qt.QT_BINDING_ENV, "PySide6")
-    monkeypatch.setattr(qt, "isUIAvailable", True)
+def test_binding_candidates_keeps_legacy_env_as_fallback(monkeypatch):
+    monkeypatch.delenv(qt.QT_BACKEND_ENV, raising=False)
+    monkeypatch.setenv(qt.QT_BINDING_ENV, "PySide2")
 
     assert qt.binding_candidates()[0] == ("PySide2", "pyside2")
 

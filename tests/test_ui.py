@@ -6,7 +6,6 @@ import pytest
 
 from materials_processor import ui
 from materials_processor.mappings import FORMAT_CHOICES
-from materials_processor import qt as qt_compat
 from materials_processor.ui import main_window
 from materials_processor.ui.state import ConversionUiState
 from materials_processor.ui.widgets import split_dropped_node_paths
@@ -228,6 +227,7 @@ def _install_fake_qt_and_hou(monkeypatch):
 
     hou = types.ModuleType("hou")
     hou.session = types.SimpleNamespace()
+    hou.isUIAvailable = lambda: True
     hou.ui = types.SimpleNamespace(mainQtWindow=lambda: None)
     hou.node = lambda path: None
 
@@ -235,10 +235,7 @@ def _install_fake_qt_and_hou(monkeypatch):
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qt_core)
     monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", qt_widgets)
     monkeypatch.setitem(sys.modules, "hou", hou)
-    monkeypatch.setattr(qt_compat, "hou", hou)
-    monkeypatch.setattr(qt_compat, "isUIAvailable", True)
     monkeypatch.setattr(main_window, "hou", hou)
-    monkeypatch.setattr(main_window, "isUIAvailable", True)
     _Application._instance = None
     return hou
 

@@ -9,7 +9,7 @@ from importlib import reload
 
 from materials_processor.logging_config import setup_file_logging
 from materials_processor.mappings import FORMAT_CHOICES
-from materials_processor.qt import QtBinding, hou, isUIAvailable, load_qt_binding
+from materials_processor.qt import QtBinding, load_qt_binding
 from materials_processor.ui.logging_handler import TextEditLogger
 from materials_processor.ui.state import ConversionUiState
 from materials_processor.ui.widgets import (
@@ -22,6 +22,18 @@ logger = logging.getLogger(__name__)
 setup_file_logging()
 
 WINDOW_SESSION_NAME = "_materials_processor_window"
+
+try:
+    import hou  # type: ignore
+except ModuleNotFoundError:
+    hou = None
+
+
+def _houdini_ui_parent():
+    """Return Houdini's main Qt window when running inside a UI session."""
+    if hou is None or not getattr(hou, "isUIAvailable", lambda: False)():
+        return None
+    return hou.ui.mainQtWindow()
 
 
 def _is_renderer_available(format_name: str) -> bool:
@@ -297,7 +309,7 @@ def show_my_main_window(qt_binding: str | None = None):
         existing.activateWindow()
         return existing
 
-    parent = hou.ui.mainQtWindow() if isUIAvailable else None
+    parent = _houdini_ui_parent()
     window = create_main_window(parent=parent, qt_binding=qt.api)
     if hou:
         setattr(hou.session, WINDOW_SESSION_NAME, window)
