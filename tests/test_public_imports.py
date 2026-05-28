@@ -28,10 +28,8 @@ def test_usd_public_commands_import_when_pxr_is_available():
     assert callable(usd_commands.test2)
 
 
-def test_ui_public_entrypoint_imports_when_houdini_qt_is_available():
-    pytest.importorskip("hou")
-    pytest.importorskip("PySide2")
-
+def test_ui_public_entrypoint_imports_without_houdini_or_qt():
     ui = importlib.import_module("materials_processor.ui")
 
     assert callable(ui.show_my_main_window)
+    assert callable(ui.create_main_window)
