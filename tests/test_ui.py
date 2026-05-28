@@ -6,6 +6,7 @@ import pytest
 
 from materials_processor import ui
 from materials_processor.mappings import FORMAT_CHOICES
+from materials_processor import qt as qt_compat
 from materials_processor.ui import main_window
 from materials_processor.ui.state import ConversionUiState
 from materials_processor.ui.widgets import split_dropped_node_paths
@@ -234,6 +235,10 @@ def _install_fake_qt_and_hou(monkeypatch):
     monkeypatch.setitem(sys.modules, "PySide6.QtCore", qt_core)
     monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", qt_widgets)
     monkeypatch.setitem(sys.modules, "hou", hou)
+    monkeypatch.setattr(qt_compat, "hou", hou)
+    monkeypatch.setattr(qt_compat, "isUIAvailable", True)
+    monkeypatch.setattr(main_window, "hou", hou)
+    monkeypatch.setattr(main_window, "isUIAvailable", True)
     _Application._instance = None
     return hou
 
@@ -275,13 +280,6 @@ def test_conversion_ui_state_defaults_are_empty():
     assert state.is_running is False
 
 
-def test_load_hou_can_be_optional_outside_houdini():
-    if "hou" in sys.modules:
-        pytest.skip("hou is available in this session")
-
-    assert ui.load_hou(required=False) is None
-
-
 def test_show_my_main_window_reuses_houdini_session_singleton(monkeypatch):
     hou = _install_fake_qt_and_hou(monkeypatch)
 
@@ -294,13 +292,6 @@ def test_show_my_main_window_reuses_houdini_session_singleton(monkeypatch):
     assert first_window.visible_count == 2
     assert first_window.raised_count == 1
     assert first_window.activated_count == 1
-
-
-def test_load_hou_required_raises_clear_error(monkeypatch):
-    monkeypatch.delitem(sys.modules, "hou", raising=False)
-
-    with pytest.raises(RuntimeError, match="requires Houdini"):
-        ui.load_hou(required=True)
 
 
 def test_commands_run_returns_false_when_ingest_fails(monkeypatch):

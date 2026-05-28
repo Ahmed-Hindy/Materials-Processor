@@ -9,6 +9,14 @@ from typing import Any
 
 QT_BINDING_ENV = "MATERIALS_PROCESSOR_QT_API"
 
+try:
+    import hou  # type: ignore
+
+    isUIAvailable = bool(hou.isUIAvailable())
+except (AttributeError, ModuleNotFoundError, NameError):
+    hou = None
+    isUIAvailable = False
+
 
 @dataclass(frozen=True)
 class QtBinding:
@@ -21,7 +29,8 @@ class QtBinding:
 
 def binding_candidates(preferred: str | None = None) -> list[tuple[str, str]]:
     """Return Qt binding import candidates in preferred order."""
-    requested = (preferred or os.environ.get(QT_BINDING_ENV) or "").lower().replace("-", "")
+    requested = (preferred or "").lower().replace("-", "")
+    env_requested = os.environ.get(QT_BINDING_ENV, "").lower().replace("-", "")
     candidates = {
         "pyside6": ("PySide6", "pyside6"),
         "pyside2": ("PySide2", "pyside2"),
@@ -29,6 +38,10 @@ def binding_candidates(preferred: str | None = None) -> list[tuple[str, str]]:
     ordered: list[tuple[str, str]] = []
     if requested in candidates:
         ordered.append(candidates[requested])
+    elif isUIAvailable:
+        ordered.append(candidates["pyside2"])
+    elif env_requested in candidates:
+        ordered.append(candidates[env_requested])
 
     for candidate in (candidates["pyside6"], candidates["pyside2"]):
         if candidate not in ordered:

@@ -9,7 +9,7 @@ from importlib import reload
 
 from materials_processor.logging_config import setup_file_logging
 from materials_processor.mappings import FORMAT_CHOICES
-from materials_processor.qt import QtBinding, load_qt_binding
+from materials_processor.qt import QtBinding, hou, isUIAvailable, load_qt_binding
 from materials_processor.ui.logging_handler import TextEditLogger
 from materials_processor.ui.state import ConversionUiState
 from materials_processor.ui.widgets import (
@@ -22,16 +22,6 @@ logger = logging.getLogger(__name__)
 setup_file_logging()
 
 WINDOW_SESSION_NAME = "_materials_processor_window"
-
-
-def load_hou(required: bool = True):
-    """Import Houdini's hou module on demand."""
-    try:
-        return importlib.import_module("hou")
-    except ImportError:
-        if required:
-            raise RuntimeError("Material Processor UI conversion requires Houdini's hou module.") from None
-        return None
 
 
 def _is_renderer_available(format_name: str) -> bool:
@@ -52,7 +42,7 @@ def available_format_choices() -> dict[str, str]:
     }
 
 
-def create_window_classes(qt: QtBinding, hou_module):
+def create_window_classes(qt: QtBinding):
     """Create Qt classes after a binding has been loaded."""
     QtWidgets = qt.widgets
     NodeDropList = create_node_drop_list_class(qt)
@@ -190,7 +180,7 @@ def create_window_classes(qt: QtBinding, hou_module):
             return reload(self._commands)
 
         def _node_from_path(self, node_path: str):
-            node = hou_module.node(node_path)
+            node = hou.node(node_path) if hou else None
             if node is None:
                 self.logger.warning("Node not found: %s", node_path)
             return node
@@ -273,46 +263,44 @@ def create_window_classes(qt: QtBinding, hou_module):
                 self.logger.removeHandler(self._qt_handler)
                 self._qt_handler.close()
                 self._qt_handler = None
-            session_window = getattr(hou_module.session, WINDOW_SESSION_NAME, None)
+            session_window = getattr(hou.session, WINDOW_SESSION_NAME, None) if hou else None
             if session_window is self:
-                setattr(hou_module.session, WINDOW_SESSION_NAME, None)
+                setattr(hou.session, WINDOW_SESSION_NAME, None)
             super().closeEvent(event)
 
     return MaterialProcessorWindow, NodeDropList, PreferencesDialog
 
 
-def load_ui_classes(qt_binding: str | None = None, hou_module=None):
+def load_ui_classes(qt_binding: str | None = None):
     """Load and return the Qt window classes."""
     qt = load_qt_binding(qt_binding)
-    if hou_module is None:
-        hou_module = load_hou(required=True)
-    return create_window_classes(qt, hou_module)
+    return create_window_classes(qt)
 
 
-def create_main_window(parent=None, qt_binding: str | None = None, hou_module=None):
+def create_main_window(parent=None, qt_binding: str | None = None):
     """Create a Material Processor window."""
-    MaterialProcessorWindow, _, _ = load_ui_classes(qt_binding=qt_binding, hou_module=hou_module)
+    MaterialProcessorWindow, _, _ = load_ui_classes(qt_binding=qt_binding)
     return MaterialProcessorWindow(parent)
 
 
 def show_my_main_window(qt_binding: str | None = None):
     """Show the Material Processor window inside Houdini."""
     qt = load_qt_binding(qt_binding)
-    hou_module = load_hou(required=True)
     app = qt.widgets.QApplication.instance()
     if app is None:
         app = qt.widgets.QApplication([])
 
-    existing = getattr(hou_module.session, WINDOW_SESSION_NAME, None)
+    existing = getattr(hou.session, WINDOW_SESSION_NAME, None) if hou else None
     if existing is not None:
         existing.show()
         existing.raise_()
         existing.activateWindow()
         return existing
 
-    parent = hou_module.ui.mainQtWindow() if hasattr(hou_module, "ui") else None
-    window = create_main_window(parent=parent, qt_binding=qt.api, hou_module=hou_module)
-    setattr(hou_module.session, WINDOW_SESSION_NAME, window)
+    parent = hou.ui.mainQtWindow() if isUIAvailable else None
+    window = create_main_window(parent=parent, qt_binding=qt.api)
+    if hou:
+        setattr(hou.session, WINDOW_SESSION_NAME, window)
     window.show()
     logger.info("Material Processor window displayed.")
     return window

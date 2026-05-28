@@ -8,12 +8,21 @@ from materials_processor import qt
 
 def test_binding_candidates_prefers_requested_binding(monkeypatch):
     monkeypatch.delenv(qt.QT_BINDING_ENV, raising=False)
+    monkeypatch.setattr(qt, "isUIAvailable", False)
 
     assert qt.binding_candidates("pyside2")[0] == ("PySide2", "pyside2")
 
 
 def test_binding_candidates_honors_environment(monkeypatch):
     monkeypatch.setenv(qt.QT_BINDING_ENV, "PySide2")
+    monkeypatch.setattr(qt, "isUIAvailable", False)
+
+    assert qt.binding_candidates()[0] == ("PySide2", "pyside2")
+
+
+def test_binding_candidates_prefers_pyside2_inside_houdini_ui(monkeypatch):
+    monkeypatch.setenv(qt.QT_BINDING_ENV, "PySide6")
+    monkeypatch.setattr(qt, "isUIAvailable", True)
 
     assert qt.binding_candidates()[0] == ("PySide2", "pyside2")
 

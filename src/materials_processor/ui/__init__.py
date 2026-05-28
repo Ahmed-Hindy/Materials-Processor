@@ -4,7 +4,6 @@ from materials_processor.ui.main_window import (
     WINDOW_SESSION_NAME,
     available_format_choices,
     create_main_window,
-    load_hou,
     load_ui_classes,
     show_my_main_window,
 )
@@ -35,7 +34,6 @@ __all__ = [
     "_split_dropped_node_paths",
     "available_format_choices",
     "create_main_window",
-    "load_hou",
     "load_ui_classes",
     "show_my_main_window",
     "split_dropped_node_paths",
