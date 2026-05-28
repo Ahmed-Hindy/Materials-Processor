@@ -40,8 +40,8 @@ HOUDINI_ARNOLD_FULL = HoudiniJsonFixture(
 HOUDINI_PRINCIPLED_TO_MTLX = HoudiniJsonFixture(
     material_name="principledshader",
     material_type="principledshader",
-    traversed_nodes_file="houdini_principled_to_mtlx_traversed_nodes.json",
-    output_nodes_file="houdini_principled_to_mtlx_output_nodes.json",
+    traversed_nodes_file="houdini_principled_native_traversed_nodes.json",
+    output_nodes_file="houdini_principled_native_output_nodes.json",
 )
 
 
@@ -133,21 +133,11 @@ USD_CONVERSION_CASES = [
         {
             "ND_standard_surface_surfaceshader",
             "ND_image_color3",
-            "ND_bump_vector3",
+            "ND_normalmap_vector3",
         },
         {
             "surface": "mtlx:surface",
-            "displacement": "mtlx:displacement",
         },
-        marks=pytest.mark.xfail(
-            raises=KeyError,
-            strict=True,
-            reason=(
-                "Current principled-to-MTLX JSON references displacement at "
-                "/mat/principledshader/mtlxdisplacement, but the traversed node path is "
-                "/mat/principledshaderl/mtlxdisplacement."
-            ),
-        ),
         id="houdini-principled-to-usd-mtlx",
     ),
 ]
@@ -216,7 +206,7 @@ def test_houdini_json_converts_to_usd_renderer_matrix(
     assert expected_shader_ids <= _shader_ids(stage)
 
     material_output_names = _material_output_names(material)
-    assert {"surface", "displacement"} == {name.split(":")[-1] for name in material_output_names}
+    assert set(expected_output_labels) == {name.split(":")[-1] for name in material_output_names}
     assert set(expected_output_labels.values()) <= material_output_names
 
     with contextlib.redirect_stdout(stdlib_io.StringIO()):
@@ -228,7 +218,7 @@ def test_houdini_json_converts_to_usd_renderer_matrix(
 
     assert traversed_nodes
     assert output_nodes
-    assert set(output_nodes) == {"surface", "displacement"}
+    assert set(output_nodes) == set(expected_output_labels)
     assert {key: value["connected_output_name"] for key, value in output_nodes.items()} == expected_output_labels
 
     assert json.loads(json.dumps(traversed_nodes)) == traversed_nodes

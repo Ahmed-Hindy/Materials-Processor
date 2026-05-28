@@ -18,8 +18,8 @@ DEFAULT_HYTHON = Path(r"C:\Program Files\Side Effects Software\Houdini 21.0.631\
 JSON_START = "===MATERIALS_PROCESSOR_HYTHON_JSON_START==="
 JSON_END = "===MATERIALS_PROCESSOR_HYTHON_JSON_END==="
 TARGET_RENDERERS = list(FORMAT_CHOICES)
-SAME_ENGINE_FIDELITY_TARGETS = ("arnold", "mtlx")
-OUTPUT_FIDELITY_TARGET_RENDERERS = ("arnold", "mtlx")
+SAME_ENGINE_FIDELITY_TARGETS = ("arnold", "mtlx", "principledshader")
+OUTPUT_FIDELITY_TARGET_RENDERERS = ("arnold", "mtlx", "principledshader")
 CROSS_ENGINE_FIDELITY_TARGETS = (
     ("arnold", "mtlx"),
     ("mtlx", "arnold"),
@@ -52,6 +52,10 @@ MATERIAL_CASES = {
     },
     "/mat/principledshader": {
         "material_type": "principledshader",
+        "standardized_output_keys": ["GENERIC::output_surface"],
+    },
+    "/mat/principledshader_with_disp": {
+        "material_type": "principledshader",
         "standardized_output_keys": ["GENERIC::output_displacement", "GENERIC::output_surface"],
     },
 }
@@ -68,8 +72,8 @@ SNAPSHOT_CASES = {
         "round_positions": True,
     },
     "/mat/principledshader": {
-        "traversed": "houdini_principled_to_mtlx_traversed_nodes.json",
-        "outputs": "houdini_principled_to_mtlx_output_nodes.json",
+        "traversed": "houdini_principled_native_traversed_nodes.json",
+        "outputs": "houdini_principled_native_output_nodes.json",
         "round_positions": False,
     },
 }
@@ -125,6 +129,14 @@ CROSS_ENGINE_FIDELITY_TARGETS = {CROSS_ENGINE_FIDELITY_TARGETS!r}
 hou.hipFile.load({str(HIP_FILE)!r}, suppress_save_prompt=True, ignore_load_warnings=True)
 
 mat_context = hou.node("/mat")
+principled_with_disp = mat_context.node("principledshader_with_disp")
+if principled_with_disp is None:
+    principled_source = mat_context.node("principledshader")
+    principled_with_disp = principled_source.copyTo(mat_context)
+    principled_with_disp.setName("principledshader_with_disp", unique_name=True)
+principled_with_disp.parm("dispTex_enable").set(1)
+principled_with_disp.parm("dispTex_texture").set("C:/textures/principled_displacement.exr")
+principled_with_disp.parmTuple("basecolor").set((0.25, 0.5, 0.75))
 available_node_types = mat_context.childTypeCategory().nodeTypes()
 
 def _normalize_value(value):
@@ -638,24 +650,23 @@ def test_hython_conversion_matrix_available_targets_pass(hython_conversion_repor
 def test_hython_conversion_coverage_summary_has_no_failed_cases(hython_conversion_report):
     summary = hython_conversion_report["summary"]
 
-    assert summary["total_cases"] == 20
+    assert summary["total_cases"] == len(MATERIAL_CASES) * len(TARGET_RENDERERS)
     assert summary["failed_cases"] == 0, f"{REPORT_PATH}: {summary}"
     assert summary["passed_cases"] == summary["available_cases"]
     assert summary["coverage_percent"] == 100.0
 
 
 @pytest.mark.hython
-def test_hython_same_engine_fidelity_reports_cover_arnold_and_mtlx(hython_conversion_report):
+def test_hython_same_engine_fidelity_reports_cover_supported_targets(hython_conversion_report):
     fidelity_cases = hython_conversion_report["same_engine_fidelity"]
 
     assert {
         (case["source_path"], case["target_renderer"])
         for case in fidelity_cases
     } == {
-        ("/mat/arnold_materialbuilder_full", "arnold"),
-        ("/mat/arnold_materialbuilder_basic", "arnold"),
-        ("/mat/mtlxmaterial_full", "mtlx"),
-        ("/mat/mtlxmaterial_basic", "mtlx"),
+        (source_path, case["material_type"])
+        for source_path, case in MATERIAL_CASES.items()
+        if case["material_type"] in SAME_ENGINE_FIDELITY_TARGETS
     }
     for case in fidelity_cases:
         assert case["created_path"]
@@ -704,12 +715,10 @@ def test_hython_cross_engine_fidelity_reports_cover_arnold_mtlx_targets(hython_c
         (case["source_path"], case["target_renderer"])
         for case in fidelity_cases
     } == {
-        ("/mat/arnold_materialbuilder_full", "mtlx"),
-        ("/mat/arnold_materialbuilder_basic", "mtlx"),
-        ("/mat/mtlxmaterial_full", "arnold"),
-        ("/mat/mtlxmaterial_basic", "arnold"),
-        ("/mat/principledshader", "arnold"),
-        ("/mat/principledshader", "mtlx"),
+        (source_path, target_renderer)
+        for source_path, case in MATERIAL_CASES.items()
+        for target_renderer in OUTPUT_FIDELITY_TARGET_RENDERERS
+        if (case["material_type"], target_renderer) in CROSS_ENGINE_FIDELITY_TARGETS
     }
     for case in fidelity_cases:
         assert case["created_path"]
@@ -796,6 +805,31 @@ def test_hython_mtlx_to_arnold_displacement_outputs_use_upstream_driver(
         converted_outputs = mtlx_to_arnold_cases[source_path]["converted_fingerprint"]["outputs"]
 
         assert converted_outputs["GENERIC::output_displacement"] == expected_output
+
+
+@pytest.mark.hython
+def test_hython_principled_ingest_uses_native_single_node(hython_ingest_results):
+    result = hython_ingest_results["/mat/principledshader"]
+
+    assert set(result["traversed_nodes"]) == {"/mat/principledshader"}
+    native_node = result["traversed_nodes"]["/mat/principledshader"]
+    assert native_node["node_type"] == "principledshader::2.0"
+    assert native_node["children_list"] == []
+    assert set(result["output_nodes"]) == {"surface"}
+    assert result["standardized_output_keys"] == ["GENERIC::output_surface"]
+
+
+@pytest.mark.hython
+def test_hython_principled_displacement_output_requires_texture(hython_ingest_results):
+    no_displacement = hython_ingest_results["/mat/principledshader"]
+    with_displacement = hython_ingest_results["/mat/principledshader_with_disp"]
+
+    assert set(no_displacement["output_nodes"]) == {"surface"}
+    assert set(with_displacement["output_nodes"]) == {"surface", "displacement"}
+    assert with_displacement["standardized_output_keys"] == [
+        "GENERIC::output_displacement",
+        "GENERIC::output_surface",
+    ]
 
 
 @pytest.mark.hython

@@ -4,6 +4,135 @@
 
 STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims']
 
+PRINCIPLED_NATIVE_NODE_TYPE = 'principledshader::2.0'
+
+PRINCIPLED_SHADER_PARAM_ALIASES = {
+    'basecolor': 'base_color',
+    'metallic': 'metalness',
+    'rough': 'specular_roughness',
+    'ior': 'specular_IOR',
+    'reflect': 'specular',
+    'coat': 'coat',
+    'coatrough': 'coat_roughness',
+    'transparency': 'transmission',
+    'difftrans': 'transmission',
+    'transcolor': 'transmission_color',
+    'sss': 'subsurface',
+    'subsurface': 'subsurface',
+    'ssscolor': 'subsurface_color',
+    'subtint': 'subsurface_color',
+    'emitint': 'emission',
+    'emission': 'emission',
+    'emitcolor': 'emission_color',
+    'opaccolor': 'opacity',
+    'basecolorr': 'base_colorr',
+    'basecolorg': 'base_colorg',
+    'basecolorb': 'base_colorb',
+    'sheen': 'sheen',
+    'sheencolor': 'sheen_color',
+    'coatior': 'coat_IOR',
+    'coatcolor': 'coat_color',
+    'surface': 'surface',
+    'displacement': 'displacement',
+}
+
+PRINCIPLED_TEXTURE_INPUTS = {
+    'base_color': {
+        'use_parm': 'basecolor_useTexture',
+        'texture_parm': 'basecolor_texture',
+        'image_name': 'image_base_color',
+        'signature': 'color3',
+    },
+    'metalness': {
+        'use_parm': 'metallic_useTexture',
+        'texture_parm': 'metallic_texture',
+        'image_name': 'image_metalness',
+        'signature': 'float',
+    },
+    'specular_roughness': {
+        'use_parm': 'rough_useTexture',
+        'texture_parm': 'rough_texture',
+        'image_name': 'image_roughness',
+        'signature': 'float',
+    },
+    'specular_IOR': {
+        'use_parm': 'ior_useTexture',
+        'texture_parm': 'ior_texture',
+        'image_name': 'image_ior',
+        'signature': 'float',
+    },
+    'specular': {
+        'use_parm': 'reflect_useTexture',
+        'texture_parm': 'reflect_texture',
+        'image_name': 'image_specular',
+        'signature': 'float',
+    },
+    'coat': {
+        'use_parm': 'coat_useTexture',
+        'texture_parm': 'coat_texture',
+        'image_name': 'image_coat',
+        'signature': 'float',
+    },
+    'coat_roughness': {
+        'use_parm': 'coatrough_useTexture',
+        'texture_parm': 'coatrough_texture',
+        'image_name': 'image_coat_roughness',
+        'signature': 'float',
+    },
+    'transmission': {
+        'use_parm': 'transparency_useTexture',
+        'texture_parm': 'transparency_texture',
+        'image_name': 'image_transmission',
+        'signature': 'float',
+    },
+    'transmission_color': {
+        'use_parm': 'transcolor_useTexture',
+        'texture_parm': 'transcolor_texture',
+        'image_name': 'image_transmission_color',
+        'signature': 'color3',
+    },
+    'subsurface': {
+        'use_parm': 'sss_useTexture',
+        'texture_parm': 'sss_texture',
+        'image_name': 'image_subsurface',
+        'signature': 'float',
+    },
+    'subsurface_color': {
+        'use_parm': 'ssscolor_useTexture',
+        'texture_parm': 'ssscolor_texture',
+        'image_name': 'image_subsurface_color',
+        'signature': 'color3',
+    },
+    'emission_color': {
+        'use_parm': 'emitcolor_useTexture',
+        'texture_parm': 'emitcolor_texture',
+        'image_name': 'image_emission_color',
+        'signature': 'color3',
+    },
+    'opacity': {
+        'use_parm': 'opaccolor_useTexture',
+        'texture_parm': 'opaccolor_texture',
+        'image_name': 'image_opacity',
+        'signature': 'color3',
+    },
+}
+
+PRINCIPLED_NORMAL_INPUT = {
+    'enable_parm': 'baseBumpAndNormal_enable',
+    'type_parm': 'baseBumpAndNormal_type',
+    'texture_parm': 'baseNormal_texture',
+    'normalmap_name': 'normalmap_base',
+    'image_name': 'image_normal',
+}
+
+PRINCIPLED_DISPLACEMENT_INPUT = {
+    'enable_parm': 'dispTex_enable',
+    'texture_parm': 'dispTex_texture',
+    'scale_parm': 'dispTex_scale',
+    'displacement_name': 'principled_displacement',
+    'image_name': 'image_displacement',
+}
+
 REGULAR_NODE_TYPES_TO_GENERIC = {
     'arnold': {
         'hou_vop_nodes': {
@@ -54,23 +183,17 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'ND_standard_surface_surfaceshader': 'GENERIC::standard_surface',
             'ND_image_float': 'GENERIC::image',
             'ND_image_color3': 'GENERIC::image',
+            'ND_normalmap_vector3': 'GENERIC::normalmap',
             'ND_colorcorrect_color3': 'GENERIC::color_correct',
             'ND_range_float': 'GENERIC::range',
+            'ND_bump_vector3': 'GENERIC::displacement',
             'ND_displacement_float': 'GENERIC::displacement',
         },
     },
 
     'principledshader': {
         'hou_vop_nodes': {
-            'mtlxstandard_surface': 'GENERIC::standard_surface',
-            'mtlximage': 'GENERIC::image',
-            'mtlxnormalmap::2.0': 'GENERIC::normalmap',
-            'mtlxrange': 'GENERIC::range',
-            'mtlxcolorcorrect': 'GENERIC::color_correct',
-            'mtlxmix': 'GENERIC::mix_rgba',
-            # it can be mix layer or mix RGBA, need specific methods to handle those niche cases.
-            'mtlxdisplacement': 'GENERIC::displacement',
-            'subnetconnector': 'GENERIC::output_node',
+            PRINCIPLED_NATIVE_NODE_TYPE: 'GENERIC::standard_surface',
             'null': 'GENERIC::null',
         },
     },
@@ -191,6 +314,11 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'scale': 'scale',
         'out': 'displacement',
     },
+    'mtlxnormalmap:2.0': {
+        'in': 'in',
+        'scale': 'scale',
+        'out': 'out',
+    },
 
     # mtlx prims infoId:
     'ND_standard_surface_surfaceshader': {
@@ -242,6 +370,11 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'signature': 'signature',
         'file': 'filename',
     },
+    'ND_normalmap_vector3': {
+        'in': 'in',
+        'scale': 'scale',
+        'out': 'out',
+    },
     'ND_colorcorrect_color3': {
         'contrast': 'contrast',
         'contrastpivot': 'contrastpivot',
@@ -256,6 +389,11 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     'ND_displacement_float': {
         'displacement': 'displacement',
         'scale': 'scale',
+    },
+    'ND_bump_vector3': {
+        'in': 'displacement',
+        'scale': 'scale',
+        'out': 'displacement',
     },
 
 
@@ -402,27 +540,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 
 
     # principled shader 2.0:
-    'principledshader:2.0': {
-        'basecolor': 'base_color',
-        'metallic': 'metalness',
-        'rough': 'specular_roughness',
-        'ior': 'specular_IOR',
-        'reflect': 'specular',
-        'difftrans': 'transmission',
-        'emission': 'emission',
-        'opaccolor': 'opacity',
-        'subsurface': 'subsurface',
-        'subtint': 'subsurface_color',
-        'basecolorr': 'base_colorr',
-        'basecolorg': 'base_colorg',
-        'basecolorb': 'base_colorb',
-        'sheen': 'sheen',
-        'sheencolor': 'sheen_color',
-        'coat': 'coat',
-        'coatrough': 'coat_roughness',
-        'coatior': 'coat_IOR',
-        'coatcolor': 'coat_color',
-    }
+    'principledshader:2.0': PRINCIPLED_SHADER_PARAM_ALIASES,
 }
 
 FORMAT_CHOICES = {

@@ -35,6 +35,7 @@ class USDMaterialRecreator:
         )
         self.material_map = self.graph_builder.material_map
         self.old_new_map = self.graph_builder.old_new_map
+        self.output_old_new_map = self.graph_builder.output_old_new_map
         self.created_out_primpaths = self.graph_builder.created_out_primpaths
 
     def create_material_prim(self):
@@ -75,6 +76,7 @@ class USDMaterialRecreator:
         self.graph_builder.target_renderer = self.target_renderer
         self.graph_builder.material_map = self.material_map
         self.graph_builder.old_new_map = self.old_new_map
+        self.graph_builder.output_old_new_map = self.output_old_new_map
         self.graph_builder.created_out_primpaths = self.created_out_primpaths
 
     def _texture_factory(self):

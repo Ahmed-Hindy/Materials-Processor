@@ -185,7 +185,7 @@ class USDTraverser:
         if attribute_val is None:
             return None
         elif isinstance(attribute_val, (Gf.Vec2f, Gf.Vec2d, Gf.Vec3f, Gf.Vec3d, Gf.Vec4f, Gf.Vec4d)):
-            return tuple(attribute_val)
+            return list(attribute_val)
         elif isinstance(attribute_val, Sdf.AssetPath):
             # you could also use attribute_val.resolvedPath if you prefer
             return attribute_val.path

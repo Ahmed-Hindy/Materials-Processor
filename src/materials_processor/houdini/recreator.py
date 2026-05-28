@@ -3,7 +3,13 @@
 import logging
 from typing import List
 
-from materials_processor.mappings import REGULAR_PARAM_NAMES_TO_GENERIC, convert_generic
+from materials_processor.mappings import (
+    PRINCIPLED_DISPLACEMENT_INPUT,
+    PRINCIPLED_NORMAL_INPUT,
+    PRINCIPLED_TEXTURE_INPUTS,
+    REGULAR_PARAM_NAMES_TO_GENERIC,
+    convert_generic,
+)
 from materials_processor.models import NodeInfo, NodeParameter
 from materials_processor.houdini.traverser import hou
 
@@ -197,13 +203,13 @@ class NodeRecreator:
 
         node_material_builder = matnet.createNode('principledshader::2.0', material_name)
         output_nodes = {
-            'GENERIC::output_surface': {'node': None,
-                                        'node_name': None,
-                                        'node_path': None,
+            'GENERIC::output_surface': {'node': node_material_builder,
+                                        'node_name': node_material_builder.name(),
+                                        'node_path': node_material_builder.path(),
                                         },
-            'GENERIC::output_displacement': {'node': None,
-                                             'node_name': None,
-                                             'node_path': None,
+            'GENERIC::output_displacement': {'node': node_material_builder,
+                                             'node_name': node_material_builder.name(),
+                                             'node_path': node_material_builder.path(),
                                              }
         }
         return node_material_builder, output_nodes
@@ -263,10 +269,6 @@ class NodeRecreator:
         """
         Create or reuse output nodes in the target context.
         """
-        if self.target_renderer == 'principledshader':
-            logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
-            return
-
         renderer_output_connections = OUTPUT_CONNECTIONS_INDEX_MAP.get(self.target_renderer, {})
         for generic_output_type in list(self.new_output_connections):
             if generic_output_type in self.orig_output_connections:
@@ -275,7 +277,7 @@ class NodeRecreator:
             output_info = self.new_output_connections[generic_output_type]
             output_node = output_info.get('node')
             output_index = renderer_output_connections.get(generic_output_type)
-            if output_node is not None and output_index is not None:
+            if self.target_renderer != 'principledshader' and output_node is not None and output_index is not None:
                 output_node.setInput(output_index, None)
             self.new_output_connections.pop(generic_output_type)
 
@@ -286,10 +288,12 @@ class NodeRecreator:
             #                             'connected_node_name': 'surface_output',
             #                             'connected_input_index': 0}
 
-            new_output_nodename = self.new_output_connections.get(generic_output_type, {}).get('node_name')
-            new_output_nodepath = f"{self.material_node.path()}/{new_output_nodename}"
-
-            created_output_node: hou.VopNode = hou.node(new_output_nodepath)
+            if self.target_renderer == 'principledshader':
+                created_output_node = self.material_node
+            else:
+                new_output_nodename = self.new_output_connections.get(generic_output_type, {}).get('node_name')
+                new_output_nodepath = f"{self.material_node.path()}/{new_output_nodename}"
+                created_output_node: hou.VopNode = hou.node(new_output_nodepath)
 
 
             self.old_new_node_map[output_connection.node_path] = {'node_name': created_output_node.name(),
@@ -363,8 +367,11 @@ class NodeRecreator:
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
 
             if not parm_new_name:
-                logger.warning("No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.", param.generic_name, node_type)
-                continue
+                if node_type == 'principledshader::2.0' and node.parmTuple(param.generic_name) is not None:
+                    parm_new_name = [param.generic_name]
+                else:
+                    logger.warning("No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.", param.generic_name, node_type)
+                    continue
 
             parm_new_name = parm_new_name[0]
             hou_parm = node.parmTuple(parm_new_name)
@@ -373,11 +380,14 @@ class NodeRecreator:
                 logger.warning("Parm '%s' not found on node '%s'.", parm_new_name, node.path())
                 continue
 
-            if not isinstance(param.value, tuple):
-                param.value = (param.value,)
+            value = param.value
+            if isinstance(value, list):
+                value = tuple(value)
+            elif not isinstance(value, tuple):
+                value = (value,)
 
             try:
-                hou_parm.set(param.value)
+                hou_parm.set(value)
             except Exception as e:
                 logger.error("Failed to set parameter '%s' for node '%s': %s", param.generic_name, node.path(), e)
                 continue
@@ -451,13 +461,116 @@ class NodeRecreator:
             # Recursively create child nodes
             self._create_nodes_recursive(node_info.children_list, processed_nodes)
 
+    @staticmethod
+    def _nodeinfo_parameter_value(nodeinfo, generic_name):
+        for parameter in nodeinfo.parameters or []:
+            if parameter.generic_name == generic_name:
+                value = parameter.value
+                if isinstance(value, (list, tuple)) and len(value) == 1:
+                    return value[0]
+                return value
+        return None
+
+    def _set_principled_parm(self, parm_name, value):
+        parm_tuple = self.material_node.parmTuple(parm_name)
+        if parm_tuple is None or value is None:
+            return False
+        if not isinstance(value, (list, tuple)):
+            value = (value,)
+        try:
+            parm_tuple.set(value)
+            return True
+        except Exception as exc:
+            logger.warning("Failed to set Principled parameter '%s' to '%s': %s", parm_name, value, exc)
+            return False
+
+    def _set_principled_texture(self, texture_info, filename):
+        if not filename:
+            return
+        self._set_principled_parm(texture_info['use_parm'], 1)
+        self._set_principled_parm(texture_info['texture_parm'], filename)
+
+    def _find_nodeinfo(self, node_path):
+        for nodeinfo in self._iter_nodeinfos():
+            if nodeinfo.node_path == node_path:
+                return nodeinfo
+        return None
+
+    def _find_upstream_image_nodeinfo(self, node_path, visited=None):
+        if visited is None:
+            visited = set()
+        if not node_path or node_path in visited:
+            return None
+        visited.add(node_path)
+
+        nodeinfo = self._find_nodeinfo(node_path)
+        if nodeinfo is None:
+            return None
+        if nodeinfo.node_type == 'GENERIC::image':
+            return nodeinfo
+
+        for candidate in self._iter_nodeinfos():
+            for connection in candidate.connection_info.values():
+                if connection.output.node_path != node_path:
+                    continue
+                image_nodeinfo = self._find_upstream_image_nodeinfo(connection.input.node_path, visited)
+                if image_nodeinfo is not None:
+                    return image_nodeinfo
+        return None
+
+    def _apply_principled_texture_connections(self, surface_nodeinfo):
+        for candidate in self._iter_nodeinfos():
+            for connection in candidate.connection_info.values():
+                if connection.output.node_path != surface_nodeinfo.node_path:
+                    continue
+
+                texture_info = PRINCIPLED_TEXTURE_INPUTS.get(connection.output.parm_name)
+                if texture_info:
+                    image_nodeinfo = self._find_upstream_image_nodeinfo(connection.input.node_path)
+                    filename = self._nodeinfo_parameter_value(image_nodeinfo, 'filename') if image_nodeinfo else None
+                    self._set_principled_texture(texture_info, filename)
+                    continue
+
+                if connection.output.parm_name == 'normal':
+                    image_nodeinfo = self._find_upstream_image_nodeinfo(connection.input.node_path)
+                    filename = self._nodeinfo_parameter_value(image_nodeinfo, 'filename') if image_nodeinfo else None
+                    if filename:
+                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT['enable_parm'], 1)
+                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT['type_parm'], 'normal')
+                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT['texture_parm'], filename)
+
+    def _apply_principled_displacement_output(self):
+        displacement_output = self.orig_output_connections.get('GENERIC::output_displacement')
+        if not displacement_output:
+            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT['enable_parm'], 0)
+            return
+
+        image_nodeinfo = self._find_upstream_image_nodeinfo(displacement_output.connected_node_path)
+        filename = self._nodeinfo_parameter_value(image_nodeinfo, 'filename') if image_nodeinfo else None
+        if filename:
+            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT['enable_parm'], 1)
+            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT['texture_parm'], filename)
+
+    def _apply_principled_shader_data(self, nodeinfo_list):
+        surface_nodeinfo = next(
+            (nodeinfo for nodeinfo in self._iter_nodeinfos(nodeinfo_list) if nodeinfo.node_type == 'GENERIC::standard_surface'),
+            None,
+        )
+        if surface_nodeinfo is None:
+            logger.warning("No generic standard surface found for Principled recreation.")
+            return False
+
+        self._apply_parameters(self.material_node, surface_nodeinfo.parameters)
+        self._apply_principled_texture_connections(surface_nodeinfo)
+        self._apply_principled_displacement_output()
+        return True
+
     def create_shader_nodes(self, nested_nodes_info):
         """
         Create nodes in the target context.
         """
         if self.target_renderer == 'principledshader':
-            logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
-            return
+            return self._apply_principled_shader_data(nested_nodes_info)
 
         self._create_nodes_recursive(nested_nodes_info)
         return True

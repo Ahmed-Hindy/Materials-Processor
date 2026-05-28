@@ -1,0 +1,14 @@
+{
+    "surface": {
+        "connected_input_datatype": "surface",
+        "connected_input_index": 0,
+        "connected_input_name": "surface",
+        "connected_node_name": "principledshader",
+        "connected_node_path": "/mat/principledshader",
+        "connected_output_datatype": "surface",
+        "connected_output_index": 0,
+        "connected_output_name": "surface",
+        "node_name": "principledshader",
+        "node_path": "/mat/principledshader"
+    }
+}
