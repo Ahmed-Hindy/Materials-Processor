@@ -6,6 +6,9 @@ import pytest
 
 from materials_processor import ui
 from materials_processor.mappings import FORMAT_CHOICES
+from materials_processor.ui import main_window
+from materials_processor.ui.state import ConversionUiState
+from materials_processor.ui.widgets import split_dropped_node_paths
 
 
 class _Signal:
@@ -258,7 +261,18 @@ def test_available_format_choices_includes_renderers_when_env_is_present(monkeyp
 def test_split_dropped_node_paths_accepts_tabs_newlines_and_deduplicates():
     text = "/mat/a\t/mat/b\n/mat/a\r\n  /mat/c  "
 
+    assert split_dropped_node_paths(text) == ["/mat/a", "/mat/b", "/mat/c"]
     assert ui._split_dropped_node_paths(text) == ["/mat/a", "/mat/b", "/mat/c"]
+
+
+def test_conversion_ui_state_defaults_are_empty():
+    state = ConversionUiState()
+
+    assert state.selected_node_paths == []
+    assert state.target_format is None
+    assert state.converted_paths == []
+    assert state.failed_paths == []
+    assert state.is_running is False
 
 
 def test_load_hou_can_be_optional_outside_houdini():
@@ -275,6 +289,7 @@ def test_show_my_main_window_reuses_houdini_session_singleton(monkeypatch):
     second_window = ui.show_my_main_window("pyside6")
 
     assert first_window is second_window
+    assert getattr(hou.session, main_window.WINDOW_SESSION_NAME) is first_window
     assert getattr(hou.session, ui._WINDOW_SESSION_NAME) is first_window
     assert first_window.visible_count == 2
     assert first_window.raised_count == 1

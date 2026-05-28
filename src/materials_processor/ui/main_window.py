@@ -1,4 +1,4 @@
-"""Cross-platform Qt interface for Houdini material conversion."""
+"""Main Material Processor Qt window."""
 
 from __future__ import annotations
 
@@ -9,12 +9,19 @@ from importlib import reload
 
 from materials_processor.logging_config import setup_file_logging
 from materials_processor.mappings import FORMAT_CHOICES
-from materials_processor.qt import QtBinding, enum_value, load_qt_binding
+from materials_processor.qt import QtBinding, load_qt_binding
+from materials_processor.ui.logging_handler import TextEditLogger
+from materials_processor.ui.state import ConversionUiState
+from materials_processor.ui.widgets import (
+    create_node_drop_list_class,
+    dialog_button_namespace,
+    extended_selection_mode,
+)
 
 logger = logging.getLogger(__name__)
 setup_file_logging()
 
-_WINDOW_SESSION_NAME = "_materials_processor_window"
+WINDOW_SESSION_NAME = "_materials_processor_window"
 
 
 def load_hou(required: bool = True):
@@ -45,91 +52,12 @@ def available_format_choices() -> dict[str, str]:
     }
 
 
-class _TextEditLogger(logging.Handler):
-    """Logging handler that appends records into a Qt text edit."""
-
-    def __init__(self, log_area):
-        super().__init__()
-        self.log_area = log_area
-
-    def emit(self, record):
-        message = self.format(record)
-        self.log_area.append(message)
-
-
-def _split_dropped_node_paths(text: str) -> list[str]:
-    """Parse Houdini's dropped node path text into unique paths."""
-    paths: list[str] = []
-    for raw_path in text.replace("\r", "\n").replace("\t", "\n").split("\n"):
-        path = raw_path.strip()
-        if path and path not in paths:
-            paths.append(path)
-    return paths
-
-
-def _create_window_classes(qt: QtBinding, hou_module):
+def create_window_classes(qt: QtBinding, hou_module):
     """Create Qt classes after a binding has been loaded."""
-    QtCore = qt.core
     QtWidgets = qt.widgets
-    delete_key = enum_value(QtCore, "Key", "Key_Delete")
-    move_action = enum_value(QtCore, "DropAction", "MoveAction")
-    match_exactly = enum_value(QtCore, "MatchFlag", "MatchExactly")
-    if hasattr(QtWidgets.QAbstractItemView, "SelectionMode"):
-        selection_mode = QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
-    else:
-        selection_mode = QtWidgets.QAbstractItemView.ExtendedSelection
-    if hasattr(QtWidgets.QDialogButtonBox, "StandardButton"):
-        dialog_button = QtWidgets.QDialogButtonBox.StandardButton
-    else:
-        dialog_button = QtWidgets.QDialogButtonBox
-
-    class NodeDropList(QtWidgets.QListWidget):
-        """List widget that accepts Houdini node paths by drag and drop."""
-
-        def __init__(self, parent=None):
-            super().__init__(parent)
-            self.setAcceptDrops(True)
-            self.setDragEnabled(True)
-            self.setDefaultDropAction(move_action)
-
-        def dragEnterEvent(self, event):
-            if event.mimeData().hasText():
-                event.acceptProposedAction()
-                return
-            event.ignore()
-
-        def dragMoveEvent(self, event):
-            if event.mimeData().hasText():
-                event.acceptProposedAction()
-                return
-            event.ignore()
-
-        def dropEvent(self, event):
-            mime = event.mimeData()
-            if not mime.hasText():
-                logger.warning("Unsupported drag payload: %s", mime.formats())
-                event.ignore()
-                return
-
-            for node_path in _split_dropped_node_paths(mime.text()):
-                if self.findItems(node_path, match_exactly):
-                    logger.info("Node already in list: %s", node_path)
-                    continue
-                self.addItem(node_path)
-                logger.info("Node dropped: %s", node_path)
-            event.acceptProposedAction()
-
-        def keyPressEvent(self, event):
-            if event.key() == delete_key:
-                for item in self.selectedItems():
-                    logger.info("Node deleted: %s", item.text())
-                    self.takeItem(self.row(item))
-                return
-            super().keyPressEvent(event)
-
-        def paths(self) -> list[str]:
-            """Return all listed node paths."""
-            return [self.item(index).text() for index in range(self.count())]
+    NodeDropList = create_node_drop_list_class(qt)
+    selection_mode = extended_selection_mode(qt)
+    dialog_button = dialog_button_namespace(qt)
 
     class PreferencesDialog(QtWidgets.QDialog):
         """Small preferences dialog for session-local UI settings."""
@@ -172,6 +100,7 @@ def _create_window_classes(qt: QtBinding, hou_module):
             self._commands = None
             self._format_names: list[str] = []
             self.preferences = {"log_level": "INFO"}
+            self.state = ConversionUiState()
 
             self._build_ui()
             self._configure_logging()
@@ -231,7 +160,7 @@ def _create_window_classes(qt: QtBinding, hou_module):
             self.logger = logging.getLogger("materials_processor")
             self.logger.setLevel(logging.INFO)
 
-            self._qt_handler = _TextEditLogger(self.log_area)
+            self._qt_handler = TextEditLogger(self.log_area)
             self._qt_handler.setFormatter(
                 logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
             )
@@ -268,52 +197,60 @@ def _create_window_classes(qt: QtBinding, hou_module):
 
         def run(self):
             """Convert all listed materials to the selected renderer."""
-            selected_paths = self.node_list.paths()
-            if not selected_paths:
+            self.state.selected_node_paths = self.node_list.paths()
+            self.state.target_format = self.current_target_format()
+            self.state.converted_paths = []
+            self.state.failed_paths = []
+
+            if not self.state.selected_node_paths:
                 self.logger.warning("No material nodes selected.")
                 return
 
-            target_format = self.current_target_format()
-            if not target_format:
+            if not self.state.target_format:
                 self.logger.warning("No target renderer selected.")
                 return
 
             commands = self._load_commands()
+            self.state.is_running = True
             self.convert_button.setEnabled(False)
-            converted_paths: list[str] = []
-            failed_paths: list[str] = []
 
-            self.logger.info("Converting %d material(s) to %s.", len(selected_paths), target_format)
+            self.logger.info(
+                "Converting %d material(s) to %s.",
+                len(self.state.selected_node_paths),
+                self.state.target_format,
+            )
             try:
-                for node_path in selected_paths:
+                for node_path in self.state.selected_node_paths:
                     node = self._node_from_path(node_path)
                     if node is None:
-                        failed_paths.append(node_path)
+                        self.state.failed_paths.append(node_path)
                         continue
 
                     try:
-                        result = commands.run(node, node.parent(), target_format=target_format)
+                        result = commands.run(node, node.parent(), target_format=self.state.target_format)
                     except Exception:
-                        self.logger.exception("Error converting node %s to %s.", node_path, target_format)
-                        failed_paths.append(node_path)
+                        self.logger.exception("Error converting node %s to %s.", node_path, self.state.target_format)
+                        self.state.failed_paths.append(node_path)
                         continue
 
                     if result is False:
                         self.logger.error("Conversion failed for node %s.", node_path)
-                        failed_paths.append(node_path)
+                        self.state.failed_paths.append(node_path)
                         continue
 
-                    converted_paths.append(node_path)
-                    self.logger.info("Converted node %s to %s.", node_path, target_format)
+                    self.state.converted_paths.append(node_path)
+                    self.logger.info("Converted node %s to %s.", node_path, self.state.target_format)
             finally:
+                self.state.is_running = False
                 self.convert_button.setEnabled(bool(self._format_names))
 
-            if converted_paths and not failed_paths:
+            if self.state.converted_paths and not self.state.failed_paths:
                 self.node_list.clear()
-                self.statusBar().showMessage(f"Converted {len(converted_paths)} material(s).")
+                self.statusBar().showMessage(f"Converted {len(self.state.converted_paths)} material(s).")
             else:
                 self.statusBar().showMessage(
-                    f"Converted {len(converted_paths)} material(s), {len(failed_paths)} failed."
+                    f"Converted {len(self.state.converted_paths)} material(s), "
+                    f"{len(self.state.failed_paths)} failed."
                 )
 
         def show_about_dialog(self):
@@ -336,18 +273,12 @@ def _create_window_classes(qt: QtBinding, hou_module):
                 self.logger.removeHandler(self._qt_handler)
                 self._qt_handler.close()
                 self._qt_handler = None
-            session_window = getattr(hou_module.session, _WINDOW_SESSION_NAME, None)
+            session_window = getattr(hou_module.session, WINDOW_SESSION_NAME, None)
             if session_window is self:
-                setattr(hou_module.session, _WINDOW_SESSION_NAME, None)
+                setattr(hou_module.session, WINDOW_SESSION_NAME, None)
             super().closeEvent(event)
 
     return MaterialProcessorWindow, NodeDropList, PreferencesDialog
-
-
-def create_main_window(parent=None, qt_binding: str | None = None, hou_module=None):
-    """Create a Material Processor window."""
-    MaterialProcessorWindow, _, _ = load_ui_classes(qt_binding=qt_binding, hou_module=hou_module)
-    return MaterialProcessorWindow(parent)
 
 
 def load_ui_classes(qt_binding: str | None = None, hou_module=None):
@@ -355,7 +286,13 @@ def load_ui_classes(qt_binding: str | None = None, hou_module=None):
     qt = load_qt_binding(qt_binding)
     if hou_module is None:
         hou_module = load_hou(required=True)
-    return _create_window_classes(qt, hou_module)
+    return create_window_classes(qt, hou_module)
+
+
+def create_main_window(parent=None, qt_binding: str | None = None, hou_module=None):
+    """Create a Material Processor window."""
+    MaterialProcessorWindow, _, _ = load_ui_classes(qt_binding=qt_binding, hou_module=hou_module)
+    return MaterialProcessorWindow(parent)
 
 
 def show_my_main_window(qt_binding: str | None = None):
@@ -366,7 +303,7 @@ def show_my_main_window(qt_binding: str | None = None):
     if app is None:
         app = qt.widgets.QApplication([])
 
-    existing = getattr(hou_module.session, _WINDOW_SESSION_NAME, None)
+    existing = getattr(hou_module.session, WINDOW_SESSION_NAME, None)
     if existing is not None:
         existing.show()
         existing.raise_()
@@ -375,22 +312,7 @@ def show_my_main_window(qt_binding: str | None = None):
 
     parent = hou_module.ui.mainQtWindow() if hasattr(hou_module, "ui") else None
     window = create_main_window(parent=parent, qt_binding=qt.api, hou_module=hou_module)
-    setattr(hou_module.session, _WINDOW_SESSION_NAME, window)
+    setattr(hou_module.session, WINDOW_SESSION_NAME, window)
     window.show()
     logger.info("Material Processor window displayed.")
     return window
-
-
-def __getattr__(name: str):
-    """Lazily expose historical Qt class names."""
-    if name in {"MyMainWindow", "MaterialProcessorWindow", "NodeListWidget", "NodeDropList", "PreferencesDialog"}:
-        MaterialProcessorWindow, NodeDropList, PreferencesDialog = load_ui_classes()
-        aliases = {
-            "MyMainWindow": MaterialProcessorWindow,
-            "MaterialProcessorWindow": MaterialProcessorWindow,
-            "NodeListWidget": NodeDropList,
-            "NodeDropList": NodeDropList,
-            "PreferencesDialog": PreferencesDialog,
-        }
-        return aliases[name]
-    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
