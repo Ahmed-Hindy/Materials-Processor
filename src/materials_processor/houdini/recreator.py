@@ -267,6 +267,18 @@ class NodeRecreator:
             logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
             return
 
+        renderer_output_connections = OUTPUT_CONNECTIONS_INDEX_MAP.get(self.target_renderer, {})
+        for generic_output_type in list(self.new_output_connections):
+            if generic_output_type in self.orig_output_connections:
+                continue
+
+            output_info = self.new_output_connections[generic_output_type]
+            output_node = output_info.get('node')
+            output_index = renderer_output_connections.get(generic_output_type)
+            if output_node is not None and output_index is not None:
+                output_node.setInput(output_index, None)
+            self.new_output_connections.pop(generic_output_type)
+
         for generic_output_type, output_connection in self.orig_output_connections.items():
             # e.g. generic_output_type = "GENERIC::output_surface"
             # e.g. output_info         = {'node_path': '/mat/material_mtlx_ORIG/surface_output',
@@ -290,6 +302,7 @@ class NodeRecreator:
                                                                 'node_name': created_output_node.name(),
                                                                 'node_path': created_output_node.path(),
                                                                 'connected_node_name': output_connection.connected_node_name,
+                                                                'connected_node_path': output_connection.connected_node_path,
                                                                 'connected_input_index': output_connection.connected_input_index,
                                                                 'connected_input_name': output_connection.connected_input_name,
                                                                 'connected_output_name': output_connection.connected_output_name,
@@ -449,6 +462,68 @@ class NodeRecreator:
         self._create_nodes_recursive(nested_nodes_info)
         return True
 
+    def _get_recreated_output_source(self, output_info):
+        """
+        Resolve the recreated source node that should drive an output.
+
+        Args:
+            output_info (dict): Output connection metadata copied from the source material.
+
+        Returns:
+            hou.Node | None: The recreated source node when it can be found.
+        """
+        connected_node_path = output_info.get('connected_node_path')
+        if connected_node_path:
+            new_node_path = self.old_new_node_map.get(connected_node_path, {}).get('node_path')
+            if new_node_path:
+                node = hou.node(new_node_path)
+                if node:
+                    return node
+                logger.warning("Mapped output source '%s' does not exist.", new_node_path)
+
+        connected_node_name = output_info.get('connected_node_name')
+        if not connected_node_name:
+            return None
+
+        node = self.material_node.node(connected_node_name)
+        if not node:
+            logger.warning("Output source node '%s' was not recreated.", connected_node_name)
+        return node
+
+    def _connect_mtlx_displacement_output(self, output_node, output_index, source_node, source_output_name):
+        """
+        Route an input displacement signal through the target MTLX displacement node.
+
+        Args:
+            output_node (hou.Node): The MTLX displacement subnet connector.
+            output_index (int): The connector input index to wire.
+            source_node (hou.Node): The recreated node that provides displacement data.
+            source_output_name (str): The source output socket to preserve.
+
+        Returns:
+            bool: True if the target displacement output was connected successfully.
+        """
+        displacement_node = self.material_node.node('mtlxdisplacement')
+        if displacement_node is None:
+            displacement_node = self.material_node.createNode('mtlxdisplacement', 'mtlxdisplacement')
+
+        if source_node != displacement_node:
+            connected = self._connect_pair(
+                src_node=source_node,
+                dest_node=displacement_node,
+                src_parm=source_output_name,
+                dest_parm='displacement',
+            )
+            if not connected:
+                return False
+
+        return self._connect_pair(
+            src_node=displacement_node,
+            dest_node=output_node,
+            src_parm='out',
+            dest_parm='suboutput',
+            dest_idx=output_index,
+        )
 
     def set_output_connections(self):
         """
@@ -484,11 +559,13 @@ class NodeRecreator:
         # print(f"DEBUG: self.new_output_connections: {pprint.pformat(self.new_output_connections, sort_dicts=False)}")
 
         for generic_output_type, output_info in self.new_output_connections.items():
-            output_index = renderer_output_connections[generic_output_type]
-            output_node = output_info['node']
-
             if generic_output_type not in renderer_output_connections:
                 raise KeyError(f"{generic_output_type=} not found in {renderer_output_connections=}")
+
+            output_index = renderer_output_connections[generic_output_type]
+            output_node = output_info['node']
+            if output_node is None:
+                continue
 
             # e.g. generic_output_type= 'GENERIC::output_surface'
             # e.g. self.orig_output_connections: {'GENERIC::output_surface': {'node_name': 'principledshader',
@@ -512,23 +589,39 @@ class NodeRecreator:
             #       'connected_input_index': 0
             #       }
 
-            # Find the connected node info from the nodeinfo_list output connections
-            new_connected_node_info = self.new_output_connections[generic_output_type]
-            # print(f"DEBUG: new_connected_node_info: {pprint.pformat(new_connected_node_info, sort_dicts=False)}")
-
-            if not new_connected_node_info:
+            source_node = self._get_recreated_output_source(output_info)
+            if not source_node:
+                logger.warning("Connections for node:'%s' not found!", output_info['node_name'])
+                continue
+            if source_node.type().name() == 'null':
+                logger.warning("Ignoring Output connections from input null node: '%s'", output_info['node_name'])
                 continue
 
-            new_connected_node: hou.VopNode = self.material_node.node(new_connected_node_info.get('connected_node_name'))
-            if not new_connected_node:
-                logger.warning("Connections for node:'%s' not found!", new_connected_node_info['node_name'])
-                continue
-            if new_connected_node.type().name() == 'null':
-                logger.warning("Ignoring Output connections from input null node: '%s'", new_connected_node_info['node_name'])
+            source_output_name = output_info.get('connected_output_name') or ''
+            if self.target_renderer == 'mtlx' and generic_output_type == 'GENERIC::output_displacement':
+                self._connect_mtlx_displacement_output(
+                    output_node=output_node,
+                    output_index=output_index,
+                    source_node=source_node,
+                    source_output_name=source_output_name,
+                )
                 continue
 
-            logger.info("Setting input for %s[%s] to '%s[0]' for output type: '%s'", output_node.path(), output_index, new_connected_node.path(), generic_output_type)
-            output_node.setInput(output_index, new_connected_node)
+            logger.info(
+                "Setting input for %s[%s] to '%s[%s]' for output type: '%s'",
+                output_node.path(),
+                output_index,
+                source_node.path(),
+                source_output_name or 0,
+                generic_output_type,
+            )
+            self._connect_pair(
+                src_node=source_node,
+                dest_node=output_node,
+                src_parm=source_output_name,
+                dest_parm=output_info.get('connected_input_name') or '',
+                dest_idx=output_index,
+            )
 
         return True
 
@@ -634,7 +727,7 @@ class NodeRecreator:
             dest_parm (str, Optional): The destination parameter name that will be connected to the src_node, if not provided then use dest_idx
 
         """
-        if not dest_idx:
+        if dest_idx is None:
             dest_idx = 0
             dest_idx_by_name = dest_node.inputIndex(dest_parm)
             if dest_idx_by_name not in [-1, -999]:
@@ -642,7 +735,7 @@ class NodeRecreator:
             else:
                 logger.warning("dest: '%s' has no parm: '%s', using provided index: %s.", dest_node.name(), dest_parm, dest_idx)
 
-        if not src_idx:
+        if src_idx is None:
             src_idx = 0
             src_idx_by_name = src_node.outputIndex(src_parm)
             if src_idx_by_name not in [-1, -999]:
