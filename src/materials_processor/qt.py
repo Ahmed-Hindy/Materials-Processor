@@ -8,7 +8,6 @@ from dataclasses import dataclass
 from typing import Any
 
 QT_BACKEND_ENV = "QT_BACKEND"
-QT_BINDING_ENV = "MATERIALS_PROCESSOR_QT_API"
 _BACKEND_ORDER = ("pyside6", "pyside2")
 _BACKEND_MODULES = {
     "pyside6": "PySide6",
@@ -28,11 +27,7 @@ class QtBinding:
 def binding_candidates(preferred: str | None = None) -> list[tuple[str, str]]:
     """Return Qt binding import candidates in preferred order."""
     requested = (preferred or "").lower().replace("-", "")
-    env_requested = (
-        os.environ.get(QT_BACKEND_ENV)
-        or os.environ.get(QT_BINDING_ENV)
-        or ""
-    ).lower().replace("-", "")
+    env_requested = (os.environ.get(QT_BACKEND_ENV) or "").lower().replace("-", "")
     ordered: list[tuple[str, str]] = []
     if requested in _BACKEND_MODULES:
         ordered.append((_BACKEND_MODULES[requested], requested))
