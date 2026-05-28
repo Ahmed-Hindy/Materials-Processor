@@ -112,6 +112,49 @@ def _detect_mtlx_output_nodes(material_node):
     return output_nodes
 
 
+def _redshift_terminal_output_nodes(redshift_output):
+    """Return surface/displacement outputs connected to a Redshift terminal node."""
+    output_nodes = {}
+    connections = redshift_output.inputConnections()
+    for connection in connections:
+        connected_input = connection.inputNode()
+        connected_input_index = connection.outputIndex()
+        connected_input_name = connection.outputName()
+        connected_input_datatype = connection.inputDataType()
+        connected_output_index = connection.inputIndex()
+        connected_output_name = connection.inputName()
+        connected_output_datatype = connection.outputDataType()
+        if connected_output_index == 0:
+            output_nodes['surface'] = {
+                'node_name': redshift_output.name(),
+                'node_path': redshift_output.path(),
+                'connected_node_name': connected_input.name(),
+                'connected_node_path': connected_input.path(),
+                'connected_input_index': connected_input_index,
+                'connected_input_name': connected_input_name,
+                'connected_input_datatype': connected_input_datatype,
+                'connected_output_index': connected_output_index,
+                'connected_output_name': connected_output_name,
+                'connected_output_datatype': connected_output_datatype,
+                'generic_type': 'GENERIC::output_surface'
+            }
+        elif connected_output_index == 1:
+            output_nodes['displacement'] = {
+                'node_name': redshift_output.name(),
+                'node_path': redshift_output.path(),
+                'connected_node_name': connected_input.name(),
+                'connected_node_path': connected_input.path(),
+                'connected_input_index': connected_input_index,
+                'connected_input_name': connected_input_name,
+                'connected_input_datatype': connected_input_datatype,
+                'connected_output_index': connected_output_index,
+                'connected_output_name': connected_output_name,
+                'connected_output_datatype': connected_output_datatype,
+                'generic_type': 'GENERIC::output_displacement'
+            }
+    return output_nodes
+
+
 def _detect_redshift_vopnet_output_nodes(material_node):
     """
     Detect redshift_vopnet output nodes in the node tree.
@@ -130,46 +173,7 @@ def _detect_redshift_vopnet_output_nodes(material_node):
     if not redshift_output:
         raise Exception("No Output Node detected for 'redshift_vopnet' Material")
 
-    output_nodes = {}
-    connections = redshift_output.inputConnections()
-    for connection in connections:
-        connected_input = connection.inputNode()
-        connected_input_index = connection.outputIndex()
-        connected_input_name = connection.outputName()
-        connected_input_datatype = connection.inputDataType()
-        connected_output_index = connection.inputIndex()
-        connected_output_name = connection.inputName()
-        connected_output_datatype = connection.outputDataType()
-        if connected_output_index == 0:
-            output_nodes['surface'] = {
-                'node_name': redshift_output.name(),
-                'node_path': redshift_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_index': connected_output_index,
-                'connected_output_name': connected_output_name,
-                'connected_output_datatype': connected_output_datatype,
-
-                'generic_type': 'GENERIC::output_surface'
-            }
-        elif connected_output_index == 1:
-            output_nodes['displacement'] = {
-                'node_name': redshift_output.name(),
-                'node_path': redshift_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_index': connected_output_index,
-                'connected_output_name': connected_output_name,
-                'connected_output_datatype': connected_output_datatype,
-                'generic_type': 'GENERIC::output_displacement'
-            }
-    return output_nodes
+    return _redshift_terminal_output_nodes(redshift_output)
 
 
 def _detect_RsUsdMaterialbuilder_output_nodes(material_node):
@@ -184,51 +188,13 @@ def _detect_RsUsdMaterialbuilder_output_nodes(material_node):
     """
     redshift_output = None
     for child in material_node.children():
-        if child.type().name() == 'suboutput':
+        if child.type().name() == 'redshift_usd_material':
             redshift_output = child
             break
     if not redshift_output:
         raise Exception("No Output Node detected for 'rs usd materialbuilder' Material")
 
-    output_nodes = {}
-    connections = redshift_output.inputConnections()
-    for connection in connections:
-        connected_input = connection.inputNode()
-        connected_input_index = connection.outputIndex()
-        connected_input_name = connection.outputName()
-        connected_input_datatype = connection.inputDataType()
-        connected_output_index = connection.inputIndex()
-        connected_output_name = connection.inputName()
-        connected_output_datatype = connection.outputDataType()
-        if connected_output_index == 0:
-            output_nodes['surface'] = {
-                'node_name': redshift_output.name(),
-                'node_path': redshift_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_name': connected_output_name,
-                'connected_output_index': connected_output_index,
-                'connected_output_datatype': connected_output_datatype,
-                'generic_type': 'GENERIC::output_surface'
-            }
-        elif connected_output_index == 1:
-            output_nodes['displacement'] = {
-                'node_name': redshift_output.name(),
-                'node_path': redshift_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_name': connected_output_name,
-                'connected_output_index': connected_output_index,
-                'connected_output_datatype': connected_output_datatype,
-                'generic_type': 'GENERIC::output_displacement'
-            }
-    return output_nodes
+    return _redshift_terminal_output_nodes(redshift_output)
 
 
 def _detect_principled_output_nodes(material_node):

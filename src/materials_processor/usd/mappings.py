@@ -45,6 +45,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:normal_map',
             'mtlx': 'ND_normalmap_vector3',
+            'rs_usd_material_builder': 'redshift::BumpMap',
         },
     },
     'GENERIC::range': {

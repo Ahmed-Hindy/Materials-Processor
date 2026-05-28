@@ -133,6 +133,32 @@ PRINCIPLED_DISPLACEMENT_INPUT = {
     'image_name': 'image_displacement',
 }
 
+REDSHIFT_HOU_NODE_TYPES = {
+    'redshift::StandardMaterial': 'GENERIC::standard_surface',
+    'redshift::TextureSampler': 'GENERIC::image',
+    'redshift::BumpMap': 'GENERIC::normalmap',
+    'redshift::RSColorCorrection': 'GENERIC::color_correct',
+    'redshift::RSMathRange': 'GENERIC::range',
+    'redshift::RSColorRange': 'GENERIC::range',
+    'redshift::Displacement': 'GENERIC::displacement',
+    'redshift_material': 'GENERIC::output_node',
+    'redshift_usd_material': 'GENERIC::output_node',
+    'null': 'GENERIC::null',
+}
+
+REDSHIFT_USD_PRIM_TYPES = {
+    'redshift::StandardMaterial': 'GENERIC::standard_surface',
+    'redshift::TextureSampler': 'GENERIC::image',
+    'redshift::BumpMap': 'GENERIC::normalmap',
+    'redshift::Displacement': 'GENERIC::displacement',
+    'redshift::RSColorCorrection': 'GENERIC::color_correct',
+    'redshift::RSMathRange': 'GENERIC::range',
+    'redshift::RSColorRange': 'GENERIC::range',
+    'redshift_material': 'GENERIC::output_node',
+    'redshift_usd_material': 'GENERIC::shader_node',
+    'null': 'GENERIC::null',
+}
+
 REGULAR_NODE_TYPES_TO_GENERIC = {
     'arnold': {
         'hou_vop_nodes': {
@@ -198,23 +224,13 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         },
     },
 
+    'redshift_vopnet': {
+        'hou_vop_nodes': REDSHIFT_HOU_NODE_TYPES,
+    },
+
     'rs_usd_material_builder': {
-        'hou_vop_nodes': {
-            'redshift::StandardMaterial': 'GENERIC::standard_surface',
-            'redshift::TextureSampler': 'GENERIC::image',
-            'redshift::Displacement': 'GENERIC::displacement',
-            'redshift_material': 'GENERIC::output_node',
-            'redshift_usd_material': 'GENERIC::shader_node',
-            'null': 'GENERIC::null',
-        },
-        'usd_prims': {
-            'redshift::StandardMaterial': 'GENERIC::standard_surface',
-            'redshift::TextureSampler': 'GENERIC::image',
-            'redshift::Displacement': 'GENERIC::displacement',
-            'redshift_material': 'GENERIC::output_node',
-            'redshift_usd_material': 'GENERIC::shader_node',
-            'null': 'GENERIC::null',
-        },
+        'hou_vop_nodes': REDSHIFT_HOU_NODE_TYPES,
+        'usd_prims': REDSHIFT_USD_PRIM_TYPES,
     },
 
 }
@@ -421,7 +437,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'emission_weight': 'emission',
         'emission_color': 'emission_color',
         'opacity_color': 'opacity',
-        # 'normal': 'normal',  # unsupported
+        'bump_input': 'normal',
         'refr_thin_walled': 'thin_walled',
         'outColor': 'shader',
     },
@@ -459,10 +475,15 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'saturation': 'saturation',
         'outColor': 'rgb',
     },
-    'redshift:Displacement': {
-        'texMap': 'filename',
+    'redshift:BumpMap': {
+        'input': 'in',
         'scale': 'scale',
-        'outColor': 'rgb',
+        'out': 'out',
+    },
+    'redshift:Displacement': {
+        'texMap': 'displacement',
+        'scale': 'scale',
+        'out': 'out',
     },
 
 

@@ -729,6 +729,42 @@ class NodeRecreator:
             dest_idx=output_index,
         )
 
+    def _connect_redshift_displacement_output(self, output_node, output_index, source_node, source_output_name):
+        """
+        Route displacement signals through a Redshift Displacement node.
+
+        Redshift material terminals expect their displacement slot to receive
+        the vector output of redshift::Displacement. Sources like Arnold can
+        expose a raw texture/channel directly on the material output, so wrap
+        those signals before connecting the terminal.
+        """
+        if source_node is None:
+            return False
+
+        if source_node.type().name() == 'redshift::Displacement':
+            displacement_node = source_node
+        else:
+            displacement_node = self.material_node.node('redshift_displacement')
+            if displacement_node is None:
+                displacement_node = self.material_node.createNode('redshift::Displacement', 'redshift_displacement')
+
+            connected = self._connect_pair(
+                src_node=source_node,
+                dest_node=displacement_node,
+                src_parm=source_output_name,
+                dest_parm='texMap',
+            )
+            if not connected:
+                return False
+
+        return self._connect_pair(
+            src_node=displacement_node,
+            dest_node=output_node,
+            src_parm='out',
+            dest_parm='Displacement',
+            dest_idx=output_index,
+        )
+
     def set_output_connections(self):
         """
         Set connections for the output nodes in the recreated material.
@@ -815,6 +851,17 @@ class NodeRecreator:
             source_output_name = output_info.get('connected_output_name') or ''
             if self.target_renderer == 'mtlx' and generic_output_type == 'GENERIC::output_displacement':
                 self._connect_mtlx_displacement_output(
+                    output_node=output_node,
+                    output_index=output_index,
+                    source_node=source_node,
+                    source_output_name=source_output_name,
+                )
+                continue
+            if (
+                self.target_renderer == 'rs_usd_material_builder'
+                and generic_output_type == 'GENERIC::output_displacement'
+            ):
+                self._connect_redshift_displacement_output(
                     output_node=output_node,
                     output_index=output_index,
                     source_node=source_node,

@@ -12,19 +12,31 @@ from materials_processor.mappings import FORMAT_CHOICES
 
 ROOT = Path(__file__).resolve().parents[1]
 HIP_FILE = ROOT / "examples" / "hip" / "example_file_v001.hip"
+REDSHIFT_HIP_FILE = ROOT / "examples" / "hip" / "example_file_redshift_v001.hip"
 SRC_DIR = ROOT / "src"
 REPORT_PATH = ROOT / ".pytest_cache" / "materials_processor" / "hython_conversion_coverage.json"
+REDSHIFT_REPORT_PATH = ROOT / ".pytest_cache" / "materials_processor" / "hython_redshift_conversion_coverage.json"
 DEFAULT_HYTHON = Path(r"C:\Program Files\Side Effects Software\Houdini 21.0.631\bin\hython.exe")
 JSON_START = "===MATERIALS_PROCESSOR_HYTHON_JSON_START==="
 JSON_END = "===MATERIALS_PROCESSOR_HYTHON_JSON_END==="
 TARGET_RENDERERS = list(FORMAT_CHOICES)
-SAME_ENGINE_FIDELITY_TARGETS = ("arnold", "mtlx", "principledshader")
-OUTPUT_FIDELITY_TARGET_RENDERERS = ("arnold", "mtlx", "principledshader")
+SAME_ENGINE_FIDELITY_TARGETS = ("arnold", "mtlx", "principledshader", "rs_usd_material_builder")
+OUTPUT_FIDELITY_TARGET_RENDERERS = ("arnold", "mtlx", "principledshader", "rs_usd_material_builder")
 CROSS_ENGINE_FIDELITY_TARGETS = (
     ("arnold", "mtlx"),
+    ("arnold", "rs_usd_material_builder"),
     ("mtlx", "arnold"),
+    ("mtlx", "rs_usd_material_builder"),
     ("principledshader", "arnold"),
     ("principledshader", "mtlx"),
+    ("principledshader", "rs_usd_material_builder"),
+    ("redshift_vopnet", "arnold"),
+    ("redshift_vopnet", "mtlx"),
+    ("redshift_vopnet", "principledshader"),
+    ("redshift_vopnet", "rs_usd_material_builder"),
+    ("rs_usd_material_builder", "arnold"),
+    ("rs_usd_material_builder", "mtlx"),
+    ("rs_usd_material_builder", "principledshader"),
 )
 EXPECTED_TARGET_NODE_TYPES = {
     "principledshader": "principledshader::2.0",
@@ -56,6 +68,17 @@ MATERIAL_CASES = {
     },
     "/mat/principledshader_with_disp": {
         "material_type": "principledshader",
+        "standardized_output_keys": ["GENERIC::output_displacement", "GENERIC::output_surface"],
+    },
+}
+
+REDSHIFT_MATERIAL_CASES = {
+    "/mat/redshift_usd": {
+        "material_type": "rs_usd_material_builder",
+        "standardized_output_keys": ["GENERIC::output_displacement", "GENERIC::output_surface"],
+    },
+    "/mat/redshift_legacy": {
+        "material_type": "redshift_vopnet",
         "standardized_output_keys": ["GENERIC::output_displacement", "GENERIC::output_surface"],
     },
 }
@@ -103,8 +126,16 @@ def _resolve_hython():
     return None
 
 
-def _hython_script():
-    material_paths = json.dumps(list(MATERIAL_CASES))
+def _hython_script(
+    *,
+    hip_file=HIP_FILE,
+    material_cases=None,
+    same_engine_fidelity_targets=SAME_ENGINE_FIDELITY_TARGETS,
+    output_fidelity_target_renderers=OUTPUT_FIDELITY_TARGET_RENDERERS,
+    cross_engine_fidelity_targets=CROSS_ENGINE_FIDELITY_TARGETS,
+):
+    material_cases = material_cases or MATERIAL_CASES
+    material_paths = json.dumps(list(material_cases))
     return f"""
 import contextlib
 import io
@@ -123,10 +154,10 @@ from materials_processor.mappings import FORMAT_CHOICES
 from materials_processor.standardizer import NodeStandardizer
 
 EXPECTED_TARGET_NODE_TYPES = {json.dumps(EXPECTED_TARGET_NODE_TYPES, sort_keys=True)}
-SAME_ENGINE_FIDELITY_TARGETS = {json.dumps(SAME_ENGINE_FIDELITY_TARGETS)}
-OUTPUT_FIDELITY_TARGET_RENDERERS = {json.dumps(OUTPUT_FIDELITY_TARGET_RENDERERS)}
-CROSS_ENGINE_FIDELITY_TARGETS = {CROSS_ENGINE_FIDELITY_TARGETS!r}
-hou.hipFile.load({str(HIP_FILE)!r}, suppress_save_prompt=True, ignore_load_warnings=True)
+SAME_ENGINE_FIDELITY_TARGETS = {json.dumps(same_engine_fidelity_targets)}
+OUTPUT_FIDELITY_TARGET_RENDERERS = {json.dumps(output_fidelity_target_renderers)}
+CROSS_ENGINE_FIDELITY_TARGETS = {cross_engine_fidelity_targets!r}
+hou.hipFile.load({str(hip_file)!r}, suppress_save_prompt=True, ignore_load_warnings=True)
 
 mat_context = hou.node("/mat")
 principled_with_disp = mat_context.node("principledshader_with_disp")
@@ -489,7 +520,7 @@ summary = {{
 }}
 
 payload = {{
-    "hip_file": str({str(HIP_FILE)!r}),
+    "hip_file": str({str(hip_file)!r}),
     "material_paths": {material_paths},
     "target_renderers": list(FORMAT_CHOICES),
     "ingest": ingest_results,
@@ -512,13 +543,37 @@ def hython_material_results():
     if not hython:
         pytest.skip("hython is not available")
 
+    return _run_hython_probe(
+        hython=hython,
+        hip_file=HIP_FILE,
+        material_cases=MATERIAL_CASES,
+        report_path=REPORT_PATH,
+    )
+
+
+def _run_hython_probe(
+    *,
+    hython,
+    hip_file,
+    material_cases,
+    report_path,
+    same_engine_fidelity_targets=SAME_ENGINE_FIDELITY_TARGETS,
+    output_fidelity_target_renderers=OUTPUT_FIDELITY_TARGET_RENDERERS,
+    cross_engine_fidelity_targets=CROSS_ENGINE_FIDELITY_TARGETS,
+):
     env = os.environ.copy()
     env["PYTHONPATH"] = str(SRC_DIR)
     if os.environ.get("PYTHONPATH"):
         env["PYTHONPATH"] += os.pathsep + os.environ["PYTHONPATH"]
     completed = subprocess.run(
         [hython, "-"],
-        input=_hython_script(),
+        input=_hython_script(
+            hip_file=hip_file,
+            material_cases=material_cases,
+            same_engine_fidelity_targets=same_engine_fidelity_targets,
+            output_fidelity_target_renderers=output_fidelity_target_renderers,
+            cross_engine_fidelity_targets=cross_engine_fidelity_targets,
+        ),
         text=True,
         capture_output=True,
         env=env,
@@ -535,9 +590,43 @@ def hython_material_results():
         pytest.fail(f"hython output did not include JSON sentinels\n{output}")
 
     payload = json.loads(json_blob)
-    REPORT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    REPORT_PATH.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
     return payload
+
+
+def _hython_supports_node_type(hython, node_type):
+    script = (
+        "import hou; "
+        f"print('MATERIALS_PROCESSOR_NODE_TYPE_AVAILABLE=' + "
+        f"str({node_type!r} in hou.node('/mat').childTypeCategory().nodeTypes()))"
+    )
+    completed = subprocess.run(
+        [hython, "-c", script],
+        text=True,
+        capture_output=True,
+        timeout=120,
+        check=False,
+    )
+    return "MATERIALS_PROCESSOR_NODE_TYPE_AVAILABLE=True" in completed.stdout
+
+
+@pytest.fixture(scope="module")
+def hython_redshift_material_results():
+    hython = _resolve_hython()
+    if not hython:
+        pytest.skip("hython is not available")
+    if not REDSHIFT_HIP_FILE.is_file():
+        pytest.skip("Redshift example hip file is not available")
+    if not _hython_supports_node_type(hython, "rs_usd_material_builder"):
+        pytest.skip("Redshift is not available in this Houdini install")
+
+    return _run_hython_probe(
+        hython=hython,
+        hip_file=REDSHIFT_HIP_FILE,
+        material_cases=REDSHIFT_MATERIAL_CASES,
+        report_path=REDSHIFT_REPORT_PATH,
+    )
 
 
 @pytest.fixture(scope="module")
@@ -548,6 +637,16 @@ def hython_ingest_results(hython_material_results):
 @pytest.fixture(scope="module")
 def hython_conversion_report(hython_material_results):
     return hython_material_results
+
+
+@pytest.fixture(scope="module")
+def hython_redshift_ingest_results(hython_redshift_material_results):
+    return hython_redshift_material_results["ingest"]
+
+
+@pytest.fixture(scope="module")
+def hython_redshift_conversion_report(hython_redshift_material_results):
+    return hython_redshift_material_results
 
 
 def _load_fixture(name):
@@ -664,9 +763,11 @@ def test_hython_same_engine_fidelity_reports_cover_supported_targets(hython_conv
         (case["source_path"], case["target_renderer"])
         for case in fidelity_cases
     } == {
-        (source_path, case["material_type"])
-        for source_path, case in MATERIAL_CASES.items()
-        if case["material_type"] in SAME_ENGINE_FIDELITY_TARGETS
+        (case["source_path"], case["target_renderer"])
+        for case in hython_conversion_report["conversion"]
+        if case["status"] == "passed"
+        and case["source_material_type"] == case["target_renderer"]
+        and case["target_renderer"] in SAME_ENGINE_FIDELITY_TARGETS
     }
     for case in fidelity_cases:
         assert case["created_path"]
@@ -677,7 +778,7 @@ def test_hython_same_engine_fidelity_reports_cover_supported_targets(hython_conv
 
 
 @pytest.mark.hython
-def test_hython_output_fidelity_reports_cover_available_arnold_and_mtlx_targets(
+def test_hython_output_fidelity_reports_cover_available_targets(
     hython_conversion_report,
 ):
     fidelity_cases = hython_conversion_report["output_fidelity"]
@@ -686,9 +787,9 @@ def test_hython_output_fidelity_reports_cover_available_arnold_and_mtlx_targets(
         (case["source_path"], case["target_renderer"])
         for case in fidelity_cases
     } == {
-        (source_path, target_renderer)
-        for source_path in MATERIAL_CASES
-        for target_renderer in OUTPUT_FIDELITY_TARGET_RENDERERS
+        (case["source_path"], case["target_renderer"])
+        for case in hython_conversion_report["conversion"]
+        if case["status"] == "passed" and case["target_renderer"] in OUTPUT_FIDELITY_TARGET_RENDERERS
     }
     for case in fidelity_cases:
         assert case["created_path"]
@@ -715,10 +816,10 @@ def test_hython_cross_engine_fidelity_reports_cover_arnold_mtlx_targets(hython_c
         (case["source_path"], case["target_renderer"])
         for case in fidelity_cases
     } == {
-        (source_path, target_renderer)
-        for source_path, case in MATERIAL_CASES.items()
-        for target_renderer in OUTPUT_FIDELITY_TARGET_RENDERERS
-        if (case["material_type"], target_renderer) in CROSS_ENGINE_FIDELITY_TARGETS
+        (case["source_path"], case["target_renderer"])
+        for case in hython_conversion_report["conversion"]
+        if case["status"] == "passed"
+        and (case["source_material_type"], case["target_renderer"]) in CROSS_ENGINE_FIDELITY_TARGETS
     }
     for case in fidelity_cases:
         assert case["created_path"]
@@ -808,6 +909,32 @@ def test_hython_mtlx_to_arnold_displacement_outputs_use_upstream_driver(
 
 
 @pytest.mark.hython
+def test_hython_arnold_to_redshift_displacement_uses_redshift_displacement_wrapper(
+    hython_conversion_report,
+):
+    arnold_to_redshift = next(
+        (
+            case
+            for case in hython_conversion_report["cross_engine_fidelity"]
+            if case["source_path"] == "/mat/arnold_materialbuilder_full"
+            and case["target_renderer"] == "rs_usd_material_builder"
+        ),
+        None,
+    )
+    if arnold_to_redshift is None:
+        pytest.skip("Redshift target is not available")
+
+    converted_outputs = arnold_to_redshift["converted_fingerprint"]["outputs"]
+
+    assert converted_outputs["GENERIC::output_displacement"] == {
+        "node": "redshift_usd_material1",
+        "connected_node": "redshift_displacement",
+        "connected_input": "Displacement",
+        "connected_output": "out",
+    }
+
+
+@pytest.mark.hython
 def test_hython_principled_ingest_uses_native_single_node(hython_ingest_results):
     result = hython_ingest_results["/mat/principledshader"]
 
@@ -830,6 +957,112 @@ def test_hython_principled_displacement_output_requires_texture(hython_ingest_re
         "GENERIC::output_displacement",
         "GENERIC::output_surface",
     ]
+
+
+@pytest.mark.hython
+@pytest.mark.parametrize("material_path", REDSHIFT_MATERIAL_CASES)
+def test_hython_redshift_loads_and_standardizes_example_materials(
+    hython_redshift_ingest_results,
+    material_path,
+):
+    result = hython_redshift_ingest_results[material_path]
+    expected = REDSHIFT_MATERIAL_CASES[material_path]
+
+    assert result["exists"]
+    assert result["material_type"] == expected["material_type"]
+    assert result["traversed_nodes"]
+    assert result["output_nodes"]
+    assert result["standardized_node_count"] > 0
+    assert result["standardized_output_keys"] == expected["standardized_output_keys"]
+
+
+@pytest.mark.hython
+def test_hython_redshift_usd_output_detection_uses_terminal_inputs(hython_redshift_ingest_results):
+    result = hython_redshift_ingest_results["/mat/redshift_usd"]
+
+    assert result["output_nodes"]["surface"]["node_name"] == "redshift_usd_material1"
+    assert result["output_nodes"]["surface"]["connected_node_name"] == "StandardMaterial1"
+    assert result["output_nodes"]["surface"]["connected_input_name"] == "Surface"
+    assert result["output_nodes"]["displacement"]["node_name"] == "redshift_usd_material1"
+    assert result["output_nodes"]["displacement"]["connected_node_name"] == "Displacement1"
+    assert result["output_nodes"]["displacement"]["connected_input_name"] == "Displacement"
+
+
+@pytest.mark.hython
+def test_hython_redshift_vopnet_output_detection_uses_terminal_inputs(hython_redshift_ingest_results):
+    result = hython_redshift_ingest_results["/mat/redshift_legacy"]
+
+    assert result["output_nodes"]["surface"]["node_name"] == "redshift_material1"
+    assert result["output_nodes"]["surface"]["connected_node_name"] == "StandardMaterial1"
+    assert result["output_nodes"]["surface"]["connected_input_name"] == "Surface"
+    assert result["output_nodes"]["displacement"]["node_name"] == "redshift_material1"
+    assert result["output_nodes"]["displacement"]["connected_node_name"] == "Displacement1"
+    assert result["output_nodes"]["displacement"]["connected_input_name"] == "Displacement"
+
+
+@pytest.mark.hython
+@pytest.mark.parametrize("case_index", range(len(REDSHIFT_MATERIAL_CASES) * len(TARGET_RENDERERS)))
+def test_hython_redshift_conversion_matrix_available_targets_pass(
+    hython_redshift_conversion_report,
+    case_index,
+):
+    case = hython_redshift_conversion_report["conversion"][case_index]
+
+    if case["status"] == "unavailable":
+        assert not case["available"]
+        assert case["error"]
+        return
+
+    assert case["status"] == "passed", f"{REDSHIFT_REPORT_PATH}: {case}"
+    assert case["available"]
+    assert case["created_path"]
+    assert case["created_type"] == EXPECTED_TARGET_NODE_TYPES[case["target_renderer"]]
+    assert case["new_output_keys"]
+    if case["target_renderer"] != "principledshader":
+        assert case["child_count"] > 0
+
+
+@pytest.mark.hython
+def test_hython_redshift_conversion_coverage_summary_has_no_failed_cases(
+    hython_redshift_conversion_report,
+):
+    summary = hython_redshift_conversion_report["summary"]
+
+    assert summary["total_cases"] == len(REDSHIFT_MATERIAL_CASES) * len(TARGET_RENDERERS)
+    assert summary["failed_cases"] == 0, f"{REDSHIFT_REPORT_PATH}: {summary}"
+    assert summary["passed_cases"] == summary["available_cases"]
+    assert summary["coverage_percent"] == 100.0
+
+
+@pytest.mark.hython
+def test_hython_redshift_output_fidelity_reports_cover_available_targets(
+    hython_redshift_conversion_report,
+):
+    fidelity_cases = hython_redshift_conversion_report["output_fidelity"]
+
+    assert {
+        (case["source_path"], case["target_renderer"])
+        for case in fidelity_cases
+    } == {
+        (case["source_path"], case["target_renderer"])
+        for case in hython_redshift_conversion_report["conversion"]
+        if case["status"] == "passed" and case["target_renderer"] in OUTPUT_FIDELITY_TARGET_RENDERERS
+    }
+
+
+@pytest.mark.hython
+def test_hython_redshift_usd_builder_roundtrip_preserves_outputs(
+    hython_redshift_conversion_report,
+):
+    same_engine_cases = {
+        case["source_path"]: case
+        for case in hython_redshift_conversion_report["same_engine_fidelity"]
+        if case["target_renderer"] == "rs_usd_material_builder"
+    }
+
+    case = same_engine_cases["/mat/redshift_usd"]
+    assert case["status"] == "passed", f"{REDSHIFT_REPORT_PATH}: {case['diff']}"
+    assert case["summary"]["output_diff_count"] == 0
 
 
 @pytest.mark.hython
