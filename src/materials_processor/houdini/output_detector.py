@@ -233,39 +233,45 @@ def _detect_RsUsdMaterialbuilder_output_nodes(material_node):
 
 def _detect_principled_output_nodes(material_node):
     """
-    Detect Principled Shader output nodes in the node tree.
+    Detect native Principled Shader outputs.
 
     Returns:
-        Dict: A dictionary with the single 'surface' output connection,
-              mirroring Arnold's structure so downstream code works unchanged.
-
+        Dict: Output metadata for the native one-node shader. Displacement is
+        reported only when texture displacement is actually enabled and has a
+        texture path.
     """
-    return {
+    output_nodes = {
         "surface": {
-            "node_name": "surface_output",
-            "node_path": f"{material_node.path()}/surface_output",
-            "connected_node_name": "mtlxstandard_surface",
-            "connected_node_path": f"{material_node.path()}/mtlxstandard_surface",
+            "node_name": material_node.name(),
+            "node_path": material_node.path(),
+            "connected_node_name": material_node.name(),
+            "connected_node_path": material_node.path(),
             "connected_input_index": 0,
-            "connected_input_name": "suboutput",
+            "connected_input_name": "surface",
             "connected_input_datatype": "surface",
             "connected_output_index": 0,
-            "connected_output_name": "out",
-            "connected_output_datatype": "surface"
-        },
-        "displacement": {
-            "node_name": "displacement_output",
-            "node_path": f"{material_node.path()}/displacement_output",
-            "connected_node_name": "mtlxdisplacement",
-            "connected_node_path": f"{material_node.path()}/mtlxdisplacement",
-            "connected_input_index": 0,
-            "connected_input_name": "suboutput",
-            "connected_input_datatype": "displacement",
-            "connected_output_index": 0,
-            "connected_output_name": "out",
-            "connected_output_datatype": "displacement"
+            "connected_output_name": "surface",
+            "connected_output_datatype": "surface",
         },
     }
+
+    disp_enabled = material_node.parm("dispTex_enable")
+    disp_texture = material_node.parm("dispTex_texture")
+    if disp_enabled and disp_texture and disp_enabled.eval() and disp_texture.eval():
+        output_nodes["displacement"] = {
+            "node_name": material_node.name(),
+            "node_path": material_node.path(),
+            "connected_node_name": material_node.name(),
+            "connected_node_path": material_node.path(),
+            "connected_input_index": 1,
+            "connected_input_name": "displacement",
+            "connected_input_datatype": "displacement",
+            "connected_output_index": 1,
+            "connected_output_name": "displacement",
+            "connected_output_datatype": "displacement",
+        }
+
+    return output_nodes
 
 
 def detect_output_nodes(material_node, material_type: str):

@@ -40,6 +40,13 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
             'usdpreview': 'UsdUVTexture',
         },
     },
+    'GENERIC::normalmap': {
+        'prim_type': 'Shader',
+        'info_id': {
+            'arnold': 'arnold:normal_map',
+            'mtlx': 'ND_normalmap_vector3',
+        },
+    },
     'GENERIC::range': {
         'prim_type': 'Shader',
         'info_id': {
@@ -177,8 +184,14 @@ _ATTRIB_TYPE_CASTERS = {
     'bool1': Sdf.ValueTypeNames.Bool,
     'str': Sdf.ValueTypeNames.String,
     'str1': Sdf.ValueTypeNames.String,
+    'string': Sdf.ValueTypeNames.String,
+    'string1': Sdf.ValueTypeNames.String,
     'AssetPath': Sdf.ValueTypeNames.Asset,
     'AssetPath1': Sdf.ValueTypeNames.Asset,
+    'color3': Sdf.ValueTypeNames.Color3f,
+    'rgba3': Sdf.ValueTypeNames.Color3f,
+    'color4': Sdf.ValueTypeNames.Color4f,
+    'rgba4': Sdf.ValueTypeNames.Color4f,
     'xyzw3': Sdf.ValueTypeNames.Vector3f,
     'tuple': tuple,
 }

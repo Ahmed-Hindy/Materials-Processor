@@ -1,0 +1,2411 @@
+{
+    "/mat/principledshader": {
+        "children_list": [],
+        "connections_dict": {},
+        "node_name": "principledshader",
+        "node_parms": {
+            "input": [
+                {
+                    "direction": "input",
+                    "generic_name": "specmodel",
+                    "type": "string1",
+                    "value": [
+                        "ggx"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatspecmodel",
+                    "type": "string1",
+                    "value": [
+                        "ggx"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "specular_tint",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "albedomult",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_usePointColor",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_usePackedColor",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "frontface",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ior",
+                    "type": "float1",
+                    "value": [
+                        1.5
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "rough",
+                    "type": "float1",
+                    "value": [
+                        0.3
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "aniso",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "anisodir",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "metallic",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflect",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflecttint",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coat",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatrough",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transparency",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transcolor",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transdist",
+                    "type": "float1",
+                    "value": [
+                        0.1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispersion",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "priority",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transcolor_usePointColor",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sss",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ssscolor",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssmodel",
+                    "type": "string1",
+                    "value": [
+                        "pbrsss"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssdist",
+                    "type": "float1",
+                    "value": [
+                        0.1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssphase",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ssscolor_usePointColor",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheen",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheentint",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitint",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitcolor",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitcolor_usePointColor",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitillum",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opac",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opaccolor",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opacpointalpha",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opacpackedalpha",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "fakecausticsenabled",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "fakecausticstransmit",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "fakecausticsshadow",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "fakecausticsopacity",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "alphablendmode",
+                    "type": "string1",
+                    "value": [
+                        "blend"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "alphacutoff",
+                    "type": "float1",
+                    "value": [
+                        0.5
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_useTexture",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_texture",
+                    "type": "string1",
+                    "value": [
+                        "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_diff_2k.jpg"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_textureIntensity",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "auto"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "basecolor_useTextureAlpha",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ior_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ior_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ior_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ior_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ior_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "rough_useTexture",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "rough_texture",
+                    "type": "string1",
+                    "value": [
+                        "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_rough_2k.jpg"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "rough_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "rough_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "rough_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "aniso_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "aniso_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "aniso_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "aniso_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "aniso_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "anisodir_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "anisodir_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "anisodir_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "anisodir_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "anisodir_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "anisodir_textureFilter",
+                    "type": "string1",
+                    "value": [
+                        "point"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "metallic_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "metallic_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "metallic_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "metallic_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "metallic_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflect_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflect_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflect_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflect_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflect_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflecttint_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflecttint_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflecttint_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflecttint_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "reflecttint_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coat_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coat_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coat_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coat_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coat_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatrough_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatrough_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatrough_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatrough_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatrough_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transparency_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transparency_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transparency_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transparency_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transparency_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transcolor_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transcolor_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transcolor_textureIntensity",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transcolor_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transcolor_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "auto"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transdist_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transdist_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transdist_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transdist_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "transdist_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispersion_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispersion_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispersion_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispersion_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispersion_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sss_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sss_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sss_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sss_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sss_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssdist_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssdist_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssdist_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssdist_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sssdist_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ssscolor_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ssscolor_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ssscolor_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ssscolor_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheen_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheen_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheen_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheen_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheen_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheentint_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheentint_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheentint_monoChannel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheentint_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "sheentint_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitcolor_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitcolor_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitcolor_textureIntensity",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitcolor_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "emitcolor_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opaccolor_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opaccolor_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opaccolor_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opaccolor_textureIntensity",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "opaccolor_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "occlusion_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "occlusion_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "occlusion_textureWrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "occlusion_textureIntensity",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "occlusion_textureColorSpace",
+                    "type": "string1",
+                    "value": [
+                        "auto"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "surface_textureFilter",
+                    "type": "string1",
+                    "value": [
+                        "catrom"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "surface_textureFilterWidth",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "roundedEdge_enable",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "roundedEdge_radius",
+                    "type": "float1",
+                    "value": [
+                        0.01
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "roundedEdge_mode",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBumpAndNormal_enable",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBumpAndNormal_type",
+                    "type": "string1",
+                    "value": [
+                        "normal"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_colorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_bumpScale",
+                    "type": "float1",
+                    "value": [
+                        0.05
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_bumpTexture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_wrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_filter",
+                    "type": "string1",
+                    "value": [
+                        "gauss"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_filterWidth",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_channel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_imagePlane",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_colorspace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_vectorSpace",
+                    "type": "string1",
+                    "value": [
+                        "uvtangent"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_scale",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_texture",
+                    "type": "string1",
+                    "value": [
+                        "F:/Assets 3D/Textures/Wood Planks dirt/wood_planks_dirt_nor_2k.jpg"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_wrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_filter",
+                    "type": "string1",
+                    "value": [
+                        "gauss"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_filterWidth",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_channel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_imagePlane",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_space",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_flipX",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_flipY",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseBump_useTexture",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseNormal_useTexture",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "separateCoatNormals",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBumpAndNormal_enable",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBumpAndNormal_type",
+                    "type": "string1",
+                    "value": [
+                        "normal"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_colorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_bumpScale",
+                    "type": "float1",
+                    "value": [
+                        0.05
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_bumpTexture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_wrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_filter",
+                    "type": "string1",
+                    "value": [
+                        "gauss"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_filterWidth",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_channel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatBump_imagePlane",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_colorspace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_vectorSpace",
+                    "type": "string1",
+                    "value": [
+                        "uvtangent"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_scale",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_wrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_filter",
+                    "type": "string1",
+                    "value": [
+                        "gauss"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_filterWidth",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_channel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_imagePlane",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_space",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_flipX",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatNormal_flipY",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "shop_disable_displace_shader",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "vm_displacebound",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "vm_truedisplace",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "vm_bumpraydisplace",
+                    "type": "int1",
+                    "value": [
+                        1
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispInput_enable",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispInput_max",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispInput_vectorspace",
+                    "type": "string1",
+                    "value": [
+                        "uvtangent"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_enable",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_type",
+                    "type": "string1",
+                    "value": [
+                        "disp"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_colorSpace",
+                    "type": "string1",
+                    "value": [
+                        "linear"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_vectorSpace",
+                    "type": "string1",
+                    "value": [
+                        "uvtangent"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_channelOrder",
+                    "type": "string1",
+                    "value": [
+                        "xyz"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_offset",
+                    "type": "float1",
+                    "value": [
+                        -0.5
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_scale",
+                    "type": "float1",
+                    "value": [
+                        0.05
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_texture",
+                    "type": "string1",
+                    "value": [
+                        ""
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_channel",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_wrap",
+                    "type": "string1",
+                    "value": [
+                        "repeat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_filter",
+                    "type": "string1",
+                    "value": [
+                        "gauss"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispTex_filterWidth",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_enable",
+                    "type": "int1",
+                    "value": [
+                        0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_type",
+                    "type": "string1",
+                    "value": [
+                        "xnoise"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_freq",
+                    "type": "float3",
+                    "value": [
+                        10.0,
+                        10.0,
+                        10.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_offset",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_amp",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_rough",
+                    "type": "float1",
+                    "value": [
+                        0.5
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_atten",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "dispNoise_turb",
+                    "type": "int1",
+                    "value": [
+                        5
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "difflabel",
+                    "type": "string1",
+                    "value": [
+                        "diffuse"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "refllabel",
+                    "type": "string1",
+                    "value": [
+                        "reflect"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "refractlabel",
+                    "type": "string1",
+                    "value": [
+                        "refract"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatlabel",
+                    "type": "string1",
+                    "value": [
+                        "coat"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ssslabel",
+                    "type": "string1",
+                    "value": [
+                        "sss"
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "uvtrans",
+                    "type": "float2",
+                    "value": [
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "uvrot",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "uvscale",
+                    "type": "float2",
+                    "value": [
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Cd",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Alpha",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "direct",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "indirect",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Ce",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "direct_emission",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "all_emission",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "all",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "indirect_emission",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "direct_noshadow",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "direct_shadow",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "indirect_noshadow",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "indirect_shadow",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "level",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "diffuselevel",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "specularlevel",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "volumelevel",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "direct_samples",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "indirect_samples",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "nlights",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "nddispersion",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ndpriority",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "ndior",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "absorption",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Oc",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Cv",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Th",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Ab",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Cu",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Vd",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Nt",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Ds",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "pre_disp_P",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "pre_disp_utan",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "pre_disp_vtan",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "pre_disp_N",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "disp",
+                    "type": "float1",
+                    "value": [
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "vdisp",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Dt",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "Vdt",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "baseN",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "coatN",
+                    "type": "float3",
+                    "value": [
+                        0.0,
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "speccolor",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "displayColor",
+                    "type": "rgba3",
+                    "value": [
+                        1.0,
+                        1.0,
+                        1.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "st",
+                    "type": "float2",
+                    "value": [
+                        0.0,
+                        0.0
+                    ]
+                },
+                {
+                    "direction": "input",
+                    "generic_name": "displayOpacity",
+                    "type": "float1",
+                    "value": [
+                        1.0
+                    ]
+                }
+            ],
+            "output": []
+        },
+        "node_path": "/mat/principledshader",
+        "node_position": [
+            -53.31350000000002,
+            37.2417
+        ],
+        "node_type": "principledshader::2.0"
+    }
+}

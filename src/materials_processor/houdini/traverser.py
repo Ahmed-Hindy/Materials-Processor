@@ -10,7 +10,6 @@ except:
     hou = None
 
 from materials_processor.houdini.output_detector import detect_output_nodes  # noqa: E402
-from materials_processor.houdini.principled_adapter import build_principled_entry  # noqa: E402
 
 class NodeTraverser:
     """
@@ -242,16 +241,14 @@ class NodeTraverser:
     def run(self):
         """
         Traverse the children nodes of a parent node to extract the node tree and detect output nodes.
-        For PrincipledShader, build a one-node tree instead of recursing.
         Returns:
             (Dict, Dict): 2 Dictionaries, First for the node dict and Second for the Output Dict.
         """
         # first, get an output_nodes_dict
         output_tree = self.create_output_dict(self.material_node, self.material_type)
 
-        # for principled, short-circuit to produce a one-node tree + identical output map
         if self.material_type == 'principledshader':
-            node_tree = build_principled_entry(self.material_node, self._convert_parms_to_dict)
+            node_tree = self._traverse_recursively_node_tree(self.material_node)
         else:
             node_tree = {}
             for output_type, output_dict in output_tree.items():

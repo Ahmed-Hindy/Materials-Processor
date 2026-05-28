@@ -11,6 +11,16 @@ from materials_processor.usd.mappings import GENERIC_NODE_TYPES_TO_REGULAR_USD, 
 logger = logging.getLogger(__name__)
 
 
+def _coerce_usd_value(value, generic_type):
+    """Shape JSON-friendly parameter values for USD's typed attribute setters."""
+    if isinstance(value, (list, tuple)) and len(value) == 1:
+        return value[0]
+    if generic_type in {'float2', 'float3', 'float4', 'color3', 'rgba3', 'color4', 'rgba4', 'xyzw3'}:
+        if isinstance(value, (list, tuple)):
+            return tuple(value)
+    return value
+
+
 class USDGraphBuilder:
     """Create and connect USD primitives from standardized generic node data."""
 
@@ -24,6 +34,7 @@ class USDGraphBuilder:
         self.target_renderer = target_renderer
         self.material_map = {}
         self.old_new_map = {}
+        self.output_old_new_map = {}
         self.created_out_primpaths = []
 
     def _create_shader_id(self, shader, generic_type):
@@ -86,7 +97,7 @@ class USDGraphBuilder:
                 continue  # skip unsupported params
 
             parm_new_name = parm_new_name[0]
-            val = param.value
+            val = _coerce_usd_value(param.value, param.generic_type)
             if not val:
                 continue
 
@@ -106,15 +117,16 @@ class USDGraphBuilder:
         """
         Define the collect-Material prim(s) at `<parent_scope>/<material_name>`.
 
-        Populates self.old_new_map for each Houdini output node.
+        Populates self.output_old_new_map for each Houdini output node.
         """
         for output_connection in self.orig_output_connections.values():
             mat_primname = self.material_name
             mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{mat_primname}")
             UsdShade.Material.Define(self.stage, Sdf.Path(mat_primpath))
 
-            self.created_out_primpaths.append(mat_primpath)
-            self.old_new_map[output_connection.node_path] = mat_primpath.pathString
+            if mat_primpath not in self.created_out_primpaths:
+                self.created_out_primpaths.append(mat_primpath)
+            self.output_old_new_map[output_connection.node_path] = mat_primpath.pathString
 
 
     def create_child_shaders(self, nodeinfo_list):
@@ -126,7 +138,12 @@ class USDGraphBuilder:
         """
 
         for nodeinfo in nodeinfo_list:
-            if not self.old_new_map.get(nodeinfo.node_path):
+            if nodeinfo.is_output_node or nodeinfo.node_type == 'GENERIC::output_node':
+                self.old_new_map[nodeinfo.node_path] = self.output_old_new_map.get(
+                    nodeinfo.node_path,
+                    self.created_out_primpaths[0].pathString,
+                )
+            elif not self.old_new_map.get(nodeinfo.node_path):
                 new_prim_path = nodeinfo.node_name.replace('/', '_')
                 shader_primpath = f"{self.created_out_primpaths[0].pathString}/{new_prim_path}"
                 shader = UsdShade.Shader.Define(self.stage, Sdf.Path(shader_primpath))
@@ -157,7 +174,7 @@ class USDGraphBuilder:
         logger.debug("self.created_out_primpaths: %s", pprint.pformat(self.created_out_primpaths, sort_dicts=False))
         for generic_output, output_connection in self.orig_output_connections.items():
             src_path = self.old_new_map[output_connection.connected_node_path]
-            dst_path = self.old_new_map[output_connection.node_path]
+            dst_path = self.output_old_new_map[output_connection.node_path]
             if dst_path not in [x.pathString for x in self.created_out_primpaths]:
                 continue
 
