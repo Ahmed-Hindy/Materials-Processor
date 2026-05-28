@@ -490,6 +490,68 @@ class NodeRecreator:
             logger.warning("Output source node '%s' was not recreated.", connected_node_name)
         return node
 
+    def _iter_nodeinfos(self, nodeinfo_list=None):
+        """Yield all source node infos in traversal order."""
+        if nodeinfo_list is None:
+            nodeinfo_list = self.nodeinfo_list
+
+        for nodeinfo in nodeinfo_list:
+            yield nodeinfo
+            yield from self._iter_nodeinfos(nodeinfo.children_list)
+
+    def _find_nodeinfo_by_path(self, node_path):
+        """Find source node metadata by original Houdini path."""
+        if not node_path:
+            return None
+
+        for nodeinfo in self._iter_nodeinfos():
+            if nodeinfo.node_path == node_path:
+                return nodeinfo
+        return None
+
+    def _get_recreated_node_by_original_path(self, node_path):
+        """Resolve a recreated Houdini node from an original source path."""
+        new_node_path = self.old_new_node_map.get(node_path, {}).get('node_path')
+        if not new_node_path:
+            return None
+        node = hou.node(new_node_path)
+        if not node:
+            logger.warning("Mapped node '%s' does not exist.", new_node_path)
+        return node
+
+    def _get_upstream_source_for_generic_displacement(self, displacement_node_path):
+        """
+        Resolve the source driving a generic displacement node.
+
+        Arnold material outputs take a direct displacement input, while MaterialX
+        uses an mtlxdisplacement wrapper. When converting MTLX to Arnold, unwrap
+        the generic displacement node and wire its upstream value to Arnold's
+        displacement output slot.
+        """
+        displacement_nodeinfo = self._find_nodeinfo_by_path(displacement_node_path)
+        if not displacement_nodeinfo or displacement_nodeinfo.node_type != 'GENERIC::displacement':
+            return None, ''
+
+        fallback = None
+        for nodeinfo in self._iter_nodeinfos():
+            for connection in nodeinfo.connection_info.values():
+                if connection.output.node_path != displacement_node_path:
+                    continue
+
+                source_node = self._get_recreated_node_by_original_path(connection.input.node_path)
+                if source_node is None or source_node.type().name() == 'null':
+                    continue
+
+                source = (source_node, connection.input.parm_name or '')
+                if connection.output.parm_name == 'displacement':
+                    return source
+                fallback = fallback or source
+
+        if fallback:
+            return fallback
+        logger.warning("No recreated upstream source found for displacement node '%s'.", displacement_node_path)
+        return None, ''
+
     def _connect_mtlx_displacement_output(self, output_node, output_index, source_node, source_output_name):
         """
         Route an input displacement signal through the target MTLX displacement node.
@@ -522,6 +584,35 @@ class NodeRecreator:
             dest_node=output_node,
             src_parm='out',
             dest_parm='suboutput',
+            dest_idx=output_index,
+        )
+
+    def _connect_arnold_displacement_output(self, output_node, output_index, source_node, output_info):
+        """
+        Connect Arnold displacement outputs, unwrapping generic displacement nodes.
+
+        Args:
+            output_node (hou.Node): The Arnold material output node.
+            output_index (int): The Arnold displacement input index.
+            source_node (hou.Node | None): Recreated node from the source output metadata.
+            output_info (dict): Output connection metadata copied from the source material.
+
+        Returns:
+            bool: True if the target displacement output was connected successfully.
+        """
+        source_output_name = output_info.get('connected_output_name') or ''
+        if source_node is None or source_node.type().name() == 'null':
+            source_node, source_output_name = self._get_upstream_source_for_generic_displacement(
+                output_info.get('connected_node_path')
+            )
+        if source_node is None:
+            return False
+
+        return self._connect_pair(
+            src_node=source_node,
+            dest_node=output_node,
+            src_parm=source_output_name,
+            dest_parm='displacement',
             dest_idx=output_index,
         )
 
@@ -590,6 +681,17 @@ class NodeRecreator:
             #       }
 
             source_node = self._get_recreated_output_source(output_info)
+            if self.target_renderer == 'arnold' and generic_output_type == 'GENERIC::output_displacement':
+                connected = self._connect_arnold_displacement_output(
+                    output_node=output_node,
+                    output_index=output_index,
+                    source_node=source_node,
+                    output_info=output_info,
+                )
+                if not connected:
+                    logger.warning("Connections for node:'%s' not found!", output_info['node_name'])
+                continue
+
             if not source_node:
                 logger.warning("Connections for node:'%s' not found!", output_info['node_name'])
                 continue

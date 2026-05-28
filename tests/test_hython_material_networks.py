@@ -769,6 +769,36 @@ def test_hython_arnold_same_engine_displacement_preserves_source_channel(
 
 
 @pytest.mark.hython
+def test_hython_mtlx_to_arnold_displacement_outputs_use_upstream_driver(
+    hython_conversion_report,
+):
+    mtlx_to_arnold_cases = {
+        case["source_path"]: case
+        for case in hython_conversion_report["cross_engine_fidelity"]
+        if case["source_material_type"] == "mtlx" and case["target_renderer"] == "arnold"
+    }
+
+    expected_displacement_outputs = {
+        "/mat/mtlxmaterial_full": {
+            "node": "OUT_material",
+            "connected_node": "image_roughness",
+            "connected_input": "displacement",
+            "connected_output": "rgba",
+        },
+        "/mat/mtlxmaterial_basic": {
+            "node": "OUT_material",
+            "connected_node": "image_disp",
+            "connected_input": "displacement",
+            "connected_output": "rgba",
+        },
+    }
+    for source_path, expected_output in expected_displacement_outputs.items():
+        converted_outputs = mtlx_to_arnold_cases[source_path]["converted_fingerprint"]["outputs"]
+
+        assert converted_outputs["GENERIC::output_displacement"] == expected_output
+
+
+@pytest.mark.hython
 def test_hython_cross_engine_fidelity_preserves_all_nodes_parameters_and_connections(hython_conversion_report):
     failing_cases = [
         case
