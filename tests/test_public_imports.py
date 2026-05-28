@@ -9,6 +9,7 @@ def test_public_core_and_houdini_modules_import():
         "materials_processor.io",
         "materials_processor.mappings",
         "materials_processor.models",
+        "materials_processor.qt",
         "materials_processor.standardizer",
         "materials_processor.houdini.commands",
         "materials_processor.houdini.recreator",

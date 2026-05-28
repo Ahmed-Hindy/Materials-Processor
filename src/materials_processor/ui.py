@@ -5,61 +5,16 @@ from __future__ import annotations
 import importlib
 import logging
 import os
-from dataclasses import dataclass
 from importlib import reload
-from typing import Any
 
 from materials_processor.logging_config import setup_file_logging
 from materials_processor.mappings import FORMAT_CHOICES
+from materials_processor.qt import QtBinding, enum_value, load_qt_binding
 
 logger = logging.getLogger(__name__)
 setup_file_logging()
 
 _WINDOW_SESSION_NAME = "_materials_processor_window"
-_QT_BINDING_ENV = "MATERIALS_PROCESSOR_QT_API"
-
-
-@dataclass(frozen=True)
-class QtBinding:
-    """Loaded Qt modules and binding metadata."""
-
-    api: str
-    core: Any
-    widgets: Any
-
-
-def _binding_candidates(preferred: str | None = None) -> list[tuple[str, str]]:
-    """Return Qt binding import candidates in preferred order."""
-    requested = (preferred or os.environ.get(_QT_BINDING_ENV) or "").lower().replace("-", "")
-    candidates = {
-        "pyside6": ("PySide6", "pyside6"),
-        "pyside2": ("PySide2", "pyside2"),
-    }
-    ordered: list[tuple[str, str]] = []
-    if requested in candidates:
-        ordered.append(candidates[requested])
-
-    for candidate in (candidates["pyside6"], candidates["pyside2"]):
-        if candidate not in ordered:
-            ordered.append(candidate)
-    return ordered
-
-
-def load_qt_binding(preferred: str | None = None) -> QtBinding:
-    """Load PySide6 or PySide2 without making module import depend on Qt."""
-    errors: list[str] = []
-    for module_name, api in _binding_candidates(preferred):
-        try:
-            qt_core = importlib.import_module(f"{module_name}.QtCore")
-            qt_widgets = importlib.import_module(f"{module_name}.QtWidgets")
-            return QtBinding(api=api, core=qt_core, widgets=qt_widgets)
-        except ImportError as exc:
-            errors.append(f"{module_name}: {exc}")
-
-    raise RuntimeError(
-        "Material Processor requires PySide6 or PySide2 to open the UI. "
-        f"Tried: {'; '.join(errors)}"
-    )
 
 
 def load_hou(required: bool = True):
@@ -70,14 +25,6 @@ def load_hou(required: bool = True):
         if required:
             raise RuntimeError("Material Processor UI conversion requires Houdini's hou module.") from None
         return None
-
-
-def _qt_attr(qt_core, enum_name: str, attr_name: str):
-    """Return a Qt enum value across PySide2 and PySide6."""
-    enum = getattr(qt_core.Qt, enum_name, None)
-    if enum is not None and hasattr(enum, attr_name):
-        return getattr(enum, attr_name)
-    return getattr(qt_core.Qt, attr_name)
 
 
 def _is_renderer_available(format_name: str) -> bool:
@@ -124,9 +71,9 @@ def _create_window_classes(qt: QtBinding, hou_module):
     """Create Qt classes after a binding has been loaded."""
     QtCore = qt.core
     QtWidgets = qt.widgets
-    delete_key = _qt_attr(QtCore, "Key", "Key_Delete")
-    move_action = _qt_attr(QtCore, "DropAction", "MoveAction")
-    match_exactly = _qt_attr(QtCore, "MatchFlag", "MatchExactly")
+    delete_key = enum_value(QtCore, "Key", "Key_Delete")
+    move_action = enum_value(QtCore, "DropAction", "MoveAction")
+    match_exactly = enum_value(QtCore, "MatchFlag", "MatchExactly")
     if hasattr(QtWidgets.QAbstractItemView, "SelectionMode"):
         selection_mode = QtWidgets.QAbstractItemView.SelectionMode.ExtendedSelection
     else:

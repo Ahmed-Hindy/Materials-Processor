@@ -268,21 +268,6 @@ def test_load_hou_can_be_optional_outside_houdini():
     assert ui.load_hou(required=False) is None
 
 
-def test_load_qt_binding_honors_requested_binding(monkeypatch):
-    pyside2 = types.ModuleType("PySide2")
-    qt_core = types.ModuleType("PySide2.QtCore")
-    qt_widgets = types.ModuleType("PySide2.QtWidgets")
-    monkeypatch.setitem(sys.modules, "PySide2", pyside2)
-    monkeypatch.setitem(sys.modules, "PySide2.QtCore", qt_core)
-    monkeypatch.setitem(sys.modules, "PySide2.QtWidgets", qt_widgets)
-
-    binding = ui.load_qt_binding("pyside2")
-
-    assert binding.api == "pyside2"
-    assert binding.core is qt_core
-    assert binding.widgets is qt_widgets
-
-
 def test_show_my_main_window_reuses_houdini_session_singleton(monkeypatch):
     hou = _install_fake_qt_and_hou(monkeypatch)
 
