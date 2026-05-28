@@ -19,7 +19,13 @@ JSON_START = "===MATERIALS_PROCESSOR_HYTHON_JSON_START==="
 JSON_END = "===MATERIALS_PROCESSOR_HYTHON_JSON_END==="
 TARGET_RENDERERS = list(FORMAT_CHOICES)
 SAME_ENGINE_FIDELITY_TARGETS = ("arnold", "mtlx")
-CROSS_ENGINE_FIDELITY_TARGETS = (("mtlx", "arnold"),)
+OUTPUT_FIDELITY_TARGET_RENDERERS = ("arnold", "mtlx")
+CROSS_ENGINE_FIDELITY_TARGETS = (
+    ("arnold", "mtlx"),
+    ("mtlx", "arnold"),
+    ("principledshader", "arnold"),
+    ("principledshader", "mtlx"),
+)
 EXPECTED_TARGET_NODE_TYPES = {
     "principledshader": "principledshader::2.0",
     "mtlx": "subnet",
@@ -114,6 +120,7 @@ from materials_processor.standardizer import NodeStandardizer
 
 EXPECTED_TARGET_NODE_TYPES = {json.dumps(EXPECTED_TARGET_NODE_TYPES, sort_keys=True)}
 SAME_ENGINE_FIDELITY_TARGETS = {json.dumps(SAME_ENGINE_FIDELITY_TARGETS)}
+OUTPUT_FIDELITY_TARGET_RENDERERS = {json.dumps(OUTPUT_FIDELITY_TARGET_RENDERERS)}
 CROSS_ENGINE_FIDELITY_TARGETS = {CROSS_ENGINE_FIDELITY_TARGETS!r}
 hou.hipFile.load({str(HIP_FILE)!r}, suppress_save_prompt=True, ignore_load_warnings=True)
 
@@ -316,12 +323,15 @@ def _build_fidelity_report(source_path, source_material_type, target_renderer, s
         "created_material_type": converted_material_type,
         "status": "passed" if _diff_is_clean(diff) else "failed",
         "summary": _summarize_fidelity(original, converted, diff),
+        "original_fingerprint": original,
+        "converted_fingerprint": converted,
         "diff": diff,
         "captured_stdout": stdout.getvalue().splitlines(),
     }}
 
 ingest_results = {{}}
 conversion_results = []
+output_fidelity_results = []
 fidelity_results = []
 cross_engine_fidelity_results = []
 for node_path in {material_paths}:
@@ -407,7 +417,8 @@ for node_path in {material_paths}:
                 case["error"] = "Converted material has no child nodes."
             else:
                 case["status"] = "passed"
-                if material_type == target_renderer and target_renderer in SAME_ENGINE_FIDELITY_TARGETS:
+                fidelity_report = None
+                if target_renderer in OUTPUT_FIDELITY_TARGET_RENDERERS:
                     fidelity_report = _build_fidelity_report(
                         source_path=node_path,
                         source_material_type=material_type,
@@ -420,20 +431,15 @@ for node_path in {material_paths}:
                         "status": fidelity_report["status"],
                         "summary": fidelity_report["summary"],
                     }}
+                    output_fidelity_results.append(fidelity_report)
+
+                if (
+                    fidelity_report
+                    and material_type == target_renderer
+                    and target_renderer in SAME_ENGINE_FIDELITY_TARGETS
+                ):
                     fidelity_results.append(fidelity_report)
-                if (material_type, target_renderer) in CROSS_ENGINE_FIDELITY_TARGETS:
-                    fidelity_report = _build_fidelity_report(
-                        source_path=node_path,
-                        source_material_type=material_type,
-                        target_renderer=target_renderer,
-                        source_nodeinfo_list=nodeinfo_list,
-                        source_output_connections=output_connections,
-                        created_node=created,
-                    )
-                    case["fidelity"] = {{
-                        "status": fidelity_report["status"],
-                        "summary": fidelity_report["summary"],
-                    }}
+                if fidelity_report and (material_type, target_renderer) in CROSS_ENGINE_FIDELITY_TARGETS:
                     cross_engine_fidelity_results.append(fidelity_report)
         except Exception as exc:
             case.update({{
@@ -476,6 +482,7 @@ payload = {{
     "target_renderers": list(FORMAT_CHOICES),
     "ingest": ingest_results,
     "conversion": conversion_results,
+    "output_fidelity": output_fidelity_results,
     "same_engine_fidelity": fidelity_results,
     "cross_engine_fidelity": cross_engine_fidelity_results,
     "summary": summary,
@@ -659,6 +666,26 @@ def test_hython_same_engine_fidelity_reports_cover_arnold_and_mtlx(hython_conver
 
 
 @pytest.mark.hython
+def test_hython_output_fidelity_reports_cover_available_arnold_and_mtlx_targets(
+    hython_conversion_report,
+):
+    fidelity_cases = hython_conversion_report["output_fidelity"]
+
+    assert {
+        (case["source_path"], case["target_renderer"])
+        for case in fidelity_cases
+    } == {
+        (source_path, target_renderer)
+        for source_path in MATERIAL_CASES
+        for target_renderer in OUTPUT_FIDELITY_TARGET_RENDERERS
+    }
+    for case in fidelity_cases:
+        assert case["created_path"]
+        assert case["summary"]["original_node_count"] > 0
+        assert "outputs" in case["converted_fingerprint"]
+
+
+@pytest.mark.hython
 def test_hython_same_engine_fidelity_preserves_all_nodes_parameters_and_connections(hython_conversion_report):
     failing_cases = [
         case
@@ -670,15 +697,19 @@ def test_hython_same_engine_fidelity_preserves_all_nodes_parameters_and_connecti
 
 
 @pytest.mark.hython
-def test_hython_cross_engine_fidelity_reports_cover_mtlx_to_arnold(hython_conversion_report):
+def test_hython_cross_engine_fidelity_reports_cover_arnold_mtlx_targets(hython_conversion_report):
     fidelity_cases = hython_conversion_report["cross_engine_fidelity"]
 
     assert {
         (case["source_path"], case["target_renderer"])
         for case in fidelity_cases
     } == {
+        ("/mat/arnold_materialbuilder_full", "mtlx"),
+        ("/mat/arnold_materialbuilder_basic", "mtlx"),
         ("/mat/mtlxmaterial_full", "arnold"),
         ("/mat/mtlxmaterial_basic", "arnold"),
+        ("/mat/principledshader", "arnold"),
+        ("/mat/principledshader", "mtlx"),
     }
     for case in fidelity_cases:
         assert case["created_path"]
@@ -689,11 +720,60 @@ def test_hython_cross_engine_fidelity_reports_cover_mtlx_to_arnold(hython_conver
 
 
 @pytest.mark.hython
-def test_hython_mtlx_to_arnold_fidelity_preserves_all_nodes_parameters_and_connections(hython_conversion_report):
+def test_hython_arnold_to_mtlx_displacement_uses_mtlx_displacement_wrapper(
+    hython_conversion_report,
+):
+    arnold_to_mtlx_cases = {
+        case["source_path"]: case
+        for case in hython_conversion_report["cross_engine_fidelity"]
+        if case["source_material_type"] == "arnold" and case["target_renderer"] == "mtlx"
+    }
+    full_case = arnold_to_mtlx_cases["/mat/arnold_materialbuilder_full"]
+    converted_outputs = full_case["converted_fingerprint"]["outputs"]
+
+    assert converted_outputs["GENERIC::output_displacement"] == {
+        "node": "displacement_output",
+        "connected_node": "mtlxdisplacement",
+        "connected_input": "suboutput",
+        "connected_output": "out",
+    }
+
+
+@pytest.mark.hython
+def test_hython_arnold_basic_to_mtlx_does_not_create_displacement_output(
+    hython_conversion_report,
+):
+    arnold_basic_to_mtlx = next(
+        case
+        for case in hython_conversion_report["cross_engine_fidelity"]
+        if case["source_path"] == "/mat/arnold_materialbuilder_basic"
+        and case["target_renderer"] == "mtlx"
+    )
+    converted_outputs = arnold_basic_to_mtlx["converted_fingerprint"]["outputs"]
+
+    assert set(converted_outputs) == {"GENERIC::output_surface"}
+
+
+@pytest.mark.hython
+def test_hython_arnold_same_engine_displacement_preserves_source_channel(
+    hython_conversion_report,
+):
+    full_case = next(
+        case
+        for case in hython_conversion_report["same_engine_fidelity"]
+        if case["source_path"] == "/mat/arnold_materialbuilder_full"
+    )
+    converted_outputs = full_case["converted_fingerprint"]["outputs"]
+
+    assert converted_outputs["GENERIC::output_displacement"]["connected_output"] == "b"
+
+
+@pytest.mark.hython
+def test_hython_cross_engine_fidelity_preserves_all_nodes_parameters_and_connections(hython_conversion_report):
     failing_cases = [
         case
         for case in hython_conversion_report["cross_engine_fidelity"]
         if case["status"] != "passed"
     ]
     if failing_cases:
-        pytest.xfail(f"MTLX to Arnold fidelity gaps remain; inspect {REPORT_PATH}.")
+        pytest.xfail(f"Cross-engine fidelity gaps remain; inspect {REPORT_PATH}.")
