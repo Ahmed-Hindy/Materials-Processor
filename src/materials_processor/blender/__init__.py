@@ -1,0 +1,1 @@
+"""Blender material translation subpackage."""

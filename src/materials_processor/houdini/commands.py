@@ -134,6 +134,7 @@ def convert_material_from_opmenu(kwargs):
 
     # display a choice dialog for the user to select the target renderer
     allowed_types = FORMAT_CHOICES.copy()
+    allowed_types.pop('blender', None)
     if 'HTOA' not in os.environ:
         allowed_types.pop('arnold', None)
     if 'REDSHIFT_COREDATAPATH' not in os.environ:
