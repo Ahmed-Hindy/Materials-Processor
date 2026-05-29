@@ -9,7 +9,13 @@ def test_public_core_and_houdini_modules_import():
         "materials_processor.io",
         "materials_processor.mappings",
         "materials_processor.models",
+        "materials_processor.qt",
         "materials_processor.standardizer",
+        "materials_processor.ui",
+        "materials_processor.ui.logging_handler",
+        "materials_processor.ui.main_window",
+        "materials_processor.ui.state",
+        "materials_processor.ui.widgets",
         "materials_processor.houdini.commands",
         "materials_processor.houdini.recreator",
         "materials_processor.houdini.traverser",
@@ -28,10 +34,8 @@ def test_usd_public_commands_import_when_pxr_is_available():
     assert callable(usd_commands.test2)
 
 
-def test_ui_public_entrypoint_imports_when_houdini_qt_is_available():
-    pytest.importorskip("hou")
-    pytest.importorskip("PySide2")
-
+def test_ui_public_entrypoint_imports_with_qt_available():
     ui = importlib.import_module("materials_processor.ui")
 
     assert callable(ui.show_my_main_window)
+    assert callable(ui.create_main_window)

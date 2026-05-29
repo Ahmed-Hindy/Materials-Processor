@@ -88,7 +88,7 @@ def run(input_material_builder_node, target_context, target_format='arnold'):
     """
     material_type, nodeinfo_list, output_connections = ingest_material(input_material_builder_node)
     if not (material_type and nodeinfo_list and output_connections):
-        return
+        return False
 
     try:
         logger.info("NodeRecreator() START----------------------")
@@ -101,9 +101,10 @@ def run(input_material_builder_node, target_context, target_format='arnold'):
         recreator.run()
         logger.info("NodeRecreator() Finished----------------------")
         logger.info("Material conversion complete. Converted material from '%s' to '%s'.", material_type, target_format)
+        return True
     except Exception:
         logger.exception("Exception in run")
-        return
+        return False
 
 
 def convert_material_from_opmenu(kwargs):
