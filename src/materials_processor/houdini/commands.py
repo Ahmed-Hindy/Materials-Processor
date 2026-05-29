@@ -136,6 +136,7 @@ def convert_material_from_opmenu(kwargs):
     if 'HTOA' not in os.environ:
         allowed_types.pop('arnold', None)
     if 'REDSHIFT_COREDATAPATH' not in os.environ:
+        allowed_types.pop('redshift_vopnet', None)
         allowed_types.pop('rs_usd_material_builder', None)
 
     allowed_types['cancel'] = 'Cancel'

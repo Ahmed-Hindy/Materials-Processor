@@ -20,15 +20,30 @@ DEFAULT_HYTHON = Path(r"C:\Program Files\Side Effects Software\Houdini 21.0.631\
 JSON_START = "===MATERIALS_PROCESSOR_HYTHON_JSON_START==="
 JSON_END = "===MATERIALS_PROCESSOR_HYTHON_JSON_END==="
 TARGET_RENDERERS = list(FORMAT_CHOICES)
-SAME_ENGINE_FIDELITY_TARGETS = ("arnold", "mtlx", "principledshader", "rs_usd_material_builder")
-OUTPUT_FIDELITY_TARGET_RENDERERS = ("arnold", "mtlx", "principledshader", "rs_usd_material_builder")
+SAME_ENGINE_FIDELITY_TARGETS = (
+    "arnold",
+    "mtlx",
+    "principledshader",
+    "redshift_vopnet",
+    "rs_usd_material_builder",
+)
+OUTPUT_FIDELITY_TARGET_RENDERERS = (
+    "arnold",
+    "mtlx",
+    "principledshader",
+    "redshift_vopnet",
+    "rs_usd_material_builder",
+)
 CROSS_ENGINE_FIDELITY_TARGETS = (
     ("arnold", "mtlx"),
+    ("arnold", "redshift_vopnet"),
     ("arnold", "rs_usd_material_builder"),
     ("mtlx", "arnold"),
+    ("mtlx", "redshift_vopnet"),
     ("mtlx", "rs_usd_material_builder"),
     ("principledshader", "arnold"),
     ("principledshader", "mtlx"),
+    ("principledshader", "redshift_vopnet"),
     ("principledshader", "rs_usd_material_builder"),
     ("redshift_vopnet", "arnold"),
     ("redshift_vopnet", "mtlx"),
@@ -37,11 +52,13 @@ CROSS_ENGINE_FIDELITY_TARGETS = (
     ("rs_usd_material_builder", "arnold"),
     ("rs_usd_material_builder", "mtlx"),
     ("rs_usd_material_builder", "principledshader"),
+    ("rs_usd_material_builder", "redshift_vopnet"),
 )
 EXPECTED_TARGET_NODE_TYPES = {
     "principledshader": "principledshader::2.0",
     "mtlx": "subnet",
     "arnold": "arnold_materialbuilder",
+    "redshift_vopnet": "redshift_vopnet",
     "rs_usd_material_builder": "rs_usd_material_builder",
 }
 
@@ -618,7 +635,10 @@ def hython_redshift_material_results():
         pytest.skip("hython is not available")
     if not REDSHIFT_HIP_FILE.is_file():
         pytest.skip("Redshift example hip file is not available")
-    if not _hython_supports_node_type(hython, "rs_usd_material_builder"):
+    if not (
+        _hython_supports_node_type(hython, "redshift_vopnet")
+        and _hython_supports_node_type(hython, "rs_usd_material_builder")
+    ):
         pytest.skip("Redshift is not available in this Houdini install")
 
     return _run_hython_probe(
@@ -912,26 +932,60 @@ def test_hython_mtlx_to_arnold_displacement_outputs_use_upstream_driver(
 def test_hython_arnold_to_redshift_displacement_uses_redshift_displacement_wrapper(
     hython_conversion_report,
 ):
-    arnold_to_redshift = next(
-        (
-            case
-            for case in hython_conversion_report["cross_engine_fidelity"]
-            if case["source_path"] == "/mat/arnold_materialbuilder_full"
-            and case["target_renderer"] == "rs_usd_material_builder"
-        ),
-        None,
-    )
-    if arnold_to_redshift is None:
+    arnold_to_redshift_cases = [
+        case
+        for case in hython_conversion_report["cross_engine_fidelity"]
+        if case["source_path"] == "/mat/arnold_materialbuilder_full"
+        and case["target_renderer"] in {"redshift_vopnet", "rs_usd_material_builder"}
+    ]
+    if not arnold_to_redshift_cases:
         pytest.skip("Redshift target is not available")
 
-    converted_outputs = arnold_to_redshift["converted_fingerprint"]["outputs"]
+    for case in arnold_to_redshift_cases:
+        expected_output_node = (
+            "redshift_material1"
+            if case["target_renderer"] == "redshift_vopnet"
+            else "redshift_usd_material1"
+        )
+        converted_outputs = case["converted_fingerprint"]["outputs"]
 
-    assert converted_outputs["GENERIC::output_displacement"] == {
-        "node": "redshift_usd_material1",
-        "connected_node": "redshift_displacement",
-        "connected_input": "Displacement",
-        "connected_output": "out",
+        assert converted_outputs["GENERIC::output_displacement"] == {
+            "node": expected_output_node,
+            "connected_node": "redshift_displacement",
+            "connected_input": "Displacement",
+            "connected_output": "out",
+        }
+
+
+@pytest.mark.hython
+def test_hython_redshift_targets_create_expected_terminal_nodes(hython_conversion_report):
+    redshift_target_cases = [
+        case
+        for case in hython_conversion_report["conversion"]
+        if case["source_path"] == "/mat/arnold_materialbuilder_full"
+        and case["target_renderer"] in {"redshift_vopnet", "rs_usd_material_builder"}
+        and case["status"] == "passed"
+    ]
+    if not redshift_target_cases:
+        pytest.skip("Redshift target is not available")
+
+    assert {
+        (case["target_renderer"], case["created_type"])
+        for case in redshift_target_cases
+    } == {
+        ("redshift_vopnet", "redshift_vopnet"),
+        ("rs_usd_material_builder", "rs_usd_material_builder"),
     }
+
+    target_outputs = {
+        case["target_renderer"]: case["converted_fingerprint"]["outputs"]
+        for case in hython_conversion_report["cross_engine_fidelity"]
+        if case["source_path"] == "/mat/arnold_materialbuilder_full"
+        and case["target_renderer"] in {"redshift_vopnet", "rs_usd_material_builder"}
+    }
+
+    assert target_outputs["redshift_vopnet"]["GENERIC::output_surface"]["node"] == "redshift_material1"
+    assert target_outputs["rs_usd_material_builder"]["GENERIC::output_surface"]["node"] == "redshift_usd_material1"
 
 
 @pytest.mark.hython
@@ -1051,18 +1105,23 @@ def test_hython_redshift_output_fidelity_reports_cover_available_targets(
 
 
 @pytest.mark.hython
-def test_hython_redshift_usd_builder_roundtrip_preserves_outputs(
+def test_hython_redshift_same_engine_roundtrip_preserves_outputs(
     hython_redshift_conversion_report,
 ):
     same_engine_cases = {
-        case["source_path"]: case
+        (case["source_path"], case["target_renderer"]): case
         for case in hython_redshift_conversion_report["same_engine_fidelity"]
-        if case["target_renderer"] == "rs_usd_material_builder"
+        if case["target_renderer"] in {"redshift_vopnet", "rs_usd_material_builder"}
     }
 
-    case = same_engine_cases["/mat/redshift_usd"]
-    assert case["status"] == "passed", f"{REDSHIFT_REPORT_PATH}: {case['diff']}"
-    assert case["summary"]["output_diff_count"] == 0
+    expected_cases = (
+        ("/mat/redshift_usd", "rs_usd_material_builder"),
+        ("/mat/redshift_legacy", "redshift_vopnet"),
+    )
+    for case_key in expected_cases:
+        case = same_engine_cases[case_key]
+        assert case["status"] == "passed", f"{REDSHIFT_REPORT_PATH}: {case['diff']}"
+        assert case["summary"]["output_diff_count"] == 0
 
 
 @pytest.mark.hython

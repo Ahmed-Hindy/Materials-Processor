@@ -568,5 +568,6 @@ FORMAT_CHOICES = {
     'principledshader': 'Principled Shader',
     'mtlx': 'MTLX',
     'arnold': 'Arnold',
+    'redshift_vopnet': 'Redshift VOPNET',
     'rs_usd_material_builder': 'Redshift USD Material Builder',
 }

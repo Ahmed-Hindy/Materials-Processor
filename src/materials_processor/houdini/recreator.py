@@ -25,11 +25,16 @@ OUTPUT_CONNECTIONS_INDEX_MAP = {
         'GENERIC::output_surface': 0,
         'GENERIC::output_displacement': 0
     },
+    'redshift_vopnet': {
+        'GENERIC::output_surface': 0,
+        'GENERIC::output_displacement': 1
+    },
     'rs_usd_material_builder': {
         'GENERIC::output_surface': 0,
         'GENERIC::output_displacement': 1
     },
 }
+REDSHIFT_TARGET_RENDERERS = {'redshift_vopnet', 'rs_usd_material_builder'}
 
 ##########################################################################################
 
@@ -247,6 +252,37 @@ class NodeRecreator:
         }
         return subnet_node, output_nodes
 
+    @staticmethod
+    def create_redshift_vopnet_init_shader(matnet=None, material_name=None):
+        """
+        Create an initial legacy redshift_vopnet shader in the specified network.
+
+        Args:
+            matnet (hou.Node, optional): The Houdini network node.
+            material_name (str, optional): The material node name.
+
+        Returns:
+            Tuple[hou.Node, Dict]: The created redshift_vopnet and output nodes.
+        """
+        if not matnet:
+            matnet = hou.node('/mat')
+        if not material_name:
+            material_name = 'redshift_vopnet'
+
+        vopnet_node = matnet.createNode('redshift_vopnet', material_name)
+        output_node = vopnet_node.node('redshift_material1')
+        output_nodes = {
+            'GENERIC::output_surface': {'node': output_node,
+                                        'node_name': output_node.name(),
+                                        'node_path': output_node.path(),
+                                        },
+            'GENERIC::output_displacement': {'node': output_node,
+                                             'node_name': output_node.name(),
+                                             'node_path': output_node.path(),
+                                             },
+        }
+        return vopnet_node, output_nodes
+
     def create_init_shader(self, material_name=None):
         if not material_name:
             material_name = 'convertedMaterial'
@@ -257,6 +293,8 @@ class NodeRecreator:
             self.material_node, self.new_output_connections = self.create_arnold_init_shader(self.target_context, material_name)
         elif self.target_renderer == 'principledshader':
             self.material_node, self.new_output_connections = self.create_principledshader_init_shader(self.target_context, material_name)
+        elif self.target_renderer == 'redshift_vopnet':
+            self.material_node, self.new_output_connections = self.create_redshift_vopnet_init_shader(self.target_context, material_name)
         elif self.target_renderer == 'rs_usd_material_builder':
             self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(self.target_context, material_name)
         else:
@@ -858,7 +896,7 @@ class NodeRecreator:
                 )
                 continue
             if (
-                self.target_renderer == 'rs_usd_material_builder'
+                self.target_renderer in REDSHIFT_TARGET_RENDERERS
                 and generic_output_type == 'GENERIC::output_displacement'
             ):
                 self._connect_redshift_displacement_output(
