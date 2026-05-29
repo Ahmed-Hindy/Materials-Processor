@@ -41,6 +41,7 @@ def test_get_material_type_detects_supported_houdini_nodes():
     assert traverser.get_material_type(FakeNode("redshift_vopnet")) == "redshift_vopnet"
     assert traverser.get_material_type(FakeNode("rs_usd_material_builder")) == "rs_usd_material_builder"
     assert traverser.get_material_type(FakeNode("principledshader::2.0")) == "principledshader"
+    assert traverser.get_material_type(FakeNode("subnet", children=[FakeNode("mtlxopen_pbr_surface")])) == "openpbr"
 
 
 def test_get_material_type_detects_mtlx_subnet_from_children():
@@ -159,7 +160,7 @@ def test_opmenu_renderer_filter_does_not_mutate_global_format_choices(monkeypatc
     node = FakeInputNode("subnet", path="/mat/material1")
     commands.convert_material_from_opmenu({"items": [node], "node": node})
 
-    assert displayed_buttons == ["Principled Shader", "MTLX", "Cancel"]
+    assert displayed_buttons == ["Principled Shader", "MTLX", "OpenPBR", "Cancel"]
     assert created_renderers == ["mtlx"]
     assert FakeRecreator.was_run
     assert mappings.FORMAT_CHOICES == original_choices

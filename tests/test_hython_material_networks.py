@@ -23,6 +23,7 @@ TARGET_RENDERERS = list(FORMAT_CHOICES)
 SAME_ENGINE_FIDELITY_TARGETS = (
     "arnold",
     "mtlx",
+    "openpbr",
     "principledshader",
     "redshift_vopnet",
     "rs_usd_material_builder",
@@ -30,6 +31,7 @@ SAME_ENGINE_FIDELITY_TARGETS = (
 OUTPUT_FIDELITY_TARGET_RENDERERS = (
     "arnold",
     "mtlx",
+    "openpbr",
     "principledshader",
     "redshift_vopnet",
     "rs_usd_material_builder",
@@ -57,6 +59,7 @@ CROSS_ENGINE_FIDELITY_TARGETS = (
 EXPECTED_TARGET_NODE_TYPES = {
     "principledshader": "principledshader::2.0",
     "mtlx": "subnet",
+    "openpbr": "subnet",
     "arnold": "arnold_materialbuilder",
     "redshift_vopnet": "redshift_vopnet",
     "rs_usd_material_builder": "rs_usd_material_builder",
@@ -77,6 +80,10 @@ MATERIAL_CASES = {
     },
     "/mat/mtlxmaterial_basic": {
         "material_type": "mtlx",
+        "standardized_output_keys": ["GENERIC::output_displacement", "GENERIC::output_surface"],
+    },
+    "/mat/openpbr_basic": {
+        "material_type": "openpbr",
         "standardized_output_keys": ["GENERIC::output_displacement", "GENERIC::output_surface"],
     },
     "/mat/principledshader": {
@@ -115,6 +122,7 @@ SNAPSHOT_CASES = {
         "traversed": "houdini_principled_native_traversed_nodes.json",
         "outputs": "houdini_principled_native_output_nodes.json",
         "round_positions": False,
+        "ignore_positions": True,
     },
 }
 
@@ -686,6 +694,18 @@ def _round_node_positions(value):
     return value
 
 
+def _strip_node_positions(value):
+    if isinstance(value, dict):
+        return {
+            key: _strip_node_positions(item_value)
+            for key, item_value in value.items()
+            if key != "node_position"
+        }
+    if isinstance(value, list):
+        return [_strip_node_positions(item) for item in value]
+    return value
+
+
 def _renumber_connection_keys(value):
     if isinstance(value, dict):
         if value and all(key.startswith("connection_") for key in value):
@@ -730,6 +750,9 @@ def test_hython_full_materials_match_checked_in_fixtures(hython_ingest_results, 
     if snapshot["round_positions"]:
         actual_traversed = _normalize_mtlx_snapshot(actual_traversed)
         expected_traversed = _normalize_mtlx_snapshot(expected_traversed)
+    if snapshot.get("ignore_positions"):
+        actual_traversed = _strip_node_positions(actual_traversed)
+        expected_traversed = _strip_node_positions(expected_traversed)
 
     assert actual_traversed == expected_traversed
     assert actual_outputs == expected_outputs
@@ -1008,6 +1031,28 @@ def test_hython_principled_displacement_output_requires_texture(hython_ingest_re
     assert set(no_displacement["output_nodes"]) == {"surface"}
     assert set(with_displacement["output_nodes"]) == {"surface", "displacement"}
     assert with_displacement["standardized_output_keys"] == [
+        "GENERIC::output_displacement",
+        "GENERIC::output_surface",
+    ]
+
+
+@pytest.mark.hython
+def test_hython_openpbr_basic_ingests_as_materialx_openpbr_surface(hython_ingest_results):
+    result = hython_ingest_results["/mat/openpbr_basic"]
+
+    assert result["material_type"] == "openpbr"
+    assert set(result["output_nodes"]) == {"surface", "displacement"}
+    traversed_types = {
+        node_data["node_type"]
+        for node_data in result["traversed_nodes"].values()
+    }
+    child_types = {
+        child["node_type"]
+        for node_data in result["traversed_nodes"].values()
+        for child in node_data["children_list"]
+    }
+    assert "mtlxopen_pbr_surface" in traversed_types | child_types
+    assert result["standardized_output_keys"] == [
         "GENERIC::output_displacement",
         "GENERIC::output_surface",
     ]

@@ -28,6 +28,8 @@ def get_material_type(usd_material):
         material_list.append('arnold')
     if 'ND_standard_surface_surfaceshader' in infoId_list:
         material_list.append('mtlx')
+    if 'ND_open_pbr_surface_surfaceshader' in infoId_list:
+        material_list.append('openpbr')
     if 'redshift::StandardMaterial' in infoId_list:
         material_list.append('rs_usd_material_builder')
 

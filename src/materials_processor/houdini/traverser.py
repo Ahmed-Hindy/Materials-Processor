@@ -10,6 +10,7 @@ except:
     hou = None
 
 from materials_processor.houdini.output_detector import detect_output_nodes  # noqa: E402
+from materials_processor.mappings import OPENPBR_NODE_TYPE  # noqa: E402
 
 class NodeTraverser:
     """
@@ -273,6 +274,26 @@ class NodeTraverser:
 
 
 
+def _subnet_has_node_type(materialbuilder_node, node_type):
+    return any(child.type().name() == node_type for child in materialbuilder_node.children())
+
+
+def _subnet_surface_output_node_type(materialbuilder_node):
+    for child in materialbuilder_node.children():
+        if child.type().name() != 'subnetconnector':
+            continue
+
+        parm = child.parm('parmname')
+        if parm is not None and parm.eval() != 'surface':
+            continue
+
+        for connection in child.inputConnections():
+            input_node = connection.inputNode()
+            if input_node:
+                return input_node.type().name()
+    return None
+
+
 def get_material_type(materialbuilder_node):
     """
     Args:
@@ -286,10 +307,17 @@ def get_material_type(materialbuilder_node):
     if materialbuilder_type == 'arnold_materialbuilder':
         material_type = 'arnold'
     elif materialbuilder_type == 'subnet':
-        for child_node in materialbuilder_node.children():
-            if 'mtlx' in child_node.type().name():
-                material_type = 'mtlx'
-                break
+        surface_output_type = _subnet_surface_output_node_type(materialbuilder_node)
+        has_output_connectors = _subnet_has_node_type(materialbuilder_node, 'subnetconnector')
+        if surface_output_type == OPENPBR_NODE_TYPE or (
+            surface_output_type is None and not has_output_connectors and _subnet_has_node_type(materialbuilder_node, OPENPBR_NODE_TYPE)
+        ):
+            material_type = 'openpbr'
+        else:
+            for child_node in materialbuilder_node.children():
+                if 'mtlx' in child_node.type().name():
+                    material_type = 'mtlx'
+                    break
     elif materialbuilder_type == 'redshift_vopnet':
         material_type = 'redshift_vopnet'
     elif materialbuilder_type == 'rs_usd_material_builder':

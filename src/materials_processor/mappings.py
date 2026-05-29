@@ -5,6 +5,7 @@
 STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims']
 
 PRINCIPLED_NATIVE_NODE_TYPE = 'principledshader::2.0'
+OPENPBR_NODE_TYPE = 'mtlxopen_pbr_surface'
 
 PRINCIPLED_SHADER_PARAM_ALIASES = {
     'basecolor': 'base_color',
@@ -133,6 +134,51 @@ PRINCIPLED_DISPLACEMENT_INPUT = {
     'image_name': 'image_displacement',
 }
 
+OPENPBR_PARAM_NAMES_TO_GENERIC = {
+    'base_weight': 'base',
+    'base_color': 'base_color',
+    'base_diffuse_roughness': 'diffuse_roughness',
+    'base_metalness': 'metalness',
+    'specular_weight': 'specular',
+    'specular_color': 'specular_color',
+    'specular_roughness': 'specular_roughness',
+    'specular_ior': 'specular_IOR',
+    'specular_roughness_anisotropy': 'specular_anisotropy',
+    'transmission_weight': 'transmission',
+    'transmission_color': 'transmission_color',
+    'transmission_depth': 'transmission_depth',
+    'transmission_scatter': 'transmission_scatter',
+    'transmission_scatter_anisotropy': 'transmission_scatter_anisotropy',
+    'transmission_dispersion_scale': 'transmission_dispersion_scale',
+    'transmission_dispersion_abbe_number': 'transmission_dispersion_abbe_number',
+    'subsurface_weight': 'subsurface',
+    'subsurface_color': 'subsurface_color',
+    'subsurface_radius': 'subsurface_radius',
+    'subsurface_radius_scale': 'subsurface_radius_scale',
+    'subsurface_scatter_anisotropy': 'subsurface_scatter_anisotropy',
+    'fuzz_weight': 'fuzz_weight',
+    'fuzz_color': 'fuzz_color',
+    'fuzz_roughness': 'fuzz_roughness',
+    'coat_weight': 'coat',
+    'coat_color': 'coat_color',
+    'coat_roughness': 'coat_roughness',
+    'coat_roughness_anisotropy': 'coat_anisotropy',
+    'coat_ior': 'coat_IOR',
+    'coat_darkening': 'coat_darkening',
+    'thin_film_weight': 'thin_film_weight',
+    'thin_film_thickness': 'thin_film_thickness',
+    'thin_film_ior': 'thin_film_IOR',
+    'emission_luminance': 'emission',
+    'emission_color': 'emission_color',
+    'geometry_opacity': 'opacity',
+    'geometry_thin_walled': 'thin_walled',
+    'geometry_normal': 'normal',
+    'geometry_coat_normal': 'coat_normal',
+    'geometry_tangent': 'tangent',
+    'geometry_coat_tangent': 'coat_tangent',
+    'out': 'surface',
+}
+
 REDSHIFT_HOU_NODE_TYPES = {
     'redshift::StandardMaterial': 'GENERIC::standard_surface',
     'redshift::TextureSampler': 'GENERIC::image',
@@ -194,6 +240,7 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
 
     'mtlx': {
         'hou_vop_nodes': {
+            OPENPBR_NODE_TYPE: 'GENERIC::standard_surface',
             'mtlxstandard_surface': 'GENERIC::standard_surface',
             'mtlximage': 'GENERIC::image',
             'mtlxnormalmap::2.0': 'GENERIC::normalmap',
@@ -206,7 +253,32 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         },
         'usd_prims': {
             # mtlx usd prims infoId:
+            'ND_open_pbr_surface_surfaceshader': 'GENERIC::standard_surface',
             'ND_standard_surface_surfaceshader': 'GENERIC::standard_surface',
+            'ND_image_float': 'GENERIC::image',
+            'ND_image_color3': 'GENERIC::image',
+            'ND_normalmap_vector3': 'GENERIC::normalmap',
+            'ND_colorcorrect_color3': 'GENERIC::color_correct',
+            'ND_range_float': 'GENERIC::range',
+            'ND_bump_vector3': 'GENERIC::displacement',
+            'ND_displacement_float': 'GENERIC::displacement',
+        },
+    },
+
+    'openpbr': {
+        'hou_vop_nodes': {
+            OPENPBR_NODE_TYPE: 'GENERIC::standard_surface',
+            'mtlximage': 'GENERIC::image',
+            'mtlxnormalmap::2.0': 'GENERIC::normalmap',
+            'mtlxrange': 'GENERIC::range',
+            'mtlxcolorcorrect': 'GENERIC::color_correct',
+            'mtlxmix': 'GENERIC::mix_rgba',
+            'mtlxdisplacement': 'GENERIC::displacement',
+            'subnetconnector': 'GENERIC::output_node',
+            'null': 'GENERIC::null',
+        },
+        'usd_prims': {
+            'ND_open_pbr_surface_surfaceshader': 'GENERIC::standard_surface',
             'ND_image_float': 'GENERIC::image',
             'ND_image_color3': 'GENERIC::image',
             'ND_normalmap_vector3': 'GENERIC::normalmap',
@@ -290,6 +362,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'thin_walled': 'thin_walled',
         'out': 'surface',
     },
+    OPENPBR_NODE_TYPE: OPENPBR_PARAM_NAMES_TO_GENERIC,
     'mtlximage': {
         'signature': 'signature',
         'file': 'filename',
@@ -362,6 +435,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'normal': 'normal',
         'thin_walled': 'thin_walled',
     },
+    'ND_open_pbr_surface_surfaceshader': OPENPBR_PARAM_NAMES_TO_GENERIC,
     'ND_image_float': {
         'signature': 'signature',
         'file': 'filename',
@@ -567,6 +641,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 FORMAT_CHOICES = {
     'principledshader': 'Principled Shader',
     'mtlx': 'MTLX',
+    'openpbr': 'OpenPBR',
     'arnold': 'Arnold',
     'redshift_vopnet': 'Redshift VOPNET',
     'rs_usd_material_builder': 'Redshift USD Material Builder',

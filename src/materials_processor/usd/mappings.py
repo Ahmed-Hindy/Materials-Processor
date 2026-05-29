@@ -10,6 +10,7 @@ GENERIC_OUTPUT_TYPES = {
 
 OUT_PRIMS_TYPES = {
     'mtlx': 'subnetconnector',
+    'openpbr': 'subnetconnector',
     'arnold': 'arnold_shader',
     'rs_usd_material_builder': 'redshift_usd_material',
 }
@@ -27,6 +28,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:standard_surface',
             'mtlx': 'ND_standard_surface_surfaceshader',
+            'openpbr': 'ND_open_pbr_surface_surfaceshader',
             'rs_usd_material_builder': 'redshift::StandardMaterial',
             'usdpreview': 'UsdPreviewSurface',
         },
@@ -36,6 +38,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:image',
             'mtlx': 'ND_image_color3',
+            'openpbr': 'ND_image_color3',
             'rs_usd_material_builder': 'redshift::TextureSampler',
             'usdpreview': 'UsdUVTexture',
         },
@@ -45,6 +48,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:normal_map',
             'mtlx': 'ND_normalmap_vector3',
+            'openpbr': 'ND_normalmap_vector3',
             'rs_usd_material_builder': 'redshift::BumpMap',
         },
     },
@@ -53,6 +57,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:range',
             'mtlx': 'ND_range_color3',
+            'openpbr': 'ND_range_color3',
             'rs_usd_material_builder': 'redshift::RSColorRange',
         },
     },
@@ -61,6 +66,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:color_correct',
             'mtlx': 'ND_colorcorrect_color3',
+            'openpbr': 'ND_colorcorrect_color3',
             'rs_usd_material_builder': 'redshift::RSColorCorrection',
         },
     },
@@ -110,6 +116,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': 'arnold:bump2d',
             'mtlx':   'ND_bump_vector3',
+            'openpbr': 'ND_bump_vector3',
             'rs_usd_material_builder':   'redshift::Displacement',
         },
     },
@@ -128,6 +135,7 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
         'info_id': {
             'arnold': None,
             'mtlx':   None,
+            'openpbr': None,
             'rs_usd_material_builder': None,
         },
     },
@@ -147,6 +155,16 @@ OUT_PRIM_DICT = {
 
     },
     'mtlx': {
+        'GENERIC::output_surface': {
+            'src': 'out',
+            'dest': 'mtlx:surface',
+        },
+        'GENERIC::output_displacement': {
+            'src': 'out',
+            'dest': 'mtlx:displacement',
+        },
+    },
+    'openpbr': {
         'GENERIC::output_surface': {
             'src': 'out',
             'dest': 'mtlx:surface',
