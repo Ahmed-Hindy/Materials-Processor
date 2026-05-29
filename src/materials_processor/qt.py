@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import importlib
 import os
-from dataclasses import dataclass
-from typing import Any
 
 QT_BACKEND_ENV = "QT_BACKEND"
 _BACKEND_ORDER = ("pyside6", "pyside2")
@@ -14,14 +12,9 @@ _BACKEND_MODULES = {
     "pyside2": "PySide2",
 }
 
-
-@dataclass(frozen=True)
-class QtBinding:
-    """Loaded Qt modules and binding metadata."""
-
-    api: str
-    core: Any
-    widgets: Any
+QT_BACKEND_NAME: str | None = None
+_qt_core = None
+_qt_widgets = None
 
 
 def binding_candidates(preferred: str | None = None) -> list[tuple[str, str]]:
@@ -41,14 +34,22 @@ def binding_candidates(preferred: str | None = None) -> list[tuple[str, str]]:
     return ordered
 
 
-def load_qt_binding(preferred: str | None = None) -> QtBinding:
-    """Load PySide6 or PySide2 without making package import depend on Qt."""
+def load_qt_modules(preferred: str | None = None):
+    """Load PySide6 or PySide2 and cache QtCore/QtWidgets modules."""
+    global QT_BACKEND_NAME, _qt_core, _qt_widgets
+
+    requested = (preferred or "").lower().replace("-", "")
+    if _qt_core is not None and _qt_widgets is not None:
+        if not requested or requested == QT_BACKEND_NAME:
+            return _qt_core, _qt_widgets
+
     errors: list[str] = []
     for module_name, api in binding_candidates(preferred):
         try:
-            qt_core = importlib.import_module(f"{module_name}.QtCore")
-            qt_widgets = importlib.import_module(f"{module_name}.QtWidgets")
-            return QtBinding(api=api, core=qt_core, widgets=qt_widgets)
+            _qt_core = importlib.import_module(f"{module_name}.QtCore")
+            _qt_widgets = importlib.import_module(f"{module_name}.QtWidgets")
+            QT_BACKEND_NAME = api
+            return _qt_core, _qt_widgets
         except ImportError as exc:
             errors.append(f"{module_name}: {exc}")
 
@@ -58,9 +59,35 @@ def load_qt_binding(preferred: str | None = None) -> QtBinding:
     )
 
 
-def enum_value(qt_core, enum_name: str, attr_name: str):
+class _LazyQtModule:
+    """Lazy proxy for a Qt module."""
+
+    def __init__(self, module_name: str):
+        self._module_name = module_name
+
+    def _module(self):
+        qt_core, qt_widgets = load_qt_modules()
+        if self._module_name == "QtCore":
+            return qt_core
+        return qt_widgets
+
+    def __getattr__(self, name: str):
+        return getattr(self._module(), name)
+
+
+QtCore = _LazyQtModule("QtCore")
+QtWidgets = _LazyQtModule("QtWidgets")
+
+
+def enum_value(enum_name: str, attr_name: str):
     """Return a Qt enum value across PySide2 and PySide6."""
-    enum = getattr(qt_core.Qt, enum_name, None)
+    enum = getattr(QtCore.Qt, enum_name, None)
     if enum is not None and hasattr(enum, attr_name):
         return getattr(enum, attr_name)
-    return getattr(qt_core.Qt, attr_name)
+    return getattr(QtCore.Qt, attr_name)
+
+
+def get_qt_backend() -> str | None:
+    """Return the active Qt backend name."""
+    load_qt_modules()
+    return QT_BACKEND_NAME

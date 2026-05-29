@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from materials_processor.qt import QtBinding, enum_value
+from materials_processor.qt import QtCore, QtWidgets, enum_value
 
 logger = logging.getLogger(__name__)
 
@@ -19,13 +19,11 @@ def split_dropped_node_paths(text: str) -> list[str]:
     return paths
 
 
-def create_node_drop_list_class(qt: QtBinding):
+def create_node_drop_list_class():
     """Create the node drop list class for the loaded Qt binding."""
-    QtCore = qt.core
-    QtWidgets = qt.widgets
-    delete_key = enum_value(QtCore, "Key", "Key_Delete")
-    move_action = enum_value(QtCore, "DropAction", "MoveAction")
-    match_exactly = enum_value(QtCore, "MatchFlag", "MatchExactly")
+    delete_key = enum_value("Key", "Key_Delete")
+    move_action = enum_value("DropAction", "MoveAction")
+    match_exactly = enum_value("MatchFlag", "MatchExactly")
 
     class NodeDropList(QtWidgets.QListWidget):
         """List widget that accepts Houdini node paths by drag and drop."""
@@ -78,17 +76,17 @@ def create_node_drop_list_class(qt: QtBinding):
     return NodeDropList
 
 
-def extended_selection_mode(qt: QtBinding):
+def extended_selection_mode():
     """Return the extended-selection enum for the loaded Qt binding."""
-    abstract_item_view = qt.widgets.QAbstractItemView
+    abstract_item_view = QtWidgets.QAbstractItemView
     if hasattr(abstract_item_view, "SelectionMode"):
         return abstract_item_view.SelectionMode.ExtendedSelection
     return abstract_item_view.ExtendedSelection
 
 
-def dialog_button_namespace(qt: QtBinding):
+def dialog_button_namespace():
     """Return the dialog button enum namespace for the loaded Qt binding."""
-    dialog_buttons = qt.widgets.QDialogButtonBox
+    dialog_buttons = QtWidgets.QDialogButtonBox
     if hasattr(dialog_buttons, "StandardButton"):
         return dialog_buttons.StandardButton
     return dialog_buttons

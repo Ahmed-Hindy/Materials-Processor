@@ -9,7 +9,7 @@ from importlib import reload
 
 from materials_processor.logging_config import setup_file_logging
 from materials_processor.mappings import FORMAT_CHOICES
-from materials_processor.qt import QtBinding, load_qt_binding
+from materials_processor.qt import QtWidgets, get_qt_backend, load_qt_modules
 from materials_processor.ui.logging_handler import TextEditLogger
 from materials_processor.ui.state import ConversionUiState
 from materials_processor.ui.widgets import (
@@ -54,12 +54,11 @@ def available_format_choices() -> dict[str, str]:
     }
 
 
-def create_window_classes(qt: QtBinding):
+def create_window_classes():
     """Create Qt classes after a binding has been loaded."""
-    QtWidgets = qt.widgets
-    NodeDropList = create_node_drop_list_class(qt)
-    selection_mode = extended_selection_mode(qt)
-    dialog_button = dialog_button_namespace(qt)
+    NodeDropList = create_node_drop_list_class()
+    selection_mode = extended_selection_mode()
+    dialog_button = dialog_button_namespace()
 
     class PreferencesDialog(QtWidgets.QDialog):
         """Small preferences dialog for session-local UI settings."""
@@ -156,7 +155,7 @@ def create_window_classes(qt: QtBinding):
             about_action = help_menu.addAction("About")
             about_action.triggered.connect(self.show_about_dialog)
 
-            self.statusBar().showMessage(f"Qt binding: {qt.api}")
+            self.statusBar().showMessage(f"Qt binding: {get_qt_backend()}")
 
         def _configure_logging(self):
             self.logger = logging.getLogger("materials_processor")
@@ -285,8 +284,8 @@ def create_window_classes(qt: QtBinding):
 
 def load_ui_classes(qt_binding: str | None = None):
     """Load and return the Qt window classes."""
-    qt = load_qt_binding(qt_binding)
-    return create_window_classes(qt)
+    load_qt_modules(qt_binding)
+    return create_window_classes()
 
 
 def create_main_window(parent=None, qt_binding: str | None = None):
@@ -297,10 +296,10 @@ def create_main_window(parent=None, qt_binding: str | None = None):
 
 def show_my_main_window(qt_binding: str | None = None):
     """Show the Material Processor window inside Houdini."""
-    qt = load_qt_binding(qt_binding)
-    app = qt.widgets.QApplication.instance()
+    load_qt_modules(qt_binding)
+    app = QtWidgets.QApplication.instance()
     if app is None:
-        app = qt.widgets.QApplication([])
+        app = QtWidgets.QApplication([])
 
     existing = getattr(hou.session, WINDOW_SESSION_NAME, None) if hou else None
     if existing is not None:
@@ -310,7 +309,7 @@ def show_my_main_window(qt_binding: str | None = None):
         return existing
 
     parent = _houdini_ui_parent()
-    window = create_main_window(parent=parent, qt_binding=qt.api)
+    window = create_main_window(parent=parent, qt_binding=get_qt_backend())
     if hou:
         setattr(hou.session, WINDOW_SESSION_NAME, window)
     window.show()
