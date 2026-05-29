@@ -9,7 +9,7 @@ from importlib import reload
 
 from materials_processor.logging_config import setup_file_logging
 from materials_processor.mappings import FORMAT_CHOICES
-from materials_processor.qt import QtWidgets, get_qt_backend, load_qt_modules
+from materials_processor.qt import QT_BACKEND_NAME, QtWidgets
 from materials_processor.ui.logging_handler import TextEditLogger
 from materials_processor.ui.state import ConversionUiState
 from materials_processor.ui.widgets import (
@@ -155,7 +155,7 @@ def create_window_classes():
             about_action = help_menu.addAction("About")
             about_action.triggered.connect(self.show_about_dialog)
 
-            self.statusBar().showMessage(f"Qt binding: {get_qt_backend()}")
+            self.statusBar().showMessage(f"Qt binding: {QT_BACKEND_NAME}")
 
         def _configure_logging(self):
             self.logger = logging.getLogger("materials_processor")
@@ -282,21 +282,19 @@ def create_window_classes():
     return MaterialProcessorWindow, NodeDropList, PreferencesDialog
 
 
-def load_ui_classes(qt_binding: str | None = None):
+def load_ui_classes():
     """Load and return the Qt window classes."""
-    load_qt_modules(qt_binding)
     return create_window_classes()
 
 
-def create_main_window(parent=None, qt_binding: str | None = None):
+def create_main_window(parent=None):
     """Create a Material Processor window."""
-    MaterialProcessorWindow, _, _ = load_ui_classes(qt_binding=qt_binding)
+    MaterialProcessorWindow, _, _ = load_ui_classes()
     return MaterialProcessorWindow(parent)
 
 
-def show_my_main_window(qt_binding: str | None = None):
+def show_my_main_window():
     """Show the Material Processor window inside Houdini."""
-    load_qt_modules(qt_binding)
     app = QtWidgets.QApplication.instance()
     if app is None:
         app = QtWidgets.QApplication([])
@@ -309,7 +307,7 @@ def show_my_main_window(qt_binding: str | None = None):
         return existing
 
     parent = _houdini_ui_parent()
-    window = create_main_window(parent=parent, qt_binding=get_qt_backend())
+    window = create_main_window(parent=parent)
     if hou:
         setattr(hou.session, WINDOW_SESSION_NAME, window)
     window.show()

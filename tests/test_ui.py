@@ -5,6 +5,7 @@ import types
 import pytest
 
 from materials_processor import ui
+from materials_processor import qt
 from materials_processor.mappings import FORMAT_CHOICES
 from materials_processor.ui import main_window
 from materials_processor.ui.state import ConversionUiState
@@ -200,13 +201,13 @@ class _DialogButtonBox(_Widget):
 
 
 def _install_fake_qt_and_hou(monkeypatch):
-    qt_core = types.ModuleType("PySide6.QtCore")
+    qt_core = qt.QtCore
     qt_core.Qt = types.SimpleNamespace(
         Key=types.SimpleNamespace(Key_Delete=1),
         DropAction=types.SimpleNamespace(MoveAction=2),
         MatchFlag=types.SimpleNamespace(MatchExactly=3),
     )
-    qt_widgets = types.ModuleType("PySide6.QtWidgets")
+    qt_widgets = qt.QtWidgets
     qt_widgets.QApplication = _Application
     qt_widgets.QMainWindow = _MainWindow
     qt_widgets.QWidget = _Widget
@@ -231,9 +232,6 @@ def _install_fake_qt_and_hou(monkeypatch):
     hou.ui = types.SimpleNamespace(mainQtWindow=lambda: None)
     hou.node = lambda path: None
 
-    monkeypatch.setitem(sys.modules, "PySide6", types.ModuleType("PySide6"))
-    monkeypatch.setitem(sys.modules, "PySide6.QtCore", qt_core)
-    monkeypatch.setitem(sys.modules, "PySide6.QtWidgets", qt_widgets)
     monkeypatch.setitem(sys.modules, "hou", hou)
     monkeypatch.setattr(main_window, "hou", hou)
     _Application._instance = None
@@ -280,8 +278,8 @@ def test_conversion_ui_state_defaults_are_empty():
 def test_show_my_main_window_reuses_houdini_session_singleton(monkeypatch):
     hou = _install_fake_qt_and_hou(monkeypatch)
 
-    first_window = ui.show_my_main_window("pyside6")
-    second_window = ui.show_my_main_window("pyside6")
+    first_window = ui.show_my_main_window()
+    second_window = ui.show_my_main_window()
 
     assert first_window is second_window
     assert getattr(hou.session, main_window.WINDOW_SESSION_NAME) is first_window
