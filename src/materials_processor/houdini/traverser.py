@@ -96,6 +96,9 @@ class NodeTraverser:
 
 
         connections_dict = {}
+        if parent_node is None:
+            return connections_dict
+
         for i, connection in enumerate(node.outputConnections()):
             # We only want to get the output connections of the parent node. We don't want all connections to all nodes
             if connection.outputNode().name() != parent_node.name():
@@ -195,7 +198,7 @@ class NodeTraverser:
         return parms
 
 
-    def _traverse_recursively_node_tree(self, node, parent_node=None):
+    def _traverse_recursively_node_tree(self, node, parent_node=None, active_paths=None):
         """
         Recursively traverse the node tree and return a dictionary of node connections with additional metadata,
         separating the input index and input node path as key-value pairs.
@@ -207,6 +210,14 @@ class NodeTraverser:
         Returns:
             Dict[str, Dict]: A dictionary representing the node tree with additional metadata.
         """
+        if active_paths is None:
+            active_paths = set()
+        if node.path() in active_paths:
+            logger.warning("Skipping recursive material traversal cycle at '%s'.", node.path())
+            return {}
+
+        active_paths = active_paths | {node.path()}
+
         # get a dict with all input and output connections related to the node
         connections_dict = self._detect_node_connections(node, parent_node)
 
@@ -229,10 +240,13 @@ class NodeTraverser:
                 continue
 
             # Recursively get child nodes
-            input_node_dict = self._traverse_recursively_node_tree(input_node, node)
+            input_node_dict = self._traverse_recursively_node_tree(input_node, node, active_paths)
+            input_node_entry = input_node_dict.get(input_node.path())
+            if input_node_entry is None:
+                continue
 
             node_dict['children_list'].append(
-                input_node_dict[input_node.path()]
+                input_node_entry
             )
 
         return {node.path(): node_dict}
