@@ -25,6 +25,10 @@ OUTPUT_CONNECTIONS_INDEX_MAP = {
         'GENERIC::output_surface': 0,
         'GENERIC::output_displacement': 0
     },
+    'openpbr': {
+        'GENERIC::output_surface': 0,
+        'GENERIC::output_displacement': 0
+    },
     'redshift_vopnet': {
         'GENERIC::output_surface': 0,
         'GENERIC::output_displacement': 1
@@ -106,6 +110,9 @@ class NodeRecreator:
 
         subnet_node.node('mtlxstandard_surface').destroy()
         subnet_node.node('inputs').destroy()
+        default_displacement = subnet_node.node('mtlxdisplacement')
+        if default_displacement is not None:
+            default_displacement.destroy()
 
         output_nodes = {
             'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
@@ -288,6 +295,8 @@ class NodeRecreator:
             material_name = 'convertedMaterial'
 
         if self.target_renderer == 'mtlx':
+            self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context, material_name)
+        elif self.target_renderer == 'openpbr':
             self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context, material_name)
         elif self.target_renderer == 'arnold':
             self.material_node, self.new_output_connections = self.create_arnold_init_shader(self.target_context, material_name)
@@ -716,11 +725,13 @@ class NodeRecreator:
         Returns:
             bool: True if the target displacement output was connected successfully.
         """
-        displacement_node = self.material_node.node('mtlxdisplacement')
-        if displacement_node is None:
-            displacement_node = self.material_node.createNode('mtlxdisplacement', 'mtlxdisplacement')
+        if source_node.type().name() == 'mtlxdisplacement':
+            displacement_node = source_node
+        else:
+            displacement_node = self.material_node.node('mtlxdisplacement')
+            if displacement_node is None:
+                displacement_node = self.material_node.createNode('mtlxdisplacement', 'mtlxdisplacement')
 
-        if source_node != displacement_node:
             connected = self._connect_pair(
                 src_node=source_node,
                 dest_node=displacement_node,
@@ -887,7 +898,7 @@ class NodeRecreator:
                 continue
 
             source_output_name = output_info.get('connected_output_name') or ''
-            if self.target_renderer == 'mtlx' and generic_output_type == 'GENERIC::output_displacement':
+            if self.target_renderer in {'mtlx', 'openpbr'} and generic_output_type == 'GENERIC::output_displacement':
                 self._connect_mtlx_displacement_output(
                     output_node=output_node,
                     output_index=output_index,

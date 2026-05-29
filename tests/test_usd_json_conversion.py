@@ -80,6 +80,22 @@ USD_CONVERSION_CASES = [
     ),
     pytest.param(
         HOUDINI_MTLX_FULL,
+        "openpbr",
+        {
+            "ND_open_pbr_surface_surfaceshader",
+            "ND_image_color3",
+            "ND_colorcorrect_color3",
+            "ND_range_color3",
+            "ND_bump_vector3",
+        },
+        {
+            "surface": "mtlx:surface",
+            "displacement": "mtlx:displacement",
+        },
+        id="houdini-mtlx-to-usd-openpbr",
+    ),
+    pytest.param(
+        HOUDINI_MTLX_FULL,
         "rs_usd_material_builder",
         {
             "redshift::StandardMaterial",

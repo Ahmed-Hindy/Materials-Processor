@@ -20,7 +20,7 @@ def ingest_material(material_node):
         material_type = get_material_type(material_node)
         if not material_type:
             logger.warning("Couldn't determine Input material type, "
-                           "currently only Arnold, MTLX, Redshift Standard Material and Principled Shader are supported!")
+                           "currently only Arnold, MTLX/OpenPBR, Redshift Standard Material and Principled Shader are supported!")
             return None, None, None
 
         logger.info("NodeTraverser() START----------------------")

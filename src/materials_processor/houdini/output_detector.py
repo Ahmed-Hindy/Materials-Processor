@@ -246,6 +246,8 @@ def detect_output_nodes(material_node, material_type: str):
         return _detect_arnold_output_nodes(material_node)
     elif material_type == 'mtlx':
         return _detect_mtlx_output_nodes(material_node)
+    elif material_type == 'openpbr':
+        return _detect_mtlx_output_nodes(material_node)
     elif material_type == 'redshift_vopnet':
         return _detect_redshift_vopnet_output_nodes(material_node)
     elif material_type == 'rs_usd_material_builder':
