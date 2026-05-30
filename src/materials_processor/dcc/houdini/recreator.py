@@ -10,8 +10,8 @@ from materials_processor.mappings import (
     REGULAR_PARAM_NAMES_TO_GENERIC,
     convert_generic,
 )
-from materials_processor.models import NodeInfo, NodeParameter
-from materials_processor.houdini.traverser import hou
+from materials_processor.core.graph import NodeInfo, NodeParameter
+from materials_processor.dcc.houdini.traverser import hou
 
 logger = logging.getLogger(__name__)
 

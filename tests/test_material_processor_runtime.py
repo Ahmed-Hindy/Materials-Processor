@@ -1,9 +1,9 @@
 import copy
 
 from materials_processor import io, mappings, standardizer
-from materials_processor.houdini import commands, traverser
-from materials_processor.houdini.recreator import NodeRecreator
-from materials_processor.models import NodeConnection, OutputConnection
+from materials_processor.core.graph import NodeConnection, OutputConnection
+from materials_processor.dcc.houdini import commands, traverser
+from materials_processor.dcc.houdini.recreator import NodeRecreator
 
 
 class FakeNodeType:

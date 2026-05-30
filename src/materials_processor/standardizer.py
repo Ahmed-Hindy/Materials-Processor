@@ -16,7 +16,7 @@ from materials_processor.mappings import (
     REGULAR_PARAM_NAMES_TO_GENERIC,
     STANDARDIZER_SUPPORTED_SOURCE_TYPES,
 )
-from materials_processor.models import ConnectionEndpoint, NodeConnection, NodeInfo, NodeParameter, OutputConnection
+from materials_processor.core.graph import ConnectionEndpoint, NodeConnection, NodeInfo, NodeParameter, OutputConnection
 
 logger = logging.getLogger(__name__)
 

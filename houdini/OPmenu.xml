@@ -23,7 +23,7 @@ return False
 
         <scriptCode><![CDATA[
 from importlib import reload
-from materials_processor.houdini import commands
+from materials_processor.dcc.houdini import commands
 reload(commands)
 commands.convert_material_from_opmenu(kwargs)
         ]]></scriptCode>

@@ -25,7 +25,7 @@ ui.show_my_main_window()
     <helpText><![CDATA[Select your materials first then run this script.]]></helpText>
     <script scriptType="python"><![CDATA[from importlib import reload
 import hou
-from materials_processor.houdini import commands
+from materials_processor.dcc.houdini import commands
 reload(commands)
 
 target_context = hou.node('/mat')
@@ -45,7 +45,7 @@ if selected_nodes:
 
   <tool name="material_processor_test" label="[TEST] material processor" icon="hicon:/SVGIcons.index?COMMON_houdinimaterialx.svg">
     <script scriptType="python"><![CDATA[from importlib import reload
-from materials_processor.houdini import commands
+from materials_processor.dcc.houdini import commands
 reload(commands)
 import hou
 

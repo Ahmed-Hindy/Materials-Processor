@@ -5,8 +5,8 @@ import os
 import traceback
 from importlib import resources
 
-from materials_processor.houdini.recreator import NodeRecreator
-from materials_processor.houdini.traverser import NodeTraverser, get_material_type, hou
+from materials_processor.dcc.houdini.recreator import NodeRecreator
+from materials_processor.dcc.houdini.traverser import NodeTraverser, get_material_type, hou
 from materials_processor import io
 from materials_processor.mappings import FORMAT_CHOICES
 from materials_processor.standardizer import NodeStandardizer
@@ -244,7 +244,7 @@ how to run from houdini shelf tool:
 ##########
 from importlib import reload
 import hou
-from materials_processor.houdini import commands
+from materials_processor.dcc.houdini import commands
 reload(commands)
 
 target_context = hou.node('/mat')
