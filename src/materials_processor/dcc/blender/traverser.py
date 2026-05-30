@@ -157,10 +157,12 @@ class BlenderNodeTraverser:
                 continue
 
             val = socket.default_value
-            # Convert math-types like Vector or Color/RGBA (which are sequences) to standard lists
+            # Convert math-types like Vector, Color, RGBA, and Blender arrays to standard lists.
             if hasattr(val, "copy") or isinstance(val, (list, tuple, bytes, set)):
                 val = list(val)
-            elif type(val).__name__ in ("Vector", "Color"):
+            elif type(val).__name__ in ("Vector", "Color", "bpy_prop_array"):
+                val = list(val)
+            elif not isinstance(val, str) and hasattr(val, "__iter__"):
                 val = list(val)
 
             # Map Blender socket type names to generic types

@@ -26,6 +26,7 @@ pythonpath = ["src"]
 markers = [
     "hython: local Houdini integration tests that run through hython when available",
     "maya: local Maya integration tests that run through mayapy when available",
+    "blender: local Blender integration tests that run through blender.exe when available",
 ]
 
 [tool.ruff]
