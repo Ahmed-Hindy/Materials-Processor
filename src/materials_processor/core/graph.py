@@ -1,6 +1,6 @@
 """
 copyright Ahmed Hindy. Please mention the original author if you used any part of this code
-This module processes material nodes in Houdini, standardizing shader nodes and parameters.
+This module defines the DCC-neutral material graph data structures.
 """
 import pprint
 from collections.abc import Mapping
@@ -255,3 +255,10 @@ class MaterialData:
 
     def _pretty_print(self):
         return f"MaterialData(material_name={self.material_name}, nodes={self.nodeinfo_list})"
+
+
+MaterialParameter = NodeParameter
+MaterialNode = NodeInfo
+MaterialConnection = NodeConnection
+MaterialOutput = OutputConnection
+MaterialGraph = MaterialData

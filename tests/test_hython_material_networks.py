@@ -173,8 +173,8 @@ repo = Path({str(ROOT)!r})
 sys.path.insert(0, str(repo / "src"))
 
 import hou
-from materials_processor.houdini.recreator import NodeRecreator
-from materials_processor.houdini.traverser import NodeTraverser, get_material_type
+from materials_processor.dcc.houdini.recreator import NodeRecreator
+from materials_processor.dcc.houdini.traverser import NodeTraverser, get_material_type
 from materials_processor.mappings import FORMAT_CHOICES
 from materials_processor.standardizer import NodeStandardizer
 

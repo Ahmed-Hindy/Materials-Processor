@@ -6,9 +6,18 @@ import pytest
 def test_public_core_and_houdini_modules_import():
     modules = [
         "materials_processor",
+        "materials_processor.core",
+        "materials_processor.core.adapters",
+        "materials_processor.core.conversion",
+        "materials_processor.core.graph",
+        "materials_processor.dcc",
+        "materials_processor.dcc.houdini.commands",
+        "materials_processor.dcc.houdini.recreator",
+        "materials_processor.dcc.houdini.traverser",
+        "materials_processor.dcc.maya",
+        "materials_processor.dcc.maya.runtime",
         "materials_processor.io",
         "materials_processor.mappings",
-        "materials_processor.models",
         "materials_processor.qt",
         "materials_processor.standardizer",
         "materials_processor.ui",
@@ -16,9 +25,6 @@ def test_public_core_and_houdini_modules_import():
         "materials_processor.ui.main_window",
         "materials_processor.ui.state",
         "materials_processor.ui.widgets",
-        "materials_processor.houdini.commands",
-        "materials_processor.houdini.recreator",
-        "materials_processor.houdini.traverser",
     ]
 
     for module_name in modules:

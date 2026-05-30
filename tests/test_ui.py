@@ -290,7 +290,7 @@ def test_show_my_main_window_reuses_houdini_session_singleton(monkeypatch):
 
 
 def test_commands_run_returns_false_when_ingest_fails(monkeypatch):
-    commands = importlib.import_module("materials_processor.houdini.commands")
+    commands = importlib.import_module("materials_processor.dcc.houdini.commands")
     monkeypatch.setattr(commands, "ingest_material", lambda node: (None, None, None))
 
     assert commands.run(object(), object()) is False

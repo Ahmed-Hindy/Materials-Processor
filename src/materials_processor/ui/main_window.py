@@ -187,7 +187,7 @@ def create_window_classes():
 
         def _load_commands(self):
             if self._commands is None:
-                self._commands = importlib.import_module("materials_processor.houdini.commands")
+                self._commands = importlib.import_module("materials_processor.dcc.houdini.commands")
             return reload(self._commands)
 
         def _node_from_path(self, node_path: str):

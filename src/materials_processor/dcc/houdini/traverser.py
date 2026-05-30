@@ -9,7 +9,7 @@ except:
     logger.warning("materialProcessor running outside of Houdini!")
     hou = None
 
-from materials_processor.houdini.output_detector import detect_output_nodes  # noqa: E402
+from materials_processor.dcc.houdini.output_detector import detect_output_nodes  # noqa: E402
 from materials_processor.mappings import OPENPBR_NODE_TYPE  # noqa: E402
 
 class NodeTraverser:

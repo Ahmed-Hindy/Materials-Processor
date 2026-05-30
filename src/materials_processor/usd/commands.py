@@ -3,7 +3,7 @@
 import logging
 import traceback
 
-from materials_processor.houdini import commands as houdini_commands
+from materials_processor.dcc.houdini import commands as houdini_commands
 from materials_processor.standardizer import NodeStandardizer
 from materials_processor.usd.recreator import USDMaterialRecreator
 from materials_processor.usd.traverser import USDTraverser
