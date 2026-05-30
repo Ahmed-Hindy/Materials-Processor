@@ -52,6 +52,20 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
             'rs_usd_material_builder': 'redshift::BumpMap',
         },
     },
+    'GENERIC::uvmap': {
+        'prim_type': 'Shader',
+        'info_id': {
+            'mtlx': 'ND_geompropvalue_vector2',
+            'openpbr': 'ND_geompropvalue_vector2',
+        },
+    },
+    'GENERIC::separate_color': {
+        'prim_type': 'Shader',
+        'info_id': {
+            'mtlx': 'ND_separate3_color3',
+            'openpbr': 'ND_separate3_color3',
+        },
+    },
     'GENERIC::range': {
         'prim_type': 'Shader',
         'info_id': {
@@ -199,6 +213,9 @@ _ATTRIB_TYPE_CASTERS = {
     'float2': Sdf.ValueTypeNames.Float2,
     'float3': Sdf.ValueTypeNames.Float3,
     'float4': Sdf.ValueTypeNames.Float4,
+    'vector2': Sdf.ValueTypeNames.TexCoord2f,
+    'vector3': Sdf.ValueTypeNames.Vector3f,
+    'vector4': Sdf.ValueTypeNames.Float4,
     'bool': Sdf.ValueTypeNames.Bool,
     'bool1': Sdf.ValueTypeNames.Bool,
     'str': Sdf.ValueTypeNames.String,

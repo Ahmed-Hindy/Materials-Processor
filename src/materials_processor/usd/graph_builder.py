@@ -76,6 +76,43 @@ class USDGraphBuilder:
             return True
         return False
 
+    def _nodeinfo_by_path(self):
+        """Return a flat lookup of source node paths to generic node infos."""
+        lookup = {}
+
+        def visit(nodes):
+            for nodeinfo in nodes:
+                lookup[nodeinfo.node_path] = nodeinfo
+                if nodeinfo.children_list:
+                    visit(nodeinfo.children_list)
+
+        visit(self.nodeinfo_list)
+        return lookup
+
+    def _renderer_parm_name(self, generic_node_type, generic_parm_name):
+        """Translate a generic socket name to the target USD renderer socket name."""
+        if not generic_node_type or not generic_parm_name:
+            return generic_parm_name
+
+        renderer_node_type = convert_generic(
+            node_type=generic_node_type,
+            target_renderer=self.target_renderer,
+            profile='usd_prims',
+        )
+        if not renderer_node_type:
+            return generic_parm_name
+
+        std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(renderer_node_type.replace('::', ':'), {})
+        for renderer_name, mapped_generic_name in std_parm_map.items():
+            if mapped_generic_name == generic_parm_name:
+                return renderer_name
+        return generic_parm_name
+
+    def _connection_parm_name(self, endpoint, nodeinfo_by_path):
+        nodeinfo = nodeinfo_by_path.get(endpoint.node_path)
+        generic_node_type = nodeinfo.node_type if nodeinfo else endpoint.node_type
+        return self._renderer_parm_name(generic_node_type, endpoint.parm_name)
+
     def _apply_parameters(self, shader, node_type, parameters):
         """
         Map generic parameters over to renderer-specific USD inputs.
@@ -259,12 +296,13 @@ class USDGraphBuilder:
         """
         Connect child shader prims based on stored connection_tasks.
         """
+        nodeinfo_by_path = self._nodeinfo_by_path()
         for nodeinfo in nodeinfo_list:
             for conn_index, conn in nodeinfo.connection_info.items():
                 src_path = self.old_new_map.get(conn.input.node_path)
                 dst_path = self.old_new_map.get(conn.output.node_path)
-                src_parm = conn.input.parm_name
-                dst_parm = conn.output.parm_name
+                src_parm = self._connection_parm_name(conn.input, nodeinfo_by_path)
+                dst_parm = self._connection_parm_name(conn.output, nodeinfo_by_path)
                 src_prim = self.stage.GetPrimAtPath(Sdf.Path(src_path)) if src_path else None
                 dst_prim = self.stage.GetPrimAtPath(Sdf.Path(dst_path)) if dst_path else None
 
@@ -288,7 +326,8 @@ class USDGraphBuilder:
 
                     logger.debug("new_src_prim=%s", new_src_prim)
                     logger.debug("new_conn: %s", pprint.pformat(new_conn, sort_dicts=False))
-                    self._connect_pair(new_src_prim, dst_prim, new_conn.input.parm_name, dst_parm)
+                    new_src_parm = self._connection_parm_name(new_conn.input, nodeinfo_by_path)
+                    self._connect_pair(new_src_prim, dst_prim, new_src_parm, dst_parm)
                     continue
 
 

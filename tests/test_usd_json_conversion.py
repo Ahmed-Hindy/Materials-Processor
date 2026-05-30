@@ -8,7 +8,7 @@ import pytest
 from pxr import Sdf, Usd, UsdShade
 
 from materials_processor import io as material_io
-from materials_processor.core.graph import NodeInfo, OutputConnection
+from materials_processor.core.graph import ConnectionEndpoint, NodeConnection, NodeInfo, NodeParameter, OutputConnection
 from materials_processor.standardizer import NodeStandardizer
 from materials_processor.usd.recreator import USDMaterialRecreator
 from materials_processor.usd.traverser import USDTraverser
@@ -277,6 +277,135 @@ def test_usd_recreator_sanitizes_material_and_shader_prim_names():
     assert shader.GetPrim().IsValid()
     assert shader.GetIdAttr().Get() == "ND_standard_surface_surfaceshader"
     assert "outputs:mtlx:surface" in {output.GetFullName() for output in material.GetOutputs()}
+
+
+def test_usd_recreator_maps_blender_texture_coordinate_and_channel_sockets():
+    stage = Usd.Stage.CreateInMemory()
+    surface = NodeInfo(
+        node_type="GENERIC::standard_surface",
+        node_name="Principled BSDF",
+        node_path="/mat/packed/Principled BSDF",
+        parameters=[],
+        connection_info={},
+        children_list=[],
+    )
+    separate = NodeInfo(
+        node_type="GENERIC::separate_color",
+        node_name="Separate Color",
+        node_path="/mat/packed/Separate Color",
+        parameters=[],
+        connection_info={
+            "connection_0": NodeConnection(
+                input=ConnectionEndpoint(
+                    node_name="Separate Color",
+                    node_path="/mat/packed/Separate Color",
+                    node_type="ShaderNodeSeparateColor",
+                    node_index=0,
+                    parm_name="b",
+                ),
+                output=ConnectionEndpoint(
+                    node_name="Principled BSDF",
+                    node_path="/mat/packed/Principled BSDF",
+                    node_type="ShaderNodeBsdfPrincipled",
+                    node_index=0,
+                    parm_name="metalness",
+                ),
+            )
+        },
+        children_list=[],
+    )
+    image = NodeInfo(
+        node_type="GENERIC::image",
+        node_name="Packed Texture",
+        node_path="/mat/packed/Packed Texture",
+        parameters=[
+            NodeParameter("filename", "string1", "input", "C:/textures/packed.png"),
+            NodeParameter("signature", "string1", "input", "color3"),
+        ],
+        connection_info={
+            "connection_0": NodeConnection(
+                input=ConnectionEndpoint(
+                    node_name="Packed Texture",
+                    node_path="/mat/packed/Packed Texture",
+                    node_type="ShaderNodeTexImage",
+                    node_index=0,
+                    parm_name="rgb",
+                ),
+                output=ConnectionEndpoint(
+                    node_name="Separate Color",
+                    node_path="/mat/packed/Separate Color",
+                    node_type="ShaderNodeSeparateColor",
+                    node_index=0,
+                    parm_name="rgb",
+                ),
+            )
+        },
+        children_list=[],
+    )
+    uvmap = NodeInfo(
+        node_type="GENERIC::uvmap",
+        node_name="UV Map",
+        node_path="/mat/packed/UV Map",
+        parameters=[NodeParameter("uv_map", "string1", "input", "UVMap")],
+        connection_info={
+            "connection_0": NodeConnection(
+                input=ConnectionEndpoint(
+                    node_name="UV Map",
+                    node_path="/mat/packed/UV Map",
+                    node_type="ShaderNodeUVMap",
+                    node_index=0,
+                    parm_name="vector",
+                ),
+                output=ConnectionEndpoint(
+                    node_name="Packed Texture",
+                    node_path="/mat/packed/Packed Texture",
+                    node_type="ShaderNodeTexImage",
+                    node_index=0,
+                    parm_name="texcoord",
+                ),
+            )
+        },
+        children_list=[],
+    )
+    image.children_list.append(uvmap)
+    separate.children_list.append(image)
+    surface.children_list.append(separate)
+    output_connection = OutputConnection(
+        node_name="Material Output",
+        node_path="/mat/packed/Material Output",
+        connected_node_name="Principled BSDF",
+        connected_node_path="/mat/packed/Principled BSDF",
+        connected_input_index=0,
+        connected_input_name="Surface",
+        connected_output_name="surface",
+    )
+
+    USDMaterialRecreator(
+        stage=stage,
+        material_name="packed",
+        nodeinfo_list=[surface],
+        output_connections={"GENERIC::output_surface": output_connection},
+        target_renderer="mtlx",
+    ).run()
+
+    assert {
+        "ND_standard_surface_surfaceshader",
+        "ND_image_color3",
+        "ND_geompropvalue_vector2",
+        "ND_separate3_color3",
+    } <= _shader_ids(stage)
+
+    image_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/packed/Packed_Texture"))
+    separate_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/packed/Separate_Color"))
+    surface_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/packed/Principled_BSDF"))
+
+    assert image_shader.GetInput("texcoord").GetAttr().GetConnections()[0].pathString.endswith("/UV_Map.outputs:out")
+    assert separate_shader.GetInput("in").GetAttr().GetConnections()[0].pathString.endswith(
+        "/Packed_Texture.outputs:out"
+    )
+    assert surface_shader.GetInput("metalness").GetAttr().GetConnections()[0].pathString.endswith(
+        "/Separate_Color.outputs:outb"
+    )
 
 
 def test_usd_recreator_legacy_texture_collect_builder_smoke():

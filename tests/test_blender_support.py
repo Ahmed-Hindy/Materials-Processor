@@ -23,6 +23,16 @@ def test_blender_profile_maps_generic_nodes_without_becoming_houdini_target():
         "blender",
         profile="blender_shader_nodes",
     ) == "ShaderNodeBsdfPrincipled"
+    assert mappings.convert_generic(
+        "GENERIC::uvmap",
+        "blender",
+        profile="blender_shader_nodes",
+    ) == "ShaderNodeUVMap"
+    assert mappings.convert_generic(
+        "GENERIC::separate_color",
+        "blender",
+        profile="blender_shader_nodes",
+    ) == "ShaderNodeSeparateColor"
     assert "blender" not in mappings.FORMAT_CHOICES
 
 
@@ -61,6 +71,8 @@ class FakeNode:
         # Mock Image Texture image field
         if bl_idname == "ShaderNodeTexImage":
             self.image = type("Image", (), {"filepath": "C:/textures/diffuse.png"})()
+        elif bl_idname == "ShaderNodeUVMap":
+            self.uv_map = "UVMap"
 
 
 class FakeNodeTree:
@@ -162,6 +174,68 @@ def _make_simple_fake_blender_material(name="test_mat"):
     return FakeMaterial(name, node_tree)
 
 
+def _link(from_node, from_socket, to_node, to_socket):
+    from_socket.node = from_node
+    to_socket.node = to_node
+    from_socket.is_linked = True
+    to_socket.is_linked = True
+    link = FakeLink(from_node, from_socket, to_node, to_socket)
+    from_socket.links.append(link)
+    to_socket.links.append(link)
+    return link
+
+
+def _iter_nodeinfos(nodeinfos):
+    for nodeinfo in nodeinfos:
+        yield nodeinfo
+        yield from _iter_nodeinfos(nodeinfo.children_list)
+
+
+def _make_packed_texture_fake_blender_material(name="packed_mat"):
+    out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
+    bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
+    tex_node = FakeNode("ShaderNodeTexImage", "Packed Texture")
+    uv_node = FakeNode("ShaderNodeUVMap", "UV Map")
+    separate_node = FakeNode("ShaderNodeSeparateColor", "Separate Color")
+
+    out_surf_socket = FakeSocket("Surface", "SHADER")
+    bsdf_out_socket = FakeSocket("BSDF", "SHADER")
+    bsdf_base_socket = FakeSocket("Base Color", "RGBA")
+    bsdf_metallic_socket = FakeSocket("Metallic", "VALUE")
+    bsdf_roughness_socket = FakeSocket("Roughness", "VALUE")
+    tex_vector_socket = FakeSocket("Vector", "VECTOR")
+    tex_color_socket = FakeSocket("Color", "RGBA")
+    tex_alpha_socket = FakeSocket("Alpha", "VALUE")
+    uv_socket = FakeSocket("UV", "VECTOR")
+    separate_color_socket = FakeSocket("Color", "RGBA")
+    separate_green_socket = FakeSocket("Green", "VALUE")
+    separate_blue_socket = FakeSocket("Blue", "VALUE")
+
+    out_node.inputs = [out_surf_socket]
+    bsdf_node.outputs = [bsdf_out_socket]
+    bsdf_node.inputs = [bsdf_base_socket, bsdf_metallic_socket, bsdf_roughness_socket]
+    tex_node.inputs = [tex_vector_socket]
+    tex_node.outputs = [tex_color_socket, tex_alpha_socket]
+    uv_node.outputs = [uv_socket]
+    separate_node.inputs = [separate_color_socket]
+    separate_node.outputs = [separate_green_socket, separate_blue_socket]
+
+    links = [
+        _link(bsdf_node, bsdf_out_socket, out_node, out_surf_socket),
+        _link(tex_node, tex_color_socket, bsdf_node, bsdf_base_socket),
+        _link(tex_node, tex_color_socket, separate_node, separate_color_socket),
+        _link(uv_node, uv_socket, tex_node, tex_vector_socket),
+        _link(separate_node, separate_blue_socket, bsdf_node, bsdf_metallic_socket),
+        _link(separate_node, separate_green_socket, bsdf_node, bsdf_roughness_socket),
+    ]
+
+    node_tree = FakeNodeTree(
+        nodes=[out_node, bsdf_node, tex_node, uv_node, separate_node],
+        links=links,
+    )
+    return FakeMaterial(name, node_tree)
+
+
 def test_blender_traverser_simple():
     """Test that BlenderNodeTraverser processes Cycles material trees correctly."""
     material = _make_simple_fake_blender_material()
@@ -185,6 +259,57 @@ def test_blender_traverser_simple():
     ).run()
     assert nodeinfo_list[0].node_type == "GENERIC::standard_surface"
     assert output_connections["GENERIC::output_surface"].connected_node_name == "Principled BSDF"
+
+
+def test_blender_traverser_preserves_packed_texture_graph(caplog):
+    """Test that texture coordinates and packed channel splits survive standardization."""
+    material = _make_packed_texture_fake_blender_material()
+
+    nodes_dict, output_dict = BlenderNodeTraverser(material).run()
+    nodeinfo_list, _ = standardizer.NodeStandardizer(
+        traversed_nodes_dict=nodes_dict,
+        output_nodes_dict=output_dict,
+        material_type="blender",
+        source_type="blender_shader_nodes",
+    ).run()
+
+    all_nodes = list(_iter_nodeinfos(nodeinfo_list))
+    assert {node.node_type for node in all_nodes} >= {
+        "GENERIC::standard_surface",
+        "GENERIC::image",
+        "GENERIC::uvmap",
+        "GENERIC::separate_color",
+    }
+
+    image_node = next(node for node in all_nodes if node.node_type == "GENERIC::image")
+    image_params = {param.generic_name: param for param in image_node.parameters}
+    assert image_params["filename"].value == "C:/textures/diffuse.png"
+    assert {"rgb", "alpha"} <= {param.generic_name for param in image_node.parameters}
+
+    uv_node = next(node for node in all_nodes if node.node_type == "GENERIC::uvmap")
+    uv_params = {param.generic_name: param for param in uv_node.parameters}
+    assert uv_params["uv_map"].value == "UVMap"
+    assert uv_params["vector"].generic_type == "vector2"
+
+    connections = [
+        connection
+        for node in all_nodes
+        for connection in node.connection_info.values()
+    ]
+    assert any(
+        connection.input.parm_name == "vector" and connection.output.parm_name == "texcoord"
+        for connection in connections
+    )
+    assert any(
+        connection.input.parm_name == "b" and connection.output.parm_name == "metalness"
+        for connection in connections
+    )
+    assert any(
+        connection.input.parm_name == "g" and connection.output.parm_name == "specular_roughness"
+        for connection in connections
+    )
+    assert "No generic type was found for node type: 'ShaderNodeUVMap'" not in caplog.text
+    assert "No generic type was found for node type: 'ShaderNodeSeparateColor'" not in caplog.text
 
 
 def test_blender_recreator_simple():
