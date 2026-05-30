@@ -258,6 +258,8 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'ND_image_float': 'GENERIC::image',
             'ND_image_color3': 'GENERIC::image',
             'ND_normalmap_vector3': 'GENERIC::normalmap',
+            'ND_geompropvalue_vector2': 'GENERIC::uvmap',
+            'ND_separate3_color3': 'GENERIC::separate_color',
             'ND_colorcorrect_color3': 'GENERIC::color_correct',
             'ND_range_float': 'GENERIC::range',
             'ND_bump_vector3': 'GENERIC::displacement',
@@ -282,6 +284,8 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'ND_image_float': 'GENERIC::image',
             'ND_image_color3': 'GENERIC::image',
             'ND_normalmap_vector3': 'GENERIC::normalmap',
+            'ND_geompropvalue_vector2': 'GENERIC::uvmap',
+            'ND_separate3_color3': 'GENERIC::separate_color',
             'ND_colorcorrect_color3': 'GENERIC::color_correct',
             'ND_range_float': 'GENERIC::range',
             'ND_bump_vector3': 'GENERIC::displacement',
@@ -309,6 +313,8 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'blender_shader_nodes': {
             'ShaderNodeBsdfPrincipled': 'GENERIC::standard_surface',
             'ShaderNodeTexImage': 'GENERIC::image',
+            'ShaderNodeUVMap': 'GENERIC::uvmap',
+            'ShaderNodeSeparateColor': 'GENERIC::separate_color',
             'ShaderNodeNormalMap': 'GENERIC::normalmap',
             'ShaderNodeBump': 'GENERIC::displacement',
             'ShaderNodeOutputMaterial': 'GENERIC::output_node',
@@ -377,6 +383,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     'mtlximage': {
         'signature': 'signature',
         'file': 'filename',
+        'texcoord': 'texcoord',
         'out': 'rgb',
     },
     'mtlxcolorcorrect': {
@@ -450,6 +457,8 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     'ND_image_float': {
         'signature': 'signature',
         'file': 'filename',
+        'texcoord': 'texcoord',
+        'out': 'rgb',
     },
     'ND_range_float': {
         'in': 'in',
@@ -470,6 +479,19 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     'ND_image_color3': {
         'signature': 'signature',
         'file': 'filename',
+        'texcoord': 'texcoord',
+        'out': 'rgb',
+    },
+    'ND_geompropvalue_vector2': {
+        'geomprop': 'uv_map',
+        'default': 'default',
+        'out': 'vector',
+    },
+    'ND_separate3_color3': {
+        'in': 'rgb',
+        'outr': 'r',
+        'outg': 'g',
+        'outb': 'b',
     },
     'ND_normalmap_vector3': {
         'in': 'in',
@@ -685,7 +707,20 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     },
     'ShaderNodeTexImage': {
         'image': 'filename',
+        'Vector': 'texcoord',
         'Color': 'rgb',
+        'Alpha': 'alpha',
+    },
+    'ShaderNodeUVMap': {
+        'uv_map': 'uv_map',
+        'UV': 'vector',
+    },
+    'ShaderNodeSeparateColor': {
+        'Color': 'rgb',
+        'Red': 'r',
+        'Green': 'g',
+        'Blue': 'b',
+        'Alpha': 'alpha',
     },
     'ShaderNodeNormalMap': {
         'Color': 'in',

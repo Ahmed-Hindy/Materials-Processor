@@ -12,6 +12,36 @@ except ImportError:
     bpy = None
 
 
+def _socket_generic_type(socket, *, is_output=False, node=None):
+    """Return the closest generic parameter type for a Blender socket."""
+    socket_type = socket.type.lower()
+    if socket_type == "value":
+        return "float1"
+    if socket_type == "vector":
+        if is_output and getattr(node, "bl_idname", None) == "ShaderNodeUVMap":
+            return "vector2"
+        return "vector3"
+    if socket_type == "rgba":
+        return "color3" if is_output else "color4"
+    if socket_type == "shader":
+        return "shader"
+    return "float1"
+
+
+def _resolve_blender_image_path(image):
+    """Resolve Blender image paths relative to the current blend file when possible."""
+    filepath = getattr(image, "filepath", "")
+    if not filepath:
+        return filepath
+    if bpy is None:
+        return filepath
+    try:
+        return bpy.path.abspath(filepath)
+    except Exception as exc:
+        logger.warning("Failed to resolve Blender image path '%s': %s", filepath, exc)
+        return filepath
+
+
 class BlenderNodeTraverser:
     """Class for traversing Blender material node trees to extract their connections and output nodes."""
 
@@ -165,21 +195,10 @@ class BlenderNodeTraverser:
             elif not isinstance(val, str) and hasattr(val, "__iter__"):
                 val = list(val)
 
-            # Map Blender socket type names to generic types
-            socket_type = socket.type.lower()
-            if socket_type == "value":
-                generic_type = "float1"
-            elif socket_type == "vector":
-                generic_type = "vector3"
-            elif socket_type == "rgba":
-                generic_type = "color4"
-            else:
-                generic_type = "float1"
-
             parms["input"].append({
                 "generic_name": socket.name,
                 "value": val,
-                "type": generic_type,
+                "type": _socket_generic_type(socket, node=node),
                 "direction": "input",
             })
 
@@ -187,7 +206,14 @@ class BlenderNodeTraverser:
         if node.bl_idname == "ShaderNodeTexImage" and getattr(node, "image", None):
             parms["input"].append({
                 "generic_name": "image",
-                "value": node.image.filepath,
+                "value": _resolve_blender_image_path(node.image),
+                "type": "string1",
+                "direction": "input"
+            })
+        elif node.bl_idname == "ShaderNodeUVMap":
+            parms["input"].append({
+                "generic_name": "uv_map",
+                "value": getattr(node, "uv_map", ""),
                 "type": "string1",
                 "direction": "input"
             })
@@ -207,7 +233,7 @@ class BlenderNodeTraverser:
             parms["output"].append({
                 "generic_name": socket.name,
                 "value": None,
-                "type": "color3" if socket.type == "RGBA" else "float1",
+                "type": _socket_generic_type(socket, is_output=True, node=node),
                 "direction": "output",
             })
 

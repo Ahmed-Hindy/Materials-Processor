@@ -13,12 +13,18 @@ from materials_processor.dcc.blender.runtime import (
     BlenderRuntime,
     _default_package_src,
     _default_blender_root,
+    _parse_prefixed_output,
+    _run_blender_python,
     resolve_blender_runtime,
     validate_blender_material_smoke,
     validate_blender_runtime,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
+LOCAL_TIE_DEFENDER_BLEND = Path(
+    r"F:\Users\Ahmed Hindy\Downloads\vfx_tmp\X-Ripper Stuff\Tie Defender\Tie Defender.blend"
+)
+TIE_DEFENDER_RESULT_PREFIX = "MATERIALS_PROCESSOR_TIE_DEFENDER="
 
 
 def _fake_blender_root(tmp_path):
@@ -162,3 +168,68 @@ def test_validate_local_blender_runtime_when_available():
     assert validated.python_version
     assert smoke["recreated"] is True
     assert "ShaderNodeBsdfPrincipled" in smoke["target_node_types"]
+
+
+@pytest.mark.blender
+def test_ingests_local_tie_defender_packed_material_when_available():
+    if not LOCAL_TIE_DEFENDER_BLEND.is_file():
+        pytest.skip(f"Tie Defender blend file is missing: {LOCAL_TIE_DEFENDER_BLEND}")
+    try:
+        runtime = resolve_blender_runtime(version=None)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    code = f"""
+import json
+
+import bpy
+
+from materials_processor.dcc.blender.adapters import BlenderMaterialReader
+
+
+def iter_nodes(nodes):
+    for node in nodes:
+        yield node
+        yield from iter_nodes(node.children_list)
+
+
+bpy.ops.wm.open_mainfile(filepath={str(LOCAL_TIE_DEFENDER_BLEND)!r})
+material = bpy.data.materials["T_TieDefender_01_CS_Mat"]
+graph = BlenderMaterialReader().read(material)
+nodes = list(iter_nodes(graph.nodeinfo_list))
+texture_paths = [
+    parameter.value
+    for node in nodes
+    for parameter in (node.parameters or [])
+    if parameter.generic_name == "filename"
+]
+result = {{
+    "material_name": graph.material_name,
+    "node_types": sorted(set(node.node_type for node in nodes)),
+    "output_keys": sorted(graph.output_connections),
+    "texture_paths": sorted(texture_paths),
+}}
+print({TIE_DEFENDER_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
+""".strip()
+
+    completed = _run_blender_python(runtime, code, ROOT / "src", timeout=180)
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "Tie Defender Blender ingest failed with exit code "
+            f"{completed.returncode}.\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+        )
+
+    result = _parse_prefixed_output(
+        completed.stdout,
+        completed.stderr,
+        TIE_DEFENDER_RESULT_PREFIX,
+        "Tie Defender ingest",
+    )
+    assert result["material_name"] == "T_TieDefender_01_CS_Mat"
+    assert "GENERIC::standard_surface" in result["node_types"]
+    assert "GENERIC::image" in result["node_types"]
+    assert "GENERIC::uvmap" in result["node_types"]
+    assert "GENERIC::separate_color" in result["node_types"]
+    assert "GENERIC::output_surface" in result["output_keys"]
+    assert result["texture_paths"]
+    assert all(not texture_path.startswith("//") for texture_path in result["texture_paths"])
