@@ -8,6 +8,7 @@ import pytest
 from pxr import Sdf, Usd, UsdShade
 
 from materials_processor import io as material_io
+from materials_processor.core.graph import NodeInfo, OutputConnection
 from materials_processor.standardizer import NodeStandardizer
 from materials_processor.usd.recreator import USDMaterialRecreator
 from materials_processor.usd.traverser import USDTraverser
@@ -239,6 +240,43 @@ def test_houdini_json_converts_to_usd_renderer_matrix(
 
     assert json.loads(json.dumps(traversed_nodes)) == traversed_nodes
     assert json.loads(json.dumps(output_nodes)) == output_nodes
+
+
+def test_usd_recreator_sanitizes_material_and_shader_prim_names():
+    stage = Usd.Stage.CreateInMemory()
+    nodeinfo = NodeInfo(
+        node_type="GENERIC::standard_surface",
+        node_name="Principled BSDF",
+        node_path="/mat/My Material/Principled BSDF",
+        parameters=[],
+        connection_info={},
+        children_list=[],
+    )
+    output_connection = OutputConnection(
+        node_name="Material Output",
+        node_path="/mat/My Material/Material Output",
+        connected_node_name="Principled BSDF",
+        connected_node_path="/mat/My Material/Principled BSDF",
+        connected_input_index=0,
+        connected_input_name="Surface",
+        connected_output_name="surface",
+    )
+
+    USDMaterialRecreator(
+        stage=stage,
+        material_name="My Material",
+        nodeinfo_list=[nodeinfo],
+        output_connections={"GENERIC::output_surface": output_connection},
+        target_renderer="mtlx",
+    ).run()
+
+    material = UsdShade.Material.Get(stage, Sdf.Path("/materials/My_Material"))
+    shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/My_Material/Principled_BSDF"))
+
+    assert material.GetPrim().IsValid()
+    assert shader.GetPrim().IsValid()
+    assert shader.GetIdAttr().Get() == "ND_standard_surface_surfaceshader"
+    assert "outputs:mtlx:surface" in {output.GetFullName() for output in material.GetOutputs()}
 
 
 def test_usd_recreator_legacy_texture_collect_builder_smoke():

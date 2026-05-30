@@ -2,10 +2,7 @@
 
 import logging
 
-from materials_processor.core.graph import MaterialData
-from materials_processor.dcc.blender.recreator import BlenderNodeRecreator
-from materials_processor.dcc.blender.traverser import BlenderNodeTraverser
-from materials_processor.standardizer import NodeStandardizer
+from materials_processor.dcc.blender.adapters import BlenderMaterialReader
 
 logger = logging.getLogger(__name__)
 
@@ -48,23 +45,7 @@ class NODE_OT_MaterialsProcessor_Ingest(Operator):
             return {'CANCELLED'}
 
         try:
-            traverser = BlenderNodeTraverser(material)
-            node_tree, output_tree = traverser.run()
-
-            standardizer = NodeStandardizer(
-                traversed_nodes_dict=node_tree,
-                output_nodes_dict=output_tree,
-                material_type="blender",
-                source_type="blender_shader_nodes"
-            )
-            nodeinfo_list, standardized_output = standardizer.run()
-
-            mat_data = MaterialData(
-                material_name=material.name,
-                material_path=f"/mat/{material.name}",
-                nodeinfo_list=nodeinfo_list,
-                output_connections=standardized_output
-            )
+            mat_data = BlenderMaterialReader().read(material)
 
             logger.info("Successfully ingested material: %s", mat_data)
             self.report({'INFO'}, f"Ingested material '{material.name}' successfully.")
