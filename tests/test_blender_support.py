@@ -4,11 +4,14 @@ import pytest
 from materials_processor import mappings, standardizer
 from materials_processor.core.graph import (
     ConnectionEndpoint,
+    MaterialGraph,
     NodeConnection,
     NodeInfo,
     NodeParameter,
     OutputConnection,
 )
+from materials_processor.core.conversion import ConversionService
+from materials_processor.dcc.blender.adapters import BlenderMaterialReader, BlenderMaterialWriter
 from materials_processor.dcc.blender.recreator import BlenderNodeRecreator
 from materials_processor.dcc.blender.traverser import BlenderNodeTraverser
 
@@ -121,8 +124,7 @@ class FakeMaterial:
         self.use_nodes = True
 
 
-def test_blender_traverser_simple():
-    """Test that BlenderNodeTraverser processes Cycles material trees correctly."""
+def _make_simple_fake_blender_material(name="test_mat"):
     out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
     bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
     tex_node = FakeNode("ShaderNodeTexImage", "Image Texture")
@@ -157,7 +159,12 @@ def test_blender_traverser_simple():
         nodes=[out_node, bsdf_node, tex_node],
         links=[link1, link2]
     )
-    material = FakeMaterial("test_mat", node_tree)
+    return FakeMaterial(name, node_tree)
+
+
+def test_blender_traverser_simple():
+    """Test that BlenderNodeTraverser processes Cycles material trees correctly."""
+    material = _make_simple_fake_blender_material()
 
     traverser = BlenderNodeTraverser(material)
     nodes_dict, output_dict = traverser.run()
@@ -225,3 +232,164 @@ def test_blender_recreator_simple():
 
     created_nodes = list(material.node_tree.nodes)
     assert any(n.bl_idname == "ShaderNodeBsdfPrincipled" for n in created_nodes)
+
+
+def test_blender_material_reader_returns_material_graph():
+    material = _make_simple_fake_blender_material("adapter_source")
+
+    graph = BlenderMaterialReader().read(material)
+
+    assert isinstance(graph, MaterialGraph)
+    assert graph.material_name == "adapter_source"
+    assert graph.material_path == "/mat/adapter_source"
+    assert graph.nodeinfo_list[0].node_type == "GENERIC::standard_surface"
+    assert graph.output_connections["GENERIC::output_surface"].connected_node_name == "Principled BSDF"
+
+
+def test_blender_material_writer_recreates_graph_into_target_material():
+    node_info = NodeInfo(
+        node_type="GENERIC::standard_surface",
+        node_name="Principled_BSDF",
+        node_path="/mat/source/Principled_BSDF",
+        parameters=[
+            NodeParameter(
+                generic_name="base_color",
+                generic_type="color3",
+                direction="input",
+                value=[0.2, 0.4, 0.8],
+            )
+        ],
+        connection_info={},
+        children_list=[],
+        is_output_node=False,
+        position=[100.0, 200.0],
+    )
+    output_connection = OutputConnection(
+        node_name="Material Output",
+        node_path="/mat/source/Material Output",
+        connected_node_name="Principled_BSDF",
+        connected_node_path="/mat/source/Principled_BSDF",
+        connected_input_index=0,
+        connected_input_name="Surface",
+        connected_output_name="surface",
+    )
+    graph = MaterialGraph(
+        material_name="source",
+        material_path="/mat/source",
+        nodeinfo_list=[node_info],
+        output_connections={"GENERIC::output_surface": output_connection},
+    )
+    out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
+    target = FakeMaterial("adapter_target", FakeNodeTree(nodes=[out_node], links=[]))
+
+    written_material = BlenderMaterialWriter().write(graph, target)
+
+    assert written_material is target
+    assert any(node.bl_idname == "ShaderNodeBsdfPrincipled" for node in target.node_tree.nodes)
+
+
+def test_blender_conversion_service_round_trips_through_adapters():
+    source = _make_simple_fake_blender_material("conversion_source")
+    target = FakeMaterial(
+        "conversion_target",
+        FakeNodeTree(nodes=[FakeNode("ShaderNodeOutputMaterial", "Material Output")], links=[]),
+    )
+
+    converted = ConversionService(BlenderMaterialReader(), BlenderMaterialWriter()).convert(source, target)
+
+    assert converted is target
+    assert any(node.bl_idname == "ShaderNodeBsdfPrincipled" for node in target.node_tree.nodes)
+
+
+def test_blender_principled_mapping_covers_blender_4_inputs(caplog):
+    principled_inputs = [
+        "Weight",
+        "Base Color",
+        "Diffuse Roughness",
+        "Metallic",
+        "Roughness",
+        "IOR",
+        "Alpha",
+        "Normal",
+        "Subsurface Weight",
+        "Subsurface Radius",
+        "Subsurface Scale",
+        "Subsurface IOR",
+        "Subsurface Anisotropy",
+        "Specular IOR Level",
+        "Specular Tint",
+        "Anisotropic",
+        "Anisotropic Rotation",
+        "Tangent",
+        "Transmission Weight",
+        "Emission Color",
+        "Emission Strength",
+        "Coat Weight",
+        "Coat Roughness",
+        "Coat IOR",
+        "Coat Tint",
+        "Coat Normal",
+        "Sheen Weight",
+        "Sheen Roughness",
+        "Sheen Tint",
+        "Thin Film Thickness",
+        "Thin Film IOR",
+    ]
+    parms = {
+        "input": [
+            {
+                "generic_name": name,
+                "value": [0.25, 0.5, 0.75, 1.0] if name in {"Base Color", "Emission Color"} else 1.0,
+                "type": "color4" if name in {"Base Color", "Emission Color"} else "float1",
+                "direction": "input",
+            }
+            for name in principled_inputs
+        ],
+        "output": [
+            {
+                "generic_name": "BSDF",
+                "value": None,
+                "type": "float1",
+                "direction": "output",
+            }
+        ],
+    }
+
+    parameters = standardizer.NodeStandardizer.standardize_shader_parameters("ShaderNodeBsdfPrincipled", parms)
+
+    generic_names = {parameter.generic_name for parameter in parameters}
+    assert {
+        "base",
+        "base_color",
+        "diffuse_roughness",
+        "metalness",
+        "specular_roughness",
+        "specular_IOR",
+        "opacity",
+        "normal",
+        "subsurface",
+        "subsurface_radius",
+        "subsurface_scale",
+        "subsurface_IOR",
+        "subsurface_anisotropy",
+        "specular",
+        "specular_color",
+        "specular_anisotropy",
+        "specular_rotation",
+        "tangent",
+        "transmission",
+        "emission_color",
+        "emission",
+        "coat",
+        "coat_roughness",
+        "coat_IOR",
+        "coat_color",
+        "coat_normal",
+        "sheen",
+        "sheen_roughness",
+        "sheen_color",
+        "thin_film_thickness",
+        "thin_film_IOR",
+        "surface",
+    } <= generic_names
+    assert "Unsupported parameters for node type 'ShaderNodeBsdfPrincipled'" not in caplog.text

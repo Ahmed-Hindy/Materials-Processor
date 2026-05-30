@@ -3,7 +3,7 @@
 import logging
 import pprint
 
-from pxr import Sdf, UsdGeom, UsdShade
+from pxr import Sdf, Tf, UsdGeom, UsdShade
 
 from materials_processor.mappings import REGULAR_PARAM_NAMES_TO_GENERIC, convert_generic
 from materials_processor.usd.mappings import GENERIC_NODE_TYPES_TO_REGULAR_USD, OUT_PRIM_DICT, _ATTRIB_TYPE_CASTERS
@@ -21,6 +21,12 @@ def _coerce_usd_value(value, generic_type):
     return value
 
 
+def _usd_prim_name(name, fallback="prim"):
+    """Return a USD-safe prim name for DCC node/material names."""
+    safe_name = Tf.MakeValidIdentifier(str(name or fallback))
+    return safe_name or fallback
+
+
 class USDGraphBuilder:
     """Create and connect USD primitives from standardized generic node data."""
 
@@ -36,6 +42,21 @@ class USDGraphBuilder:
         self.old_new_map = {}
         self.output_old_new_map = {}
         self.created_out_primpaths = []
+        self._used_child_names = {}
+
+    def _material_prim_path(self):
+        return Sdf.Path(f"{self.parent_scope_path}/{_usd_prim_name(self.material_name, 'material')}")
+
+    def _unique_child_path(self, parent_path, node_name):
+        used_names = self._used_child_names.setdefault(parent_path, set())
+        base_name = _usd_prim_name(node_name, "shader")
+        prim_name = base_name
+        suffix = 2
+        while prim_name in used_names:
+            prim_name = f"{base_name}_{suffix}"
+            suffix += 1
+        used_names.add(prim_name)
+        return f"{parent_path}/{prim_name}"
 
     def _create_shader_id(self, shader, generic_type):
         """
@@ -48,7 +69,7 @@ class USDGraphBuilder:
         Returns:
             bool: True if an ID was found and set, False otherwise.
         """
-        mapping = GENERIC_NODE_TYPES_TO_REGULAR_USD.get(generic_type, {})
+        mapping = GENERIC_NODE_TYPES_TO_REGULAR_USD.get(generic_type or 'GENERIC::null', {})
         shader_id = mapping.get('info_id', {}).get(self.target_renderer)
         if shader_id:
             shader.CreateIdAttr(shader_id)
@@ -77,6 +98,10 @@ class USDGraphBuilder:
             return
 
         # look up standardized mapping for this node type
+        if not node_type:
+            logger.warning("No renderer node type found for shader: '%s'", shader.GetPath().pathString)
+            return
+
         std_parm_map: dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
         if not std_parm_map:
             logger.warning("No generic parameter mappings found for node type: '%s'", node_type)
@@ -120,8 +145,7 @@ class USDGraphBuilder:
         Populates self.output_old_new_map for each Houdini output node.
         """
         for output_connection in self.orig_output_connections.values():
-            mat_primname = self.material_name
-            mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{mat_primname}")
+            mat_primpath = self._material_prim_path()
             UsdShade.Material.Define(self.stage, Sdf.Path(mat_primpath))
 
             if mat_primpath not in self.created_out_primpaths:
@@ -144,13 +168,15 @@ class USDGraphBuilder:
                     self.created_out_primpaths[0].pathString,
                 )
             elif not self.old_new_map.get(nodeinfo.node_path):
-                new_prim_path = nodeinfo.node_name.replace('/', '_')
-                shader_primpath = f"{self.created_out_primpaths[0].pathString}/{new_prim_path}"
+                shader_primpath = self._unique_child_path(
+                    self.created_out_primpaths[0].pathString,
+                    nodeinfo.node_name,
+                )
                 shader = UsdShade.Shader.Define(self.stage, Sdf.Path(shader_primpath))
                 self._create_shader_id(shader, nodeinfo.node_type)
 
                 regular_node_type = convert_generic(
-                    node_type=nodeinfo.node_type,
+                    node_type=nodeinfo.node_type or 'GENERIC::null',
                     target_renderer=self.target_renderer,
                     profile='usd_prims'
                 )
@@ -168,7 +194,7 @@ class USDGraphBuilder:
         """
         Wire core shaders to output material surface slots.
         """
-        mat_primpath = Sdf.Path(f"{self.parent_scope_path}/{self.material_name}")
+        mat_primpath = self._material_prim_path()
         mat_usdshade = UsdShade.Material.Get(self.stage, mat_primpath)
 
         logger.debug("self.created_out_primpaths: %s", pprint.pformat(self.created_out_primpaths, sort_dicts=False))

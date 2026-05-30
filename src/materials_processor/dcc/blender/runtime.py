@@ -165,9 +165,8 @@ import json
 
 import bpy
 
-from materials_processor.dcc.blender.recreator import BlenderNodeRecreator
-from materials_processor.dcc.blender.traverser import BlenderNodeTraverser
-from materials_processor.standardizer import NodeStandardizer
+from materials_processor.core.conversion import ConversionService
+from materials_processor.dcc.blender.adapters import BlenderMaterialReader, BlenderMaterialWriter
 
 
 def socket(collection, name):
@@ -186,27 +185,17 @@ bsdf_node.name = "Principled BSDF"
 socket(bsdf_node.inputs, "Base Color").default_value = (0.8, 0.2, 0.1, 1.0)
 source_tree.links.new(socket(bsdf_node.outputs, "BSDF"), socket(output_node.inputs, "Surface"))
 
-traversed_nodes, output_nodes = BlenderNodeTraverser(source).run()
-nodeinfo_list, output_connections = NodeStandardizer(
-    traversed_nodes_dict=traversed_nodes,
-    output_nodes_dict=output_nodes,
-    material_type="blender",
-    source_type="blender_shader_nodes",
-).run()
-
 target = bpy.data.materials.new("materials_processor_smoke_target")
 target.use_nodes = True
-recreated = BlenderNodeRecreator(
-    nodeinfo_list=nodeinfo_list,
-    output_connections=output_connections,
-    target_material=target,
-).run()
+graph = BlenderMaterialReader().read(source)
+converted_material = ConversionService(BlenderMaterialReader(), BlenderMaterialWriter()).convert(source, target)
 
 target_node_types = sorted(node.bl_idname for node in target.node_tree.nodes)
 result = {{
-    "node_count": len(nodeinfo_list),
-    "output_count": len(output_connections),
-    "recreated": recreated,
+    "material_name": graph.material_name,
+    "node_count": len(graph.nodeinfo_list),
+    "output_count": len(graph.output_connections),
+    "recreated": converted_material == target,
     "target_node_types": target_node_types,
 }}
 print({MATERIAL_SMOKE_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))

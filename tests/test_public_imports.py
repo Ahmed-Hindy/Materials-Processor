@@ -13,6 +13,7 @@ def test_public_core_and_houdini_modules_import():
         "materials_processor.dcc",
         "materials_processor.dcc.blender",
         "materials_processor.dcc.blender.addon",
+        "materials_processor.dcc.blender.adapters",
         "materials_processor.dcc.blender.recreator",
         "materials_processor.dcc.blender.runtime",
         "materials_processor.dcc.blender.traverser",
