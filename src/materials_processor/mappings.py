@@ -2,7 +2,7 @@
 
 ###################################### CONSTANTS ######################################
 
-STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims']
+STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims', 'blender_shader_nodes']
 
 PRINCIPLED_NATIVE_NODE_TYPE = 'principledshader::2.0'
 OPENPBR_NODE_TYPE = 'mtlxopen_pbr_surface'
@@ -305,18 +305,28 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'usd_prims': REDSHIFT_USD_PRIM_TYPES,
     },
 
+    'blender': {
+        'blender_shader_nodes': {
+            'ShaderNodeBsdfPrincipled': 'GENERIC::standard_surface',
+            'ShaderNodeTexImage': 'GENERIC::image',
+            'ShaderNodeNormalMap': 'GENERIC::normalmap',
+            'ShaderNodeBump': 'GENERIC::displacement',
+            'ShaderNodeOutputMaterial': 'GENERIC::output_node',
+            'NodeReroute': 'GENERIC::null',
+        },
+    },
+
 }
 
 
 # 2) build *both* reverse maps automatically in one sweep
 GENERIC_TO_RENDERER = {}
 for renderer, profiles in REGULAR_NODE_TYPES_TO_GENERIC.items():
-    GENERIC_TO_RENDERER[renderer] = {
-        'hou_vop_nodes': {generic: specific
-                          for specific, generic in profiles.get('hou_vop_nodes', {}).items()},
-        'usd_prims':   {generic: specific
-                        for specific, generic in profiles.get('usd_prims', {}).items()},
-    }
+    GENERIC_TO_RENDERER[renderer] = {}
+    for profile, mapping in profiles.items():
+        GENERIC_TO_RENDERER[renderer][profile] = {
+            generic: specific for specific, generic in mapping.items()
+        }
 
 # 3) a single little helper to pick which map you want:
 def convert_generic(node_type: str,
@@ -325,6 +335,7 @@ def convert_generic(node_type: str,
     """
     profile == 'hou_vop_nodes'  → VOP node‐type mapping
     profile == 'usd_prims'      → USD‐prim info:id mapping
+    profile == 'blender_shader_nodes' → Blender shader node mapping
     """
     lookup = GENERIC_TO_RENDERER[target_renderer].get(profile, {})
     return lookup.get(node_type,
@@ -636,6 +647,35 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
 
     # principled shader 2.0:
     'principledshader:2.0': PRINCIPLED_SHADER_PARAM_ALIASES,
+
+    # blender parms:
+    'ShaderNodeBsdfPrincipled': {
+        'Base Color': 'base_color',
+        'Metallic': 'metalness',
+        'Roughness': 'specular_roughness',
+        'IOR': 'specular_IOR',
+        'Alpha': 'opacity',
+        'Normal': 'normal',
+        'Emission Color': 'emission_color',
+        'Emission Strength': 'emission',
+        'Coat Weight': 'coat',
+        'Coat Roughness': 'coat_roughness',
+        'Sheen Weight': 'sheen',
+    },
+    'ShaderNodeTexImage': {
+        'image': 'filename',
+        'Color': 'rgb',
+    },
+    'ShaderNodeNormalMap': {
+        'Color': 'in',
+        'Strength': 'scale',
+        'Normal': 'out',
+    },
+    'ShaderNodeBump': {
+        'Height': 'displacement',
+        'Strength': 'scale',
+        'Normal': 'out',
+    },
 }
 
 FORMAT_CHOICES = {
