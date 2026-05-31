@@ -1,13 +1,14 @@
 [project]
 name = "materials-processor"
-version = "1.2.4"
-description = "Houdini material ingestion, standardization, and conversion tools."
+description = "Cross-DCC material ingestion, standardization, and conversion tools."
+dynamic = ["version"]
 requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
 materials-processor = "materials_processor.cli:main"
 materials-processor-blender = "materials_processor.dcc.blender.cli:main"
+materials-processor-maya = "materials_processor.dcc.maya.cli:main"
 
 [build-system]
 requires = ["hatchling"]
@@ -22,6 +23,9 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/materials_processor"]
+
+[tool.hatch.version]
+path = "src/materials_processor/_version.py"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
