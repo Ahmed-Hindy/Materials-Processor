@@ -71,6 +71,21 @@ def _graph_payload(material_name="Cli Material"):
     }
 
 
+def _texture_graph_payload(texture_path):
+    payload = _graph_payload("Textured Material")
+    payload["graphs"][0]["nodeinfo_list"][0]["node_type"] = "GENERIC::image"
+    payload["graphs"][0]["nodeinfo_list"][0]["parameters"] = [
+        {
+            "generic_name": "filename",
+            "generic_type": "string1",
+            "direction": "input",
+            "value": texture_path,
+        }
+    ]
+    payload["missing_texture_paths"] = [{"material": "Textured Material", "path": texture_path}]
+    return payload
+
+
 def test_build_usd_material_files_writes_materialx_and_openpbr(tmp_path):
     report = cli.build_usd_material_files(_graph_payload(), tmp_path)
 
@@ -108,6 +123,138 @@ def test_export_blender_scene_to_usd_writes_graph_and_report(tmp_path, monkeypat
     assert Path(report["report_json"]).is_file()
     assert set(report["usd_files"]) == {"mtlx"}
     assert Path(report["usd_files"]["mtlx"]["path"]).is_file()
+
+
+def test_export_blender_scene_to_usd_creates_explicit_graph_json_parent(tmp_path, monkeypatch):
+    scene = tmp_path / "scene.blend"
+    scene.write_text("fake blend", encoding="utf-8")
+    graph_json = tmp_path / "nested" / "graphs" / "materials.json"
+
+    def fake_extract(scene_path, graph_json_path, **kwargs):
+        Path(graph_json_path).write_text(json.dumps(_graph_payload()), encoding="utf-8")
+        return {"graph_count": 1}
+
+    monkeypatch.setattr(cli, "extract_blender_material_graphs", fake_extract)
+
+    report = cli.export_blender_scene_to_usd(
+        scene,
+        tmp_path / "export",
+        targets=("mtlx",),
+        graph_json=graph_json,
+    )
+
+    assert report["graph_json"] == str(graph_json.resolve())
+    assert graph_json.is_file()
+
+
+def test_export_blender_scene_to_usd_applies_texture_prefix_remap(tmp_path, monkeypatch):
+    scene = tmp_path / "scene.blend"
+    scene.write_text("fake blend", encoding="utf-8")
+    texture_root = tmp_path / "textures"
+    texture_root.mkdir()
+    fixed_texture = texture_root / "basecolor.png"
+    fixed_texture.write_text("fake image", encoding="utf-8")
+
+    def fake_extract(scene_path, graph_json_path, **kwargs):
+        payload = _texture_graph_payload(r"C:\PROJECT\textures\basecolor.png")
+        Path(graph_json_path).write_text(json.dumps(payload), encoding="utf-8")
+        return {"graph_count": 1}
+
+    monkeypatch.setattr(cli, "extract_blender_material_graphs", fake_extract)
+
+    report = cli.export_blender_scene_to_usd(
+        scene,
+        tmp_path / "export",
+        targets=("mtlx",),
+        remap_prefixes=((r"C:\PROJECT\textures", str(texture_root)),),
+    )
+
+    assert report["missing_texture_paths"] == []
+    assert report["remapped_texture_paths"] == [
+        {
+            "material": "Textured Material",
+            "original": r"C:\PROJECT\textures\basecolor.png",
+            "remapped": str(fixed_texture),
+        }
+    ]
+
+
+def test_export_blender_scene_to_usd_applies_texture_root_recursive_remap(tmp_path, monkeypatch):
+    scene = tmp_path / "scene.blend"
+    scene.write_text("fake blend", encoding="utf-8")
+    nested_texture = tmp_path / "textures" / "asset" / "basecolor.png"
+    nested_texture.parent.mkdir(parents=True)
+    nested_texture.write_text("fake image", encoding="utf-8")
+
+    def fake_extract(scene_path, graph_json_path, **kwargs):
+        payload = _texture_graph_payload(r"C:\missing\basecolor.png")
+        Path(graph_json_path).write_text(json.dumps(payload), encoding="utf-8")
+        return {"graph_count": 1}
+
+    monkeypatch.setattr(cli, "extract_blender_material_graphs", fake_extract)
+
+    report = cli.export_blender_scene_to_usd(
+        scene,
+        tmp_path / "export",
+        targets=("mtlx",),
+        texture_root=tmp_path / "textures",
+    )
+
+    assert report["missing_texture_paths"] == []
+    assert report["remapped_texture_paths"][0]["remapped"] == str(nested_texture)
+
+
+def test_inspect_blender_scene_reports_without_writing_usd(tmp_path, monkeypatch):
+    scene = tmp_path / "scene.blend"
+    scene.write_text("fake blend", encoding="utf-8")
+    report_json = tmp_path / "inspect_report.json"
+
+    def fake_extract(scene_path, graph_json_path, **kwargs):
+        Path(graph_json_path).write_text(json.dumps(_graph_payload()), encoding="utf-8")
+        return {"graph_count": 1}
+
+    monkeypatch.setattr(cli, "extract_blender_material_graphs", fake_extract)
+
+    report = cli.inspect_blender_scene(scene, report_json=report_json)
+
+    assert report["graph_count"] == 1
+    assert report["report_json"] == str(report_json.resolve())
+    assert report_json.is_file()
+    assert "usd_files" not in report
+
+
+def test_inspect_blender_scene_can_fail_on_unsupported_nodes(tmp_path, monkeypatch):
+    scene = tmp_path / "scene.blend"
+    scene.write_text("fake blend", encoding="utf-8")
+    payload = _graph_payload()
+    payload["unsupported_nodes"] = {"Mat": [{"node_name": "Group", "node_path": "/mat/Mat/Group"}]}
+
+    def fake_extract(scene_path, graph_json_path, **kwargs):
+        Path(graph_json_path).write_text(json.dumps(payload), encoding="utf-8")
+        return {"graph_count": 1}
+
+    monkeypatch.setattr(cli, "extract_blender_material_graphs", fake_extract)
+
+    with pytest.raises(RuntimeError, match="Unsupported Blender nodes"):
+        cli.inspect_blender_scene(scene, fail_on_unsupported=True)
+
+
+def test_inspect_blender_scene_writes_report_before_missing_texture_failure(tmp_path, monkeypatch):
+    scene = tmp_path / "scene.blend"
+    scene.write_text("fake blend", encoding="utf-8")
+    report_json = tmp_path / "inspect_report.json"
+
+    def fake_extract(scene_path, graph_json_path, **kwargs):
+        Path(graph_json_path).write_text(json.dumps(_texture_graph_payload(r"C:\missing\basecolor.png")), encoding="utf-8")
+        return {"graph_count": 1}
+
+    monkeypatch.setattr(cli, "extract_blender_material_graphs", fake_extract)
+
+    with pytest.raises(RuntimeError, match="Missing texture paths"):
+        cli.inspect_blender_scene(scene, report_json=report_json, missing_textures="error")
+
+    assert report_json.is_file()
+    assert json.loads(report_json.read_text(encoding="utf-8"))["missing_texture_paths"]
 
 
 def test_build_usd_material_files_honors_single_target_alias(tmp_path):
@@ -160,9 +307,31 @@ def test_blender_cli_export_usd_dispatches_to_exporter(tmp_path, monkeypatch, ca
     assert "blender_scene_openpbr.usda" in capsys.readouterr().out
 
 
+def test_blender_cli_reports_runtime_errors_without_traceback(tmp_path, monkeypatch, capsys):
+    scene = tmp_path / "scene.blend"
+    scene.write_text("fake blend", encoding="utf-8")
+
+    def fail(args):
+        raise RuntimeError("unsupported nodes")
+
+    monkeypatch.setattr(cli, "run_inspect_from_args", fail)
+
+    exit_code = cli.main(["inspect", str(scene)])
+    captured = capsys.readouterr()
+
+    assert exit_code == 1
+    assert captured.err == "error: unsupported nodes\n"
+    assert "Traceback" not in captured.err
+
+
 def test_blender_cli_targets_all_expands_without_duplicates():
     assert cli._targets_from_args(["materialx", "all", "mtlx"]) == ("mtlx", "openpbr")
 
 
 def test_blender_cli_targets_default_to_all():
     assert cli._targets_from_args([]) == ("mtlx", "openpbr")
+
+
+def test_texture_remaps_require_old_equals_new_form():
+    with pytest.raises(ValueError, match="OLD=NEW"):
+        cli._texture_remaps_from_args(["C:/old"])

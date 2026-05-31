@@ -6,6 +6,7 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
+materials-processor = "materials_processor.cli:main"
 materials-processor-blender = "materials_processor.dcc.blender.cli:main"
 
 [build-system]
