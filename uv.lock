@@ -22,7 +22,6 @@ wheels = [
 
 [[package]]
 name = "materials-processor"
-version = "1.2.4"
 source = { editable = "." }
 
 [package.dev-dependencies]
