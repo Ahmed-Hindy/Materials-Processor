@@ -15,7 +15,19 @@ def _coerce_usd_value(value, generic_type):
     """Shape JSON-friendly parameter values for USD's typed attribute setters."""
     if isinstance(value, (list, tuple)) and len(value) == 1:
         return value[0]
-    if generic_type in {'float2', 'float3', 'float4', 'color3', 'rgba3', 'color4', 'rgba4', 'xyzw3'}:
+    if generic_type in {
+        'float2',
+        'float3',
+        'float4',
+        'vector2',
+        'vector3',
+        'vector4',
+        'color3',
+        'rgba3',
+        'color4',
+        'rgba4',
+        'xyzw3',
+    }:
         if isinstance(value, (list, tuple)):
             return tuple(value)
     return value
@@ -160,7 +172,7 @@ class USDGraphBuilder:
 
             parm_new_name = parm_new_name[0]
             val = _coerce_usd_value(param.value, param.generic_type)
-            if not val:
+            if val is None or val == "":
                 continue
 
             val_type = _ATTRIB_TYPE_CASTERS.get(param.generic_type)
