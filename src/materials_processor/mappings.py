@@ -2,7 +2,7 @@
 
 ###################################### CONSTANTS ######################################
 
-STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims', 'blender_shader_nodes']
+STANDARDIZER_SUPPORTED_SOURCE_TYPES = ['hou_vop_nodes', 'usd_prims', 'blender_shader_nodes', 'maya_nodes']
 
 PRINCIPLED_NATIVE_NODE_TYPE = 'principledshader::2.0'
 OPENPBR_NODE_TYPE = 'mtlxopen_pbr_surface'
@@ -319,6 +319,17 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'ShaderNodeBump': 'GENERIC::displacement',
             'ShaderNodeOutputMaterial': 'GENERIC::output_node',
             'NodeReroute': 'GENERIC::null',
+        },
+    },
+
+    'maya': {
+        'maya_nodes': {
+            'aiStandardSurface': 'GENERIC::standard_surface',
+            'standardSurface': 'GENERIC::standard_surface',
+            'file': 'GENERIC::image',
+            'place2dTexture': 'GENERIC::uvmap',
+            'bump2d': 'GENERIC::displacement',
+            'shadingEngine': 'GENERIC::output_node',
         },
     },
 
@@ -731,6 +742,90 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'Height': 'displacement',
         'Strength': 'scale',
         'Normal': 'out',
+    },
+
+    # maya parms:
+    'standardSurface': {
+        'base': 'base',
+        'baseColor': 'base_color',
+        'diffuseRoughness': 'diffuse_roughness',
+        'metalness': 'metalness',
+        'specular': 'specular',
+        'specularColor': 'specular_color',
+        'specularRoughness': 'specular_roughness',
+        'specularIOR': 'specular_IOR',
+        'specularAnisotropy': 'specular_anisotropy',
+        'specularRotation': 'specular_rotation',
+        'transmission': 'transmission',
+        'transmissionColor': 'transmission_color',
+        'transmissionExtraRoughness': 'transmission_extra_roughness',
+        'subsurface': 'subsurface',
+        'subsurfaceColor': 'subsurface_color',
+        'subsurfaceScale': 'subsurface_radius_scale',
+        'emission': 'emission',
+        'emissionColor': 'emission_color',
+        'coat': 'coat',
+        'coatColor': 'coat_color',
+        'coatRoughness': 'coat_roughness',
+        'coatIOR': 'coat_IOR',
+        'coatNormal': 'coat_normal',
+        'opacity': 'opacity',
+        'normalCamera': 'normal',
+        'outColor': 'surface',
+    },
+    'aiStandardSurface': {
+        'base': 'base',
+        'baseColor': 'base_color',
+        'diffuseRoughness': 'diffuse_roughness',
+        'metalness': 'metalness',
+        'specular': 'specular',
+        'specularColor': 'specular_color',
+        'specularRoughness': 'specular_roughness',
+        'specularIOR': 'specular_IOR',
+        'specularAnisotropy': 'specular_anisotropy',
+        'specularRotation': 'specular_rotation',
+        'transmission': 'transmission',
+        'transmissionColor': 'transmission_color',
+        'transmissionExtraRoughness': 'transmission_extra_roughness',
+        'subsurface': 'subsurface',
+        'subsurfaceColor': 'subsurface_color',
+        'subsurfaceScale': 'subsurface_radius_scale',
+        'emission': 'emission',
+        'emissionColor': 'emission_color',
+        'coat': 'coat',
+        'coatColor': 'coat_color',
+        'coatRoughness': 'coat_roughness',
+        'coatIOR': 'coat_IOR',
+        'coatNormal': 'coat_normal',
+        'opacity': 'opacity',
+        'normalCamera': 'normal',
+        'outColor': 'surface',
+    },
+    'file': {
+        'fileTextureName': 'filename',
+        'colorSpace': 'colorspace',
+        'uvCoord': 'texcoord',
+        'outColor': 'rgb',
+        'outAlpha': 'alpha',
+    },
+    'place2dTexture': {
+        'coverage': 'coverage',
+        'translateFrame': 'translate',
+        'repeatUV': 'repeat',
+        'offset': 'offset',
+        'rotateUV': 'rotate',
+        'outUV': 'vector',
+        'outUvFilterSize': 'uv_filter_size',
+    },
+    'bump2d': {
+        'bumpValue': 'displacement',
+        'bumpDepth': 'scale',
+        'bumpInterp': 'bump_interp',
+        'outNormal': 'out',
+    },
+    'shadingEngine': {
+        'surfaceShader': 'surface',
+        'displacementShader': 'displacement',
     },
 }
 

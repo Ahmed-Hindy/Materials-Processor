@@ -7,10 +7,12 @@ import pytest
 
 from materials_processor.dcc.maya.runtime import (
     EXPECTED_API_VERSIONS,
+    MATERIAL_SMOKE_RESULT_PREFIX,
     VALIDATION_RESULT_PREFIX,
     MayaRuntime,
     _default_package_src,
     resolve_maya_runtime,
+    validate_maya_material_smoke,
     validate_maya_runtime,
 )
 
@@ -100,6 +102,35 @@ def test_validate_maya_runtime_uses_mayapy_pythonpath_and_isolated_prefs(tmp_pat
     assert "materials_processor_maya_app_" in captured["env"]["MAYA_APP_DIR"]
 
 
+def test_validate_maya_material_smoke_parses_recreation_result(tmp_path, monkeypatch):
+    maya_root = _fake_maya_root(tmp_path / "Maya2024")
+    runtime = resolve_maya_runtime(root=maya_root)
+    package_src = tmp_path / "src"
+    package_src.mkdir()
+
+    def fake_run(command, check, capture_output, env, text, timeout):
+        result = {
+            "converted_shading_engine": "materials_processor_smoke_targetSG",
+            "material_name": "materials_processor_smoke_SG",
+            "node_count": 1,
+            "output_count": 1,
+            "recreated": True,
+            "target_node_types": ["file", "place2dTexture", "shadingEngine", "standardSurface"],
+        }
+        return SimpleNamespace(
+            returncode=0,
+            stdout=f"{MATERIAL_SMOKE_RESULT_PREFIX}{json.dumps(result)}\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr("materials_processor.dcc.maya.runtime.subprocess.run", fake_run)
+
+    result = validate_maya_material_smoke(runtime=runtime, package_src=package_src, timeout=3)
+
+    assert result["recreated"] is True
+    assert "standardSurface" in result["target_node_types"]
+
+
 def test_validate_maya_runtime_default_package_src_points_to_src():
     assert _default_package_src() == ROOT / "src"
 
@@ -111,6 +142,9 @@ def test_validate_local_maya2024_runtime_when_available():
 
     runtime = resolve_maya_runtime(root=LOCAL_MAYAPY_2024.parents[1])
     validated = validate_maya_runtime(runtime=runtime, package_src=ROOT / "src", timeout=120)
+    smoke = validate_maya_material_smoke(runtime=validated, package_src=ROOT / "src", timeout=120)
 
     assert validated.version == "2024"
     assert validated.api_version == "20240000"
+    assert smoke["recreated"] is True
+    assert "standardSurface" in smoke["target_node_types"]
