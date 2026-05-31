@@ -6,6 +6,7 @@ import pytest
 def test_public_core_and_houdini_modules_import():
     modules = [
         "materials_processor",
+        "materials_processor.cli",
         "materials_processor.core",
         "materials_processor.core.adapters",
         "materials_processor.core.conversion",
@@ -14,6 +15,7 @@ def test_public_core_and_houdini_modules_import():
         "materials_processor.dcc.blender",
         "materials_processor.dcc.blender.addon",
         "materials_processor.dcc.blender.adapters",
+        "materials_processor.dcc.blender.cli",
         "materials_processor.dcc.blender.recreator",
         "materials_processor.dcc.blender.runtime",
         "materials_processor.dcc.blender.traverser",
