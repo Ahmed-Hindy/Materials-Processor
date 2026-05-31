@@ -1,6 +1,7 @@
 """Recreate generic material graphs as Blender shader networks."""
 
 import logging
+import math
 from typing import List
 
 from materials_processor.core.graph import NodeInfo
@@ -99,6 +100,26 @@ class BlenderNodeRecreator:
             if node_type == "ShaderNodeNormalMap" and blender_name == "Strength":
                 if hasattr(node, "inputs") and "Strength" in node.inputs:
                     node.inputs["Strength"].default_value = float(val) if isinstance(val, (int, float)) else 1.0
+                continue
+
+            if node_type == "ShaderNodeValue" and blender_name == "value":
+                value_socket = next((socket for socket in node.outputs if socket.name == "Value"), None)
+                if value_socket and hasattr(value_socket, "default_value"):
+                    value_socket.default_value = float(val) if isinstance(val, (int, float)) else 0.0
+                continue
+
+            if node_type == "ShaderNodeMapping" and blender_name in {"Location", "Rotation", "Scale"}:
+                if hasattr(node, "inputs") and blender_name in node.inputs:
+                    socket = node.inputs[blender_name]
+                    try:
+                        if blender_name == "Rotation":
+                            socket.default_value = (0.0, 0.0, math.radians(float(val)))
+                        else:
+                            values = list(val) if isinstance(val, list) else [val]
+                            z_default = 1.0 if blender_name == "Scale" else 0.0
+                            socket.default_value = tuple((values + [z_default])[:3])
+                    except Exception as exc:
+                        logger.warning("Failed to set mapping parameter '%s' on node '%s': %s", blender_name, node.name, exc)
                 continue
 
             # Default socket value assignment

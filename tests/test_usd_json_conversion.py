@@ -408,6 +408,173 @@ def test_usd_recreator_maps_blender_texture_coordinate_and_channel_sockets():
     )
 
 
+def test_usd_recreator_maps_blender_texcoord_mapping_and_value_nodes():
+    stage = Usd.Stage.CreateInMemory()
+    surface = NodeInfo(
+        node_type="GENERIC::standard_surface",
+        node_name="Principled BSDF",
+        node_path="/mat/mapped/Principled BSDF",
+        parameters=[],
+        connection_info={},
+        children_list=[],
+    )
+    image = NodeInfo(
+        node_type="GENERIC::image",
+        node_name="Image Texture",
+        node_path="/mat/mapped/Image Texture",
+        parameters=[
+            NodeParameter("filename", "string1", "input", "C:/textures/diffuse.png"),
+            NodeParameter("signature", "string1", "input", "color3"),
+        ],
+        connection_info={
+            "connection_0": NodeConnection(
+                input=ConnectionEndpoint(
+                    node_name="Image Texture",
+                    node_path="/mat/mapped/Image Texture",
+                    node_type="ShaderNodeTexImage",
+                    node_index=0,
+                    parm_name="rgb",
+                ),
+                output=ConnectionEndpoint(
+                    node_name="Principled BSDF",
+                    node_path="/mat/mapped/Principled BSDF",
+                    node_type="ShaderNodeBsdfPrincipled",
+                    node_index=0,
+                    parm_name="base_color",
+                ),
+            )
+        },
+        children_list=[],
+    )
+    mapping = NodeInfo(
+        node_type="GENERIC::mapping",
+        node_name="Mapping",
+        node_path="/mat/mapped/Mapping",
+        parameters=[
+            NodeParameter("offset", "vector2", "input", [0.25, 0.5]),
+            NodeParameter("scale", "vector2", "input", [2.0, 3.0]),
+            NodeParameter("rotate", "float1", "input", 90.0),
+        ],
+        connection_info={
+            "connection_0": NodeConnection(
+                input=ConnectionEndpoint(
+                    node_name="Mapping",
+                    node_path="/mat/mapped/Mapping",
+                    node_type="ShaderNodeMapping",
+                    node_index=0,
+                    parm_name="out",
+                ),
+                output=ConnectionEndpoint(
+                    node_name="Image Texture",
+                    node_path="/mat/mapped/Image Texture",
+                    node_type="ShaderNodeTexImage",
+                    node_index=0,
+                    parm_name="texcoord",
+                ),
+            )
+        },
+        children_list=[],
+    )
+    texcoord = NodeInfo(
+        node_type="GENERIC::uvmap",
+        node_name="Texture Coordinate",
+        node_path="/mat/mapped/Texture Coordinate",
+        parameters=[],
+        connection_info={
+            "connection_0": NodeConnection(
+                input=ConnectionEndpoint(
+                    node_name="Texture Coordinate",
+                    node_path="/mat/mapped/Texture Coordinate",
+                    node_type="ShaderNodeTexCoord",
+                    node_index=0,
+                    parm_name="vector",
+                ),
+                output=ConnectionEndpoint(
+                    node_name="Mapping",
+                    node_path="/mat/mapped/Mapping",
+                    node_type="ShaderNodeMapping",
+                    node_index=0,
+                    parm_name="texcoord",
+                ),
+            )
+        },
+        children_list=[],
+    )
+    value = NodeInfo(
+        node_type="GENERIC::value",
+        node_name="Roughness Value",
+        node_path="/mat/mapped/Roughness Value",
+        parameters=[NodeParameter("value", "float1", "input", 0.42)],
+        connection_info={
+            "connection_0": NodeConnection(
+                input=ConnectionEndpoint(
+                    node_name="Roughness Value",
+                    node_path="/mat/mapped/Roughness Value",
+                    node_type="ShaderNodeValue",
+                    node_index=0,
+                    parm_name="out",
+                ),
+                output=ConnectionEndpoint(
+                    node_name="Principled BSDF",
+                    node_path="/mat/mapped/Principled BSDF",
+                    node_type="ShaderNodeBsdfPrincipled",
+                    node_index=0,
+                    parm_name="specular_roughness",
+                ),
+            )
+        },
+        children_list=[],
+    )
+    mapping.children_list.append(texcoord)
+    image.children_list.append(mapping)
+    surface.children_list.extend([image, value])
+    output_connection = OutputConnection(
+        node_name="Material Output",
+        node_path="/mat/mapped/Material Output",
+        connected_node_name="Principled BSDF",
+        connected_node_path="/mat/mapped/Principled BSDF",
+        connected_input_index=0,
+        connected_input_name="Surface",
+        connected_output_name="surface",
+    )
+
+    USDMaterialRecreator(
+        stage=stage,
+        material_name="mapped",
+        nodeinfo_list=[surface],
+        output_connections={"GENERIC::output_surface": output_connection},
+        target_renderer="mtlx",
+    ).run()
+
+    assert {
+        "ND_standard_surface_surfaceshader",
+        "ND_image_color3",
+        "ND_geompropvalue_vector2",
+        "ND_place2d_vector2",
+        "ND_constant_float",
+    } <= _shader_ids(stage)
+
+    mapping_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/mapped/Mapping"))
+    image_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/mapped/Image_Texture"))
+    surface_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/mapped/Principled_BSDF"))
+
+    assert mapping_shader.GetInput("texcoord").GetAttr().GetConnections()[0].pathString.endswith(
+        "/Texture_Coordinate.outputs:out"
+    )
+    assert image_shader.GetInput("texcoord").GetAttr().GetConnections()[0].pathString.endswith(
+        "/Mapping.outputs:out"
+    )
+    assert surface_shader.GetInput("specular_roughness").GetAttr().GetConnections()[0].pathString.endswith(
+        "/Roughness_Value.outputs:out"
+    )
+    assert mapping_shader.GetInput("offset").Get() == (0.25, 0.5)
+    assert mapping_shader.GetInput("scale").Get() == (2.0, 3.0)
+    assert mapping_shader.GetInput("rotate").Get() == 90.0
+    assert UsdShade.Shader.Get(stage, Sdf.Path("/materials/mapped/Roughness_Value")).GetInput(
+        "value"
+    ).Get() == pytest.approx(0.42)
+
+
 def test_usd_recreator_legacy_texture_collect_builder_smoke():
     stage = Usd.Stage.CreateInMemory()
     recreator = USDMaterialRecreator(

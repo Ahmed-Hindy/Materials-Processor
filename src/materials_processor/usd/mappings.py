@@ -59,6 +59,20 @@ GENERIC_NODE_TYPES_TO_REGULAR_USD = {
             'openpbr': 'ND_geompropvalue_vector2',
         },
     },
+    'GENERIC::mapping': {
+        'prim_type': 'Shader',
+        'info_id': {
+            'mtlx': 'ND_place2d_vector2',
+            'openpbr': 'ND_place2d_vector2',
+        },
+    },
+    'GENERIC::value': {
+        'prim_type': 'Shader',
+        'info_id': {
+            'mtlx': 'ND_constant_float',
+            'openpbr': 'ND_constant_float',
+        },
+    },
     'GENERIC::separate_color': {
         'prim_type': 'Shader',
         'info_id': {

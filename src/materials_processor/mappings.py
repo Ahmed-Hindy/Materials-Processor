@@ -259,6 +259,8 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'ND_image_color3': 'GENERIC::image',
             'ND_normalmap_vector3': 'GENERIC::normalmap',
             'ND_geompropvalue_vector2': 'GENERIC::uvmap',
+            'ND_place2d_vector2': 'GENERIC::mapping',
+            'ND_constant_float': 'GENERIC::value',
             'ND_separate3_color3': 'GENERIC::separate_color',
             'ND_colorcorrect_color3': 'GENERIC::color_correct',
             'ND_range_float': 'GENERIC::range',
@@ -285,6 +287,8 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
             'ND_image_color3': 'GENERIC::image',
             'ND_normalmap_vector3': 'GENERIC::normalmap',
             'ND_geompropvalue_vector2': 'GENERIC::uvmap',
+            'ND_place2d_vector2': 'GENERIC::mapping',
+            'ND_constant_float': 'GENERIC::value',
             'ND_separate3_color3': 'GENERIC::separate_color',
             'ND_colorcorrect_color3': 'GENERIC::color_correct',
             'ND_range_float': 'GENERIC::range',
@@ -313,7 +317,10 @@ REGULAR_NODE_TYPES_TO_GENERIC = {
         'blender_shader_nodes': {
             'ShaderNodeBsdfPrincipled': 'GENERIC::standard_surface',
             'ShaderNodeTexImage': 'GENERIC::image',
+            'ShaderNodeTexCoord': 'GENERIC::uvmap',
             'ShaderNodeUVMap': 'GENERIC::uvmap',
+            'ShaderNodeMapping': 'GENERIC::mapping',
+            'ShaderNodeValue': 'GENERIC::value',
             'ShaderNodeSeparateColor': 'GENERIC::separate_color',
             'ShaderNodeNormalMap': 'GENERIC::normalmap',
             'ShaderNodeBump': 'GENERIC::displacement',
@@ -497,6 +504,19 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'geomprop': 'uv_map',
         'default': 'default',
         'out': 'vector',
+    },
+    'ND_place2d_vector2': {
+        'texcoord': 'texcoord',
+        'pivot': 'pivot',
+        'scale': 'scale',
+        'rotate': 'rotate',
+        'offset': 'offset',
+        'operationorder': 'operationorder',
+        'out': 'out',
+    },
+    'ND_constant_float': {
+        'value': 'value',
+        'out': 'out',
     },
     'ND_separate3_color3': {
         'in': 'rgb',
@@ -725,6 +745,21 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
     'ShaderNodeUVMap': {
         'uv_map': 'uv_map',
         'UV': 'vector',
+    },
+    'ShaderNodeTexCoord': {
+        'uv_map': 'uv_map',
+        'UV': 'vector',
+    },
+    'ShaderNodeMapping': {
+        'Vector': 'texcoord',
+        'Location': 'offset',
+        'Rotation': 'rotate',
+        'Scale': 'scale',
+        'Vector Output': 'out',
+    },
+    'ShaderNodeValue': {
+        'value': 'value',
+        'Value': 'out',
     },
     'ShaderNodeSeparateColor': {
         'Color': 'rgb',

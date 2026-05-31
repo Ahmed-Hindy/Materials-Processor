@@ -1,6 +1,7 @@
 """Traverse Blender shader node networks."""
 
 import logging
+import math
 
 logger = logging.getLogger(__name__)
 
@@ -12,13 +13,30 @@ except ImportError:
     bpy = None
 
 
+def _socket_parameter_name(socket, *, is_output=False, node=None):
+    """Return a stable Blender parameter key for sockets with ambiguous names."""
+    node_type = getattr(node, "bl_idname", None)
+    if is_output and node_type == "ShaderNodeMapping" and socket.name == "Vector":
+        return "Vector Output"
+    return socket.name
+
+
 def _socket_generic_type(socket, *, is_output=False, node=None):
     """Return the closest generic parameter type for a Blender socket."""
+    node_type = getattr(node, "bl_idname", None)
+    if node_type == "ShaderNodeMapping":
+        if socket.name in {"Vector", "Location", "Scale"}:
+            return "vector2"
+        if socket.name == "Rotation":
+            return "float1"
+    if is_output and node_type == "ShaderNodeTexCoord" and socket.name == "UV":
+        return "vector2"
+
     socket_type = socket.type.lower()
     if socket_type == "value":
         return "float1"
     if socket_type == "vector":
-        if is_output and getattr(node, "bl_idname", None) == "ShaderNodeUVMap":
+        if is_output and node_type == "ShaderNodeUVMap":
             return "vector2"
         return "vector3"
     if socket_type == "rgba":
@@ -26,6 +44,34 @@ def _socket_generic_type(socket, *, is_output=False, node=None):
     if socket_type == "shader":
         return "shader"
     return "float1"
+
+
+def _socket_default_value(socket, node):
+    """Return a JSON-friendly socket value, normalizing Blender mapping semantics."""
+    val = socket.default_value
+    node_type = getattr(node, "bl_idname", None)
+    if node_type == "ShaderNodeMapping":
+        if socket.name in {"Vector", "Location", "Scale"}:
+            return list(val)[:2]
+        if socket.name == "Rotation":
+            try:
+                rotation_values = list(val)
+            except TypeError:
+                try:
+                    rotation_values = [val[0], val[1], val[2]]
+                except (TypeError, IndexError):
+                    rotation_values = [0.0, 0.0, val]
+            z_rotation = rotation_values[2] if len(rotation_values) > 2 else 0.0
+            return math.degrees(z_rotation)
+
+    # Convert math-types like Vector, Color, RGBA, and Blender arrays to standard lists.
+    if hasattr(val, "copy") or isinstance(val, (list, tuple, bytes, set)):
+        return list(val)
+    if type(val).__name__ in ("Vector", "Color", "bpy_prop_array"):
+        return list(val)
+    if not isinstance(val, str) and hasattr(val, "__iter__"):
+        return list(val)
+    return val
 
 
 def _resolve_blender_image_path(image):
@@ -148,7 +194,7 @@ class BlenderNodeTraverser:
                         "node_path": f"/mat/{material_name}/{node.name}",
                         "node_type": node.bl_idname,
                         "node_index": 0,
-                        "parm_name": output_socket.name,
+                        "parm_name": _socket_parameter_name(output_socket, is_output=True, node=node),
                         "data_type": output_socket.type,
                     },
                     "output": {
@@ -156,7 +202,7 @@ class BlenderNodeTraverser:
                         "node_path": f"/mat/{material_name}/{parent_node.name}",
                         "node_type": parent_node.bl_idname,
                         "node_index": 0,
-                        "parm_name": link.to_socket.name,
+                        "parm_name": _socket_parameter_name(link.to_socket, node=parent_node),
                         "data_type": link.to_socket.type,
                     }
                 }
@@ -186,17 +232,10 @@ class BlenderNodeTraverser:
             if not hasattr(socket, "default_value"):
                 continue
 
-            val = socket.default_value
-            # Convert math-types like Vector, Color, RGBA, and Blender arrays to standard lists.
-            if hasattr(val, "copy") or isinstance(val, (list, tuple, bytes, set)):
-                val = list(val)
-            elif type(val).__name__ in ("Vector", "Color", "bpy_prop_array"):
-                val = list(val)
-            elif not isinstance(val, str) and hasattr(val, "__iter__"):
-                val = list(val)
+            val = _socket_default_value(socket, node)
 
             parms["input"].append({
-                "generic_name": socket.name,
+                "generic_name": _socket_parameter_name(socket, node=node),
                 "value": val,
                 "type": _socket_generic_type(socket, node=node),
                 "direction": "input",
@@ -217,6 +256,21 @@ class BlenderNodeTraverser:
                 "type": "string1",
                 "direction": "input"
             })
+        elif node.bl_idname == "ShaderNodeTexCoord":
+            parms["input"].append({
+                "generic_name": "uv_map",
+                "value": "",
+                "type": "string1",
+                "direction": "input"
+            })
+        elif node.bl_idname == "ShaderNodeValue":
+            value_socket = next((socket for socket in node.outputs if socket.name == "Value"), None)
+            parms["input"].append({
+                "generic_name": "value",
+                "value": getattr(value_socket, "default_value", 0.0),
+                "type": "float1",
+                "direction": "input"
+            })
         elif node.bl_idname == "ShaderNodeNormalMap":
             strength_val = 1.0
             if hasattr(node, "inputs") and "Strength" in node.inputs:
@@ -231,7 +285,7 @@ class BlenderNodeTraverser:
         # Node outputs mapped as output parameters
         for socket in node.outputs:
             parms["output"].append({
-                "generic_name": socket.name,
+                "generic_name": _socket_parameter_name(socket, is_output=True, node=node),
                 "value": None,
                 "type": _socket_generic_type(socket, is_output=True, node=node),
                 "direction": "output",

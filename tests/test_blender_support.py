@@ -29,6 +29,16 @@ def test_blender_profile_maps_generic_nodes_without_becoming_houdini_target():
         profile="blender_shader_nodes",
     ) == "ShaderNodeUVMap"
     assert mappings.convert_generic(
+        "GENERIC::mapping",
+        "blender",
+        profile="blender_shader_nodes",
+    ) == "ShaderNodeMapping"
+    assert mappings.convert_generic(
+        "GENERIC::value",
+        "blender",
+        profile="blender_shader_nodes",
+    ) == "ShaderNodeValue"
+    assert mappings.convert_generic(
         "GENERIC::separate_color",
         "blender",
         profile="blender_shader_nodes",
@@ -236,6 +246,55 @@ def _make_packed_texture_fake_blender_material(name="packed_mat"):
     return FakeMaterial(name, node_tree)
 
 
+def _make_mapped_texture_fake_blender_material(name="mapped_mat"):
+    out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
+    bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
+    tex_node = FakeNode("ShaderNodeTexImage", "Image Texture")
+    texcoord_node = FakeNode("ShaderNodeTexCoord", "Texture Coordinate")
+    mapping_node = FakeNode("ShaderNodeMapping", "Mapping")
+    value_node = FakeNode("ShaderNodeValue", "Roughness Value")
+
+    out_surf_socket = FakeSocket("Surface", "SHADER")
+    bsdf_out_socket = FakeSocket("BSDF", "SHADER")
+    bsdf_base_socket = FakeSocket("Base Color", "RGBA")
+    bsdf_roughness_socket = FakeSocket("Roughness", "VALUE")
+    tex_vector_socket = FakeSocket("Vector", "VECTOR")
+    tex_color_socket = FakeSocket("Color", "RGBA")
+    texcoord_uv_socket = FakeSocket("UV", "VECTOR", default_value=[0.0, 0.0, 0.0])
+    mapping_vector_in_socket = FakeSocket("Vector", "VECTOR", default_value=[0.0, 0.0, 0.0])
+    mapping_location_socket = FakeSocket("Location", "VECTOR", default_value=[0.25, 0.5, 0.0])
+    mapping_rotation_socket = FakeSocket("Rotation", "VECTOR", default_value=[0.0, 0.0, 1.57079632679])
+    mapping_scale_socket = FakeSocket("Scale", "VECTOR", default_value=[2.0, 3.0, 1.0])
+    mapping_vector_out_socket = FakeSocket("Vector", "VECTOR")
+    value_socket = FakeSocket("Value", "VALUE", default_value=0.42)
+
+    out_node.inputs = [out_surf_socket]
+    bsdf_node.outputs = [bsdf_out_socket]
+    bsdf_node.inputs = [bsdf_base_socket, bsdf_roughness_socket]
+    tex_node.inputs = [tex_vector_socket]
+    tex_node.outputs = [tex_color_socket]
+    texcoord_node.outputs = [texcoord_uv_socket]
+    mapping_node.inputs = [mapping_vector_in_socket, mapping_location_socket, mapping_rotation_socket, mapping_scale_socket]
+    mapping_node.outputs = [mapping_vector_out_socket]
+    value_node.outputs = [value_socket]
+
+    links = [
+        _link(bsdf_node, bsdf_out_socket, out_node, out_surf_socket),
+        _link(tex_node, tex_color_socket, bsdf_node, bsdf_base_socket),
+        _link(texcoord_node, texcoord_uv_socket, mapping_node, mapping_vector_in_socket),
+        _link(mapping_node, mapping_vector_out_socket, tex_node, tex_vector_socket),
+        _link(value_node, value_socket, bsdf_node, bsdf_roughness_socket),
+    ]
+
+    return FakeMaterial(
+        name,
+        FakeNodeTree(
+            nodes=[out_node, bsdf_node, tex_node, texcoord_node, mapping_node, value_node],
+            links=links,
+        ),
+    )
+
+
 def test_blender_traverser_simple():
     """Test that BlenderNodeTraverser processes Cycles material trees correctly."""
     material = _make_simple_fake_blender_material()
@@ -310,6 +369,59 @@ def test_blender_traverser_preserves_packed_texture_graph(caplog):
     )
     assert "No generic type was found for node type: 'ShaderNodeUVMap'" not in caplog.text
     assert "No generic type was found for node type: 'ShaderNodeSeparateColor'" not in caplog.text
+
+
+def test_blender_traverser_preserves_texcoord_mapping_and_value_nodes(caplog):
+    material = _make_mapped_texture_fake_blender_material()
+
+    nodes_dict, output_dict = BlenderNodeTraverser(material).run()
+    nodeinfo_list, _ = standardizer.NodeStandardizer(
+        traversed_nodes_dict=nodes_dict,
+        output_nodes_dict=output_dict,
+        material_type="blender",
+        source_type="blender_shader_nodes",
+    ).run()
+
+    all_nodes = list(_iter_nodeinfos(nodeinfo_list))
+    assert {node.node_type for node in all_nodes} >= {
+        "GENERIC::standard_surface",
+        "GENERIC::image",
+        "GENERIC::uvmap",
+        "GENERIC::mapping",
+        "GENERIC::value",
+    }
+
+    mapping_node = next(node for node in all_nodes if node.node_type == "GENERIC::mapping")
+    mapping_params = {param.generic_name: param for param in mapping_node.parameters}
+    assert mapping_params["offset"].value == [0.25, 0.5]
+    assert mapping_params["scale"].value == [2.0, 3.0]
+    assert mapping_params["rotate"].value == pytest.approx(90.0)
+    assert mapping_params["out"].generic_type == "vector2"
+
+    value_node = next(node for node in all_nodes if node.node_type == "GENERIC::value")
+    value_params = {param.generic_name: param for param in value_node.parameters}
+    assert value_params["value"].value == 0.42
+
+    connections = [
+        connection
+        for node in all_nodes
+        for connection in node.connection_info.values()
+    ]
+    assert any(
+        connection.input.parm_name == "vector" and connection.output.parm_name == "texcoord"
+        for connection in connections
+    )
+    assert any(
+        connection.input.parm_name == "out" and connection.output.parm_name == "texcoord"
+        for connection in connections
+    )
+    assert any(
+        connection.input.parm_name == "out" and connection.output.parm_name == "specular_roughness"
+        for connection in connections
+    )
+    assert "No generic type was found for node type: 'ShaderNodeTexCoord'" not in caplog.text
+    assert "No generic type was found for node type: 'ShaderNodeMapping'" not in caplog.text
+    assert "No generic type was found for node type: 'ShaderNodeValue'" not in caplog.text
 
 
 def test_blender_recreator_simple():
