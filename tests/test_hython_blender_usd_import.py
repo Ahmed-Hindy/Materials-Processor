@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import subprocess
 from pathlib import Path
 
@@ -12,28 +10,11 @@ import pytest
 
 from materials_processor.core.graph import MaterialGraph, NodeInfo, OutputConnection
 from materials_processor.dcc.blender.cli import build_usd_material_files
+from materials_processor.dcc.houdini.runtime import resolve_hython
 
 
-DEFAULT_HYTHON = Path(r"C:\\Program Files\\Side Effects Software\\Houdini 21.0.631\\bin\\hython.exe")
 JSON_START = "===MATERIALS_PROCESSOR_SOLARIS_JSON_START==="
 JSON_END = "===MATERIALS_PROCESSOR_SOLARIS_JSON_END==="
-
-
-def _resolve_hython() -> str | None:
-    """Locate a Hython executable without requiring Houdini on PATH."""
-    if configured_hython := os.environ.get("MATERIALS_PROCESSOR_HYTHON"):
-        if Path(configured_hython).is_file():
-            return configured_hython
-    if path_hython := shutil.which("hython"):
-        return path_hython
-    if hfs := os.environ.get("HFS"):
-        for executable_name in ("hython.exe", "hython"):
-            candidate = Path(hfs) / "bin" / executable_name
-            if candidate.is_file():
-                return str(candidate)
-    if DEFAULT_HYTHON.is_file():
-        return str(DEFAULT_HYTHON)
-    return None
 
 
 def _blender_graph_payload() -> dict[str, object]:
@@ -144,7 +125,7 @@ def _load_in_solaris(hython: str, usd_path: Path, material_path: str, shader_pat
 )
 def test_hython_solaris_loads_blender_exported_material_usd(tmp_path, target, expected_shader_id):
     """Ensure Blender material USD can be loaded and cooked by Houdini Solaris."""
-    hython = _resolve_hython()
+    hython = resolve_hython()
     if not hython:
         pytest.skip("Hython is not available")
     report = build_usd_material_files(_blender_graph_payload(), tmp_path, targets=(target,))

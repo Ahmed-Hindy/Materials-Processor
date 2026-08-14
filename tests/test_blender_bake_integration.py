@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import json
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -15,48 +13,17 @@ from pxr import Usd
 
 from materials_processor.dcc.blender.cli import export_baked_blender_materials, export_blender_scene_to_usd
 from materials_processor.dcc.blender.runtime import _run_blender_python, resolve_blender_runtime
+from materials_processor.dcc.houdini.runtime import resolve_husk, resolve_hython
 from blender_bake_fixture import build_bake_decision_fixture
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_HYTHON = Path(r"C:\Program Files\Side Effects Software\Houdini 21.0.631\bin\hython.exe")
-DEFAULT_HUSK = DEFAULT_HYTHON.with_name("husk.exe")
 SOLARIS_RESULT_PREFIX = "MATERIALS_PROCESSOR_SOLARIS_BAKE_FIXTURE="
 RAW_NORMAL_RESULT_PREFIX = "MATERIALS_PROCESSOR_RAW_NORMAL="
 RAW_EXR_COMPARISON_PREFIX = "MATERIALS_PROCESSOR_RAW_EXR_COMPARISON="
 RAW_COLOR_SPACES = ("Utility - Raw", "Raw", "raw", "Non-Color")
 ALBEDO_MAX_MAE = 0.005
 ALBEDO_MAX_ABSOLUTE_ERROR = 0.01
-
-
-def _resolve_houdini_executable(environment_variable: str, executable: str, default_path: Path) -> str | None:
-    """Locate a Houdini executable through configuration, PATH, or the default install."""
-    if configured_path := os.environ.get(environment_variable):
-        if Path(configured_path).is_file():
-            return configured_path
-    if path_executable := shutil.which(executable):
-        return path_executable
-    if default_path.is_file():
-        return str(default_path)
-    return None
-
-
-def _resolve_hython() -> str | None:
-    """Locate Hython without requiring Houdini to be on PATH."""
-    return _resolve_houdini_executable(
-        "MATERIALS_PROCESSOR_HYTHON",
-        "hython",
-        DEFAULT_HYTHON,
-    )
-
-
-def _resolve_husk() -> str | None:
-    """Locate Husk without requiring Houdini to be on PATH."""
-    return _resolve_houdini_executable(
-        "MATERIALS_PROCESSOR_HUSK",
-        "husk",
-        DEFAULT_HUSK,
-    )
 
 
 def _read_prefixed_json(stdout: str, prefix: str, description: str) -> dict[str, object]:
@@ -67,7 +34,7 @@ def _read_prefixed_json(stdout: str, prefix: str, description: str) -> dict[str,
     pytest.fail(f"{description} did not return its result:\n{stdout}")
 
 
-def _load_baked_materials_in_solaris(hython: str, usd_path: Path) -> dict[str, list[str]]:
+def _load_baked_materials_in_solaris(hython: str | Path, usd_path: Path) -> dict[str, list[str]]:
     """Load a baked material-only layer through Solaris and report shader ids."""
     code = f"""
 import json
@@ -92,7 +59,7 @@ print({SOLARIS_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
     )
 
 
-def _load_material_in_solaris(hython: str, usd_path: Path, material_name: str) -> dict[str, object]:
+def _load_material_in_solaris(hython: str | Path, usd_path: Path, material_name: str) -> dict[str, object]:
     """Load one exported material through Solaris and return its surface id."""
     code = f"""
 import json
@@ -165,7 +132,7 @@ def _run_python_script(arguments: list[str], *, timeout: int = 240) -> None:
         pytest.fail(f"Project helper script failed:\n{completed.stdout}\n{completed.stderr}")
 
 
-def _render_karma_xpu(husk: str, stage_path: Path, output_path: Path) -> None:
+def _render_karma_xpu(husk: str | Path, stage_path: Path, output_path: Path) -> None:
     """Render a diagnostic stage to raw EXR through Karma XPU."""
     completed = subprocess.run(
         [
@@ -360,7 +327,7 @@ def test_nonflat_normal_bake_is_raw_and_uses_gltf_normalmap(tmp_path):
 @pytest.mark.hython
 def test_calibrated_albedo_bake_matches_karma_xpu_raw_exr(tmp_path):
     """Keep the calibrated albedo bake within a raw cross-renderer tolerance."""
-    husk = _resolve_husk()
+    husk = resolve_husk()
     if not husk:
         pytest.skip("Husk is not available")
     try:
@@ -423,7 +390,7 @@ def test_calibrated_albedo_bake_matches_karma_xpu_raw_exr(tmp_path):
 @pytest.mark.hython
 def test_group_input_fixture_direct_usd_exports_load_in_solaris(tmp_path):
     """Ensure direct conversion of Group Input values loads in both targets."""
-    hython = _resolve_hython()
+    hython = resolve_hython()
     if not hython:
         pytest.skip("Hython is not available")
     try:
@@ -460,7 +427,7 @@ def test_group_input_fixture_direct_usd_exports_load_in_solaris(tmp_path):
 @pytest.mark.hython
 def test_auto_bake_fixture_loads_pbr_and_beauty_materials_in_solaris(tmp_path):
     """Ensure Solaris can load the real Blender fixture's PBR and beauty materials."""
-    hython = _resolve_hython()
+    hython = resolve_hython()
     if not hython:
         pytest.skip("Hython is not available")
     try:
