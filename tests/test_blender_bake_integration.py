@@ -8,6 +8,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
+from typing import cast
 
 import pytest
 from pxr import Usd
@@ -23,30 +24,47 @@ DEFAULT_HUSK = DEFAULT_HYTHON.with_name("husk.exe")
 SOLARIS_RESULT_PREFIX = "MATERIALS_PROCESSOR_SOLARIS_BAKE_FIXTURE="
 RAW_NORMAL_RESULT_PREFIX = "MATERIALS_PROCESSOR_RAW_NORMAL="
 RAW_EXR_COMPARISON_PREFIX = "MATERIALS_PROCESSOR_RAW_EXR_COMPARISON="
+RAW_COLOR_SPACES = ("Utility - Raw", "Raw", "raw", "Non-Color")
+ALBEDO_MAX_MAE = 0.005
+ALBEDO_MAX_ABSOLUTE_ERROR = 0.01
+
+
+def _resolve_houdini_executable(environment_variable: str, executable: str, default_path: Path) -> str | None:
+    """Locate a Houdini executable through configuration, PATH, or the default install."""
+    if configured_path := os.environ.get(environment_variable):
+        if Path(configured_path).is_file():
+            return configured_path
+    if path_executable := shutil.which(executable):
+        return path_executable
+    if default_path.is_file():
+        return str(default_path)
+    return None
 
 
 def _resolve_hython() -> str | None:
     """Locate Hython without requiring Houdini to be on PATH."""
-    if configured_hython := os.environ.get("MATERIALS_PROCESSOR_HYTHON"):
-        if Path(configured_hython).is_file():
-            return configured_hython
-    if path_hython := shutil.which("hython"):
-        return path_hython
-    if DEFAULT_HYTHON.is_file():
-        return str(DEFAULT_HYTHON)
-    return None
+    return _resolve_houdini_executable(
+        "MATERIALS_PROCESSOR_HYTHON",
+        "hython",
+        DEFAULT_HYTHON,
+    )
 
 
 def _resolve_husk() -> str | None:
     """Locate Husk without requiring Houdini to be on PATH."""
-    if configured_husk := os.environ.get("MATERIALS_PROCESSOR_HUSK"):
-        if Path(configured_husk).is_file():
-            return configured_husk
-    if path_husk := shutil.which("husk"):
-        return path_husk
-    if DEFAULT_HUSK.is_file():
-        return str(DEFAULT_HUSK)
-    return None
+    return _resolve_houdini_executable(
+        "MATERIALS_PROCESSOR_HUSK",
+        "husk",
+        DEFAULT_HUSK,
+    )
+
+
+def _read_prefixed_json(stdout: str, prefix: str, description: str) -> dict[str, object]:
+    """Return a JSON result emitted by a headless DCC subprocess."""
+    for line in stdout.splitlines():
+        if line.startswith(prefix):
+            return json.loads(line[len(prefix) :])
+    pytest.fail(f"{description} did not return its result:\n{stdout}")
 
 
 def _load_baked_materials_in_solaris(hython: str, usd_path: Path) -> dict[str, list[str]]:
@@ -68,10 +86,10 @@ print({SOLARIS_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
     completed = subprocess.run([hython, "-"], input=code, text=True, capture_output=True, timeout=120, check=False)
     if completed.returncode != 0:
         pytest.fail(f"Solaris bake-fixture import failed:\n{completed.stdout}\n{completed.stderr}")
-    for line in completed.stdout.splitlines():
-        if line.startswith(SOLARIS_RESULT_PREFIX):
-            return json.loads(line[len(SOLARIS_RESULT_PREFIX):])
-    pytest.fail(f"Solaris bake-fixture import did not return its result:\n{completed.stdout}\n{completed.stderr}")
+    return cast(
+        dict[str, list[str]],
+        _read_prefixed_json(completed.stdout, SOLARIS_RESULT_PREFIX, "Solaris bake-fixture import"),
+    )
 
 
 def _load_material_in_solaris(hython: str, usd_path: Path, material_name: str) -> dict[str, object]:
@@ -95,10 +113,7 @@ print({SOLARIS_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
     completed = subprocess.run([hython, "-"], input=code, text=True, capture_output=True, timeout=120, check=False)
     if completed.returncode != 0:
         pytest.fail(f"Solaris Group Input import failed:\n{completed.stdout}\n{completed.stderr}")
-    for line in completed.stdout.splitlines():
-        if line.startswith(SOLARIS_RESULT_PREFIX):
-            return json.loads(line[len(SOLARIS_RESULT_PREFIX):])
-    pytest.fail(f"Solaris Group Input import did not return its result:\n{completed.stdout}\n{completed.stderr}")
+    return _read_prefixed_json(completed.stdout, SOLARIS_RESULT_PREFIX, "Solaris Group Input import")
 
 
 def _iter_graph_nodes(nodes):
@@ -115,7 +130,7 @@ import json
 import bpy
 
 image = bpy.data.images.load({str(texture_path)!r}, check_existing=False)
-for color_space in ("Utility - Raw", "raw", "Non-Color"):
+for color_space in {RAW_COLOR_SPACES!r}:
     try:
         image.colorspace_settings.name = color_space
         break
@@ -131,10 +146,10 @@ print({RAW_NORMAL_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
     completed = _run_blender_python(runtime, code, ROOT / "src", timeout=120)
     if completed.returncode != 0 or "Traceback (most recent call last):" in completed.stdout:
         pytest.fail(f"Raw normal texture inspection failed:\n{completed.stdout}\n{completed.stderr}")
-    for line in completed.stdout.splitlines():
-        if line.startswith(RAW_NORMAL_RESULT_PREFIX):
-            return json.loads(line[len(RAW_NORMAL_RESULT_PREFIX) :])
-    pytest.fail(f"Raw normal texture inspection did not return its result:\n{completed.stdout}\n{completed.stderr}")
+    return cast(
+        dict[str, list[float]],
+        _read_prefixed_json(completed.stdout, RAW_NORMAL_RESULT_PREFIX, "Raw normal texture inspection"),
+    )
 
 
 def _run_python_script(arguments: list[str], *, timeout: int = 240) -> None:
@@ -186,7 +201,7 @@ import bpy
 
 def load_raw(path):
     image = bpy.data.images.load(path, check_existing=False)
-    for color_space in ("Utility - Raw", "Raw", "Non-Color"):
+    for color_space in {RAW_COLOR_SPACES!r}:
         try:
             image.colorspace_settings.name = color_space
             break
@@ -228,10 +243,10 @@ print({RAW_EXR_COMPARISON_PREFIX!r} + json.dumps(result, sort_keys=True))
     completed = _run_blender_python(runtime, code, ROOT / "src", timeout=120)
     if completed.returncode != 0 or "Traceback (most recent call last):" in completed.stdout:
         pytest.fail(f"Raw EXR comparison failed:\n{completed.stdout}\n{completed.stderr}")
-    for line in completed.stdout.splitlines():
-        if line.startswith(RAW_EXR_COMPARISON_PREFIX):
-            return json.loads(line[len(RAW_EXR_COMPARISON_PREFIX) :])
-    pytest.fail(f"Raw EXR comparison did not return its result:\n{completed.stdout}\n{completed.stderr}")
+    return cast(
+        dict[str, float | int],
+        _read_prefixed_json(completed.stdout, RAW_EXR_COMPARISON_PREFIX, "Raw EXR comparison"),
+    )
 
 
 @pytest.mark.blender
@@ -400,8 +415,8 @@ def test_calibrated_albedo_bake_matches_karma_xpu_raw_exr(tmp_path):
     comparison = _compare_raw_exr_images(runtime, source_exr, target_exr)
 
     assert comparison["sample_count"] > 1000
-    assert comparison["mae"] < 0.005
-    assert comparison["max_abs"] < 0.01
+    assert comparison["mae"] < ALBEDO_MAX_MAE
+    assert comparison["max_abs"] < ALBEDO_MAX_ABSOLUTE_ERROR
 
 
 @pytest.mark.blender
