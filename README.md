@@ -51,22 +51,14 @@ Run deeper runtime checks:
 uv --native-tls run materials-processor doctor --validate --material-smoke
 ```
 
-Inspect a Blender scene without writing USD:
+### Blender material workflows
+
+The Blender CLI, USD outputs, graph conversion and native MaterialX fallback, PBR and beauty baking, colour management, validation, texture handling, and known limitations are documented in the [Blender Material Workflow Guide](docs/blender/workflow.md).
+
+Quick inspection example:
 
 ```powershell
 uv --native-tls run materials-processor blender inspect "C:\path\to\scene.blend" --report-json "C:\temp\blender_report.json"
-```
-
-Export Blender materials to USD MaterialX and OpenPBR:
-
-```powershell
-uv --native-tls run materials-processor blender export-usd "C:\path\to\scene.blend" --out-dir "C:\temp\materials"
-```
-
-Use Blender texture remapping when a scene points at missing source paths:
-
-```powershell
-uv --native-tls run materials-processor blender inspect "C:\path\to\scene.blend" --texture-root "D:\textures" --missing-textures error
 ```
 
 Inspect a Maya scene without writing USD:
@@ -90,8 +82,7 @@ uv --native-tls run materials-processor runtime validate --dcc maya --material-s
 
 ### Current Limitations
 
-- Blender node groups are reported as unsupported nodes; they are not expanded into USD yet.
-- Blender texture remapping is available, but Maya texture remapping is not implemented yet.
+- Blender details and limitations are maintained in the [Blender Material Workflow Guide](docs/blender/workflow.md). Maya texture remapping is not implemented yet.
 - Maya CLI export currently traverses shading engines with surface shader connections in a saved `.ma` or `.mb` scene.
 - Houdini remains the most mature in-DCC workflow. Blender and Maya CLI support are newer beta paths focused on graph extraction and USD material export.
 - USD export currently targets MaterialX and OpenPBR material files, not full asset/shot USD assembly.
