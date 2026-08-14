@@ -197,7 +197,7 @@ uv --native-tls run python scripts/make_baked_usd_preview_stage.py `
   --output "C:\temp\baked_albedo.usda" --albedo-only
 ```
 
-The preview-stage script creates a Karma-ready stage. Render it with the locally installed Houdini tools, then compare linear output. The script retains the Blender reference camera and resolution for the matching preview route.
+The preview-stage script creates a Karma-ready stage. Render it with the locally installed Houdini tools, then compare linear output. The script retains the Blender reference camera and resolution for the matching preview route. The generated calibration fixture includes a direct base color and an automated Cycles-to-Karma XPU raw-EXR check with a mean absolute error below `0.005` and maximum error below `0.01` in the covered inner region.
 
 ### Normals
 
