@@ -163,7 +163,9 @@ class MayaNodeRecreator:
 
         for node_info in nested_nodes_info:
             for connection in node_info.connection_info.values():
-                connection_key = f"{connection.input.node_path}->{connection.output.node_path}:{connection.output.parm_name}"
+                connection_key = (
+                    f"{connection.input.node_path}->{connection.output.node_path}:{connection.output.parm_name}"
+                )
                 if connection_key in processed_connections:
                     continue
 

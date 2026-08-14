@@ -42,4 +42,3 @@ def test_principled_standardization_expands_enabled_textures_to_generic_children
     assert base_color_connection.output.parm_name == "base_color"
     roughness_connection = next(iter(child_nodes["image_roughness"].connection_info.values()))
     assert roughness_connection.output.parm_name == "specular_roughness"
-

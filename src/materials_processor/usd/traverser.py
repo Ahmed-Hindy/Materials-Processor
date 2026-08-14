@@ -13,9 +13,10 @@ from materials_processor.usd.mappings import (
 
 logger = logging.getLogger(__name__)
 
+
 def split_trailing_number(s: str):
     try:
-        m = re.match(r'^(.*?)(\d+)$', s)
+        m = re.match(r"^(.*?)(\d+)$", s)
         if m:
             base, num = m.groups()
             return base, int(num)
@@ -23,10 +24,6 @@ def split_trailing_number(s: str):
             return s, 1
     except Exception as e:
         logger.error("%s, %s, %s", s, type(s), e)
-
-
-
-
 
 
 class USDTraverser:
@@ -79,13 +76,13 @@ class USDTraverser:
         for out in mat_shader.GetOutputs():
             # baseName may include renderer prefix, e.g. "arnold:surface"
             out_basename = out.GetBaseName()
-            base = out_basename.split(':')[-1]
+            base = out_basename.split(":")[-1]
             sources: tuple[list[UsdShade.ConnectionSourceInfo]] = out.GetConnectedSources()
 
             for source in sources:
                 for srcInfo in source:
-                    srcInfo                       # type: UsdShade.ConnectionSourceInfo
-                    srcAPI  = srcInfo.source      # type: UsdShade.ConnectableAPI
+                    srcInfo  # type: UsdShade.ConnectionSourceInfo
+                    srcAPI = srcInfo.source  # type: UsdShade.ConnectableAPI
                     srcName = srcInfo.sourceName  # type: str               # e.g. "shader"
                     srcType = srcInfo.sourceType  # type: UsdShade.AttributeType  # e.g. pxr.UsdShade.AttributeType.Output
                     src_prim = srcAPI.GetPrim()
@@ -98,9 +95,9 @@ class USDTraverser:
                         "connected_node_name": src_prim.GetPrim().GetName(),
                         "connected_node_path": src_prim.GetPath().pathString,
                         "connected_input_index": -1,
-                        "connected_input_name":  srcName,
+                        "connected_input_name": srcName,
                         "connected_output_name": out_basename,
-                        "generic_type":     GENERIC_OUTPUT_TYPES.get(base)
+                        "generic_type": GENERIC_OUTPUT_TYPES.get(base),
                     }
 
         # print(f"DEBUG: output_nodes: {pprint.pformat(output_nodes, sort_dicts=False)}")
@@ -112,7 +109,6 @@ class USDTraverser:
         #              'connected_output_name': 'surface',
         #              'generic_type': 'GENERIC::output_surface'}}
         return output_nodes
-
 
     def _detect_node_connections(self, srcInfo, shader, dest_param, count):
         """
@@ -133,25 +129,27 @@ class USDTraverser:
 
         connections_dict = {}
 
-        connections_dict.update({f"connection_{count}": {
-                "input": {
-                    "node_name": src_prim.GetName(),
-                    "node_path": src_prim.GetPath().pathString,
-                    "node_type": self._get_shader_infoId_attrib(src_prim),
-                    "node_index": -1,
-                    "parm_name": srcName,
-                },
-                "output": {
-                    "node_name": shader_prim.GetName(),
-                    "node_path": shader_prim.GetPath().pathString,
-                    "node_type": self._get_shader_infoId_attrib(shader_prim),
-                    "node_index": -1,
-                    "parm_name": dest_param,
+        connections_dict.update(
+            {
+                f"connection_{count}": {
+                    "input": {
+                        "node_name": src_prim.GetName(),
+                        "node_path": src_prim.GetPath().pathString,
+                        "node_type": self._get_shader_infoId_attrib(src_prim),
+                        "node_index": -1,
+                        "parm_name": srcName,
+                    },
+                    "output": {
+                        "node_name": shader_prim.GetName(),
+                        "node_path": shader_prim.GetPath().pathString,
+                        "node_type": self._get_shader_infoId_attrib(shader_prim),
+                        "node_index": -1,
+                        "parm_name": dest_param,
+                    },
                 }
             }
-        })
+        )
         return connections_dict
-
 
     def _get_shader_infoId_attrib(self, shader):
         """
@@ -161,17 +159,15 @@ class USDTraverser:
             str: attribute 'info:id'
         """
         shader_prim = shader.GetPrim()
-        shader_infoId = shader_prim.GetAttribute('info:id').Get()
+        shader_infoId = shader_prim.GetAttribute("info:id").Get()
         if shader_infoId:
             return shader_infoId
 
         return OUT_PRIMS_TYPES[self.material_type]
 
     def _normalize_attribute_names(self, attribute_name, node_type):
-        """
-
-        """
-        leading_strs = ['arnold:', 'inputs:']
+        """ """
+        leading_strs = ["arnold:", "inputs:"]
         for leading_str in leading_strs:
             if attribute_name.startswith(leading_str):
                 attribute_name = attribute_name.split(leading_str, 1)[1]
@@ -195,24 +191,22 @@ class USDTraverser:
         return str(attribute_val)
 
     def _normalize_attribute_types(self, attribute_val):
-        """
-        """
+        """ """
         if attribute_val is None:
             return None
         elif isinstance(attribute_val, (Gf.Vec2f, Gf.Vec2d)):
-            return 'float2'
+            return "float2"
         elif isinstance(attribute_val, (Gf.Vec3f, Gf.Vec3d)):
-            return 'float3'
+            return "float3"
         elif isinstance(attribute_val, (Gf.Vec4f, Gf.Vec4d)):
-            return 'float4'
+            return "float4"
 
         else:
             p_value_type = type(attribute_val).__name__
-            if p_value_type == 'tuple':
+            if p_value_type == "tuple":
                 p_value_type = type(attribute_val[0]).__name__
                 p_value_length = len(attribute_val)
                 p_value_type += str(p_value_length)
-
 
         # 5) Anything else → fallback to str()
         return p_value_type
@@ -227,14 +221,15 @@ class USDTraverser:
         parms = {"input": [], "output": []}
 
         if node_type == OUT_PRIMS_TYPES[self.material_type]:
-            parms["input"].append({
-                "generic_name": None,
-                "value": None,
-                "type": None,
-                "direction": "input",
-            })
+            parms["input"].append(
+                {
+                    "generic_name": None,
+                    "value": None,
+                    "type": None,
+                    "direction": "input",
+                }
+            )
             return parms
-
 
         for attrib in attribute_list:
             attrib_name = attrib.GetName()
@@ -244,18 +239,16 @@ class USDTraverser:
                 continue
 
             # TODO: parameter names should be standardized? Need to think about this.
-            parms["input"].append({
-                'generic_name': self._normalize_attribute_names(attrib_name, node_type),
-                'value': self._normalize_attribute_values(attrib.Get()),
-                'type': self._normalize_attribute_types(attrib.Get()),
-                'direction': 'input',
-            })
-
+            parms["input"].append(
+                {
+                    "generic_name": self._normalize_attribute_names(attrib_name, node_type),
+                    "value": self._normalize_attribute_values(attrib.Get()),
+                    "type": self._normalize_attribute_types(attrib.Get()),
+                    "direction": "input",
+                }
+            )
 
         return parms
-
-
-
 
     def _traverse_recursively_node_tree(self, shader, parent_shader=None, is_root=True):
         """
@@ -280,13 +273,13 @@ class USDTraverser:
         node_type = self._get_shader_infoId_attrib(shader)
 
         node_dict = {
-            'node_name': shader_name,
-            'node_path': shader_prim.GetPath().pathString,
-            'node_type': node_type,
-            'node_position': None,
-            'node_parms': self._convert_parms_to_dict(shader_prim.GetAttributes(), node_type),
-            'connections_dict': {},
-            'children_list': [],
+            "node_name": shader_name,
+            "node_path": shader_prim.GetPath().pathString,
+            "node_type": node_type,
+            "node_position": None,
+            "node_parms": self._convert_parms_to_dict(shader_prim.GetAttributes(), node_type),
+            "connections_dict": {},
+            "children_list": [],
         }
         if parent_shader is not None:
             shader_connections = shader.GetInputs()
@@ -317,11 +310,13 @@ class USDTraverser:
                     # print(f"DEBUG: {shader_name=}, {parent_shader=}, {src_prim.GetName()=}")
 
                     # Recursively get child nodes
-                    input_node_dict = self._traverse_recursively_node_tree(src_shader, parent_shader=shader, is_root=False)
-                    input_node_dict[src_prim.GetPath().pathString]['connections_dict'] = self._detect_node_connections(srcInfo, shader, dest_param, count)
-                    node_dict['children_list'].append(
-                        input_node_dict[src_prim.GetPath().pathString]
+                    input_node_dict = self._traverse_recursively_node_tree(
+                        src_shader, parent_shader=shader, is_root=False
                     )
+                    input_node_dict[src_prim.GetPath().pathString]["connections_dict"] = self._detect_node_connections(
+                        srcInfo, shader, dest_param, count
+                    )
+                    node_dict["children_list"].append(input_node_dict[src_prim.GetPath().pathString])
                     count += 1
 
         return {shader_prim.GetPath().pathString: node_dict}
@@ -344,14 +339,11 @@ class USDTraverser:
 
         node_tree = {}
         for output_type, output_dict in output_tree.items():
-            output_prim = self.stage.GetPrimAtPath(output_dict['node_path'])
+            output_prim = self.stage.GetPrimAtPath(output_dict["node_path"])
             output_shader = UsdShade.Shader(output_prim)
             node_tree.update(self._traverse_recursively_node_tree(output_shader))
 
         return node_tree, output_tree
-
-
-
 
         # # 2) walk each shader network and collect children
         # root_path = self.material_type.GetPath().pathString
@@ -377,7 +369,3 @@ class USDTraverser:
         #
         # self.nested_nodes = {root_path: tree}
         # return self.nested_nodes, output_tree
-
-
-
-

@@ -80,12 +80,8 @@ def test_material_processor_test_helper_uses_checked_in_fixtures(tmp_path, monke
 
 def test_standardizer_preserves_runtime_connection_mapping(tmp_path, monkeypatch):
     monkeypatch.setattr(standardizer, "TEMP_DIR", str(tmp_path))
-    traversed_nodes = io.load_node_tree_json(
-        "src/materials_processor/fixtures/houdini_mtlx_full_traversed_nodes.json"
-    )
-    output_nodes = io.load_node_tree_json(
-        "src/materials_processor/fixtures/houdini_mtlx_full_output_nodes.json"
-    )
+    traversed_nodes = io.load_node_tree_json("src/materials_processor/fixtures/houdini_mtlx_full_traversed_nodes.json")
+    output_nodes = io.load_node_tree_json("src/materials_processor/fixtures/houdini_mtlx_full_output_nodes.json")
 
     nodeinfo_list, output_connections = standardizer.NodeStandardizer(
         traversed_nodes_dict=traversed_nodes,
@@ -181,24 +177,24 @@ def test_houdini_recreator_constructor_does_not_run():
 def test_setup_file_logging_configures_file_logger_safely(tmp_path):
     import logging
     from materials_processor.logging_config import setup_file_logging
-    
+
     test_log_dir = tmp_path / "logs"
     test_logger_name = "test_materials_processor"
-    
+
     handler = setup_file_logging(
         logger_name=test_logger_name,
         log_dir=str(test_log_dir),
         max_bytes=1024,
         backup_count=2,
     )
-    
+
     assert handler is not None
     assert isinstance(handler, logging.FileHandler)
     assert handler.baseFilename.endswith("materials_processor.log")
-    
+
     logger = logging.getLogger(test_logger_name)
     assert handler in logger.handlers
-    
+
     handler.close()
     logger.removeHandler(handler)
 
@@ -212,6 +208,7 @@ def test_setup_file_logging_falls_back_on_permission_error(tmp_path, monkeypatch
     test_logger_name = "test_fallback_logger"
 
     original_makedirs = os.makedirs
+
     def mock_makedirs(path, *args, **kwargs):
         if str(test_log_dir) in str(path):
             raise PermissionError("Access denied")
@@ -226,8 +223,7 @@ def test_setup_file_logging_falls_back_on_permission_error(tmp_path, monkeypatch
 
     assert handler is not None
     assert handler.baseFilename != str(test_log_dir / "materials_processor.log")
-    
+
     logger = logging.getLogger(test_logger_name)
     handler.close()
     logger.removeHandler(handler)
-

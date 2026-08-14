@@ -25,7 +25,7 @@ def _script(
     geometry_path: Path | None = None,
 ) -> str:
     """Return Blender Python that renders sorted material streams as emission."""
-    return f'''
+    return f"""
 import bpy
 from mathutils import Vector
 
@@ -209,7 +209,7 @@ if GEOMETRY_PATH:
         export_materials=False,
         export_cameras=True,
     )
-'''.strip()
+""".strip()
 
 
 def main() -> int:
@@ -260,7 +260,11 @@ def main() -> int:
         text=True,
         timeout=180,
     )
-    if completed.returncode or "Traceback (most recent call last):" in completed.stdout or "Traceback (most recent call last):" in completed.stderr:
+    if (
+        completed.returncode
+        or "Traceback (most recent call last):" in completed.stdout
+        or "Traceback (most recent call last):" in completed.stderr
+    ):
         raise RuntimeError(f"Cycles albedo render failed:\n{completed.stdout}\n{completed.stderr}")
     print(f"Rendered Cycles source {args.mode} reference: {output_path}")
     return 0

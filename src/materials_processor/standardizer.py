@@ -34,6 +34,7 @@ def _as_scalar(value):
         return value[0]
     return value
 
+
 class NodeStandardizer:
     """
     Class for standardizing Shader nodes and creating MaterialData Class.
@@ -54,15 +55,14 @@ class NodeStandardizer:
         self.material_type = material_type
         self.source_type = source_type
         if source_type not in STANDARDIZER_SUPPORTED_SOURCE_TYPES:
-            raise ValueError(f"Unsupported source_type: {source_type}."
-                             f" Supported types are {STANDARDIZER_SUPPORTED_SOURCE_TYPES}.")
+            raise ValueError(
+                f"Unsupported source_type: {source_type}. Supported types are {STANDARDIZER_SUPPORTED_SOURCE_TYPES}."
+            )
 
         io.dump_dict_to_json(self.traversed_nodes_dict, f"{TEMP_DIR}/traversed_nodes_dict.json")
         io.dump_dict_to_json(self.output_nodes_dict, f"{TEMP_DIR}/output_nodes_dict.json")
 
         # self.run()
-
-
 
     @staticmethod
     def standardize_output_dict(output_nodes_dict):
@@ -85,7 +85,6 @@ class NodeStandardizer:
             output_connections[standardized_key] = OutputConnection.from_mapping(value)
         return output_connections
 
-
     @staticmethod
     def standardize_shader_parameters(node_type, parms):
         """
@@ -101,7 +100,7 @@ class NodeStandardizer:
         _unsupported_parms_list = []
         _parms_with_no_generic_name_list = []
         _parms_with_no_mapping = []
-        generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
+        generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace("::", ":"))
         preserve_unmapped = node_type == PRINCIPLED_NATIVE_NODE_TYPE
         if not generic_parm_names_dict:
             logger.warning("No generic parameters mapping was found for nodetype: '%s'.", node_type)
@@ -111,56 +110,63 @@ class NodeStandardizer:
             generic_parm_names_dict = {}
 
         nodeParameter_list = []
-        for param in parms['input']:
-            generic_name = generic_parm_names_dict.get(param['generic_name'], None)
+        for param in parms["input"]:
+            generic_name = generic_parm_names_dict.get(param["generic_name"], None)
             if not generic_name and preserve_unmapped:
-                generic_name = param['generic_name']
+                generic_name = param["generic_name"]
             if not generic_name:
                 # print(f"WARNING: No generic name was found for parameter: '{param['generic_name']}' for node_type: '{node_type}'")
-                _unsupported_parms_list.append(param['generic_name'])
-                _parms_with_no_generic_name_list.append(param['generic_name'])
+                _unsupported_parms_list.append(param["generic_name"])
+                _parms_with_no_generic_name_list.append(param["generic_name"])
                 # print(f"DEBUG: generic_parm_names_dict: {pprint.pformat(generic_parm_names_dict, sort_dicts=False)}")
                 continue
 
-            value = param['value']
+            value = param["value"]
             if isinstance(value, (list, tuple)) and len(value) == 1:
                 value = value[0]
 
-            nodeParameter_list.append(NodeParameter(
-                generic_name=generic_name,
-                generic_type=param['type'],
-                direction=param['direction'],
-                value=value,
-            ))
+            nodeParameter_list.append(
+                NodeParameter(
+                    generic_name=generic_name,
+                    generic_type=param["type"],
+                    direction=param["direction"],
+                    value=value,
+                )
+            )
 
-        for param in parms['output']:
-            generic_name = generic_parm_names_dict.get(param['generic_name'], None)
+        for param in parms["output"]:
+            generic_name = generic_parm_names_dict.get(param["generic_name"], None)
             if not generic_name and preserve_unmapped:
-                generic_name = param['generic_name']
+                generic_name = param["generic_name"]
             if not generic_name:
                 # print(f"WARNING: No generic name was found for parameter: '{param['generic_name']}' for node_type: '{node_type}'")
-                _unsupported_parms_list.append(param['generic_name'])
-                _parms_with_no_generic_name_list.append(param['generic_name'])
+                _unsupported_parms_list.append(param["generic_name"])
+                _parms_with_no_generic_name_list.append(param["generic_name"])
                 continue
 
-            value = param['value']
+            value = param["value"]
             if isinstance(value, (list, tuple)) and len(value) == 1:
                 value = value[0]
 
-            nodeParameter_list.append(NodeParameter(
-                generic_name=generic_name,
-                generic_type=param['type'],
-                direction=param['direction'],
-                value=value,
-            ))
+            nodeParameter_list.append(
+                NodeParameter(
+                    generic_name=generic_name,
+                    generic_type=param["type"],
+                    direction=param["direction"],
+                    value=value,
+                )
+            )
 
         if _unsupported_parms_list:
             logger.warning("Unsupported parameters for node type '%s': %s", node_type, _unsupported_parms_list)
         if _parms_with_no_generic_name_list:
-            logger.warning("Parameters with no generic name mapping for node type '%s': %s", node_type, _parms_with_no_generic_name_list)
+            logger.warning(
+                "Parameters with no generic name mapping for node type '%s': %s",
+                node_type,
+                _parms_with_no_generic_name_list,
+            )
 
         return nodeParameter_list
-
 
     def standardize_connection_info(self, connections_dict):
         """
@@ -202,7 +208,7 @@ class NodeStandardizer:
                 endpoint: ConnectionEndpoint = connection[direction]
 
                 node_type = endpoint.node_type
-                generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
+                generic_parm_names_dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace("::", ":"))
                 if not generic_parm_names_dict:
                     logger.warning("No generic parameters mapping was found for nodetype: '%s'.", node_type)
                     _parms_with_no_mapping.append(node_type)
@@ -212,7 +218,9 @@ class NodeStandardizer:
                 param = endpoint.parm_name
                 generic_name = generic_parm_names_dict.get(param, None)
                 if not generic_name:
-                    logger.warning("No generic name was found for parameter: '%s' for node_type: '%s'", param, node_type)
+                    logger.warning(
+                        "No generic name was found for parameter: '%s' for node_type: '%s'", param, node_type
+                    )
                     _unsupported_parms_list.append(param)
                     _parms_with_no_generic_name_list.append(param)
                     # logger.debug("generic_parm_names_dict: %s", pprint.pformat(generic_parm_names_dict, sort_dicts=False))
@@ -226,7 +234,6 @@ class NodeStandardizer:
             )
 
         return new_connections_dict
-
 
     def create_nodeinfo_object(self, node_path, child_dict):
         """
@@ -250,16 +257,16 @@ class NodeStandardizer:
             >>> node_info_obj = self.create_nodeinfo_object(node_path='/mat/arnold_materialbuilder_basic/OUT_material', child_dict=child_dict)
 
         """
-        is_output_node = child_dict.get('is_output_node', False)
-        output_type = child_dict.get('output_type', None)
+        is_output_node = child_dict.get("is_output_node", False)
+        output_type = child_dict.get("output_type", None)
 
-        connection_info = child_dict.get('connections_dict', {})
+        connection_info = child_dict.get("connections_dict", {})
         standardized_connection_info = self.standardize_connection_info(connection_info)
 
-        child_node_name: str = child_dict['node_name']
-        child_node_type: str = child_dict['node_type']
-        child_node_parms: list = child_dict.get('node_parms')
-        child_node_pos: list[float, float] = child_dict.get('node_position')
+        child_node_name: str = child_dict["node_name"]
+        child_node_type: str = child_dict["node_type"]
+        child_node_parms: list = child_dict.get("node_parms")
+        child_node_pos: list[float, float] = child_dict.get("node_position")
         # print(f"DEBUG: parms for node: '{node_path}': {child_node_parms}")
 
         parameters = None
@@ -279,7 +286,7 @@ class NodeStandardizer:
             children_list=[],
             is_output_node=is_output_node,
             output_type=output_type if is_output_node else generic_node_type,
-            position=child_node_pos
+            position=child_node_pos,
         )
 
     def standardize_node_dict(self, node_dict: Dict):
@@ -299,9 +306,9 @@ class NodeStandardizer:
             # logger.debug("node_info_obj connections: %s", nodeinfo.print_connections())
 
             # Process children
-            children_list = node_dict.get('children_list', [])
+            children_list = node_dict.get("children_list", [])
             for child_entry in children_list:
-                child_node_path: str = child_entry['node_path']
+                child_node_path: str = child_entry["node_path"]
 
                 # Recursively traverse child nodes
                 child_nodes_info = self.standardize_node_dict({child_node_path: child_entry})
@@ -326,20 +333,20 @@ class NodeStandardizer:
     @staticmethod
     def _image_node(node_path, node_name, filename, signature):
         return NodeInfo(
-            node_type='GENERIC::image',
+            node_type="GENERIC::image",
             node_name=node_name,
             node_path=f"{node_path}/{node_name}",
             parameters=[
                 NodeParameter(
-                    generic_name='filename',
-                    generic_type='string1',
-                    direction='input',
+                    generic_name="filename",
+                    generic_type="string1",
+                    direction="input",
                     value=filename,
                 ),
                 NodeParameter(
-                    generic_name='signature',
-                    generic_type='string1',
-                    direction='input',
+                    generic_name="signature",
+                    generic_type="string1",
+                    direction="input",
                     value=signature,
                 ),
             ],
@@ -380,89 +387,89 @@ class NodeStandardizer:
 
     def _add_principled_texture_children(self, surface_nodeinfo, parameters_by_name):
         for surface_input, texture_info in PRINCIPLED_TEXTURE_INPUTS.items():
-            enabled = self._parameter_value(parameters_by_name, texture_info['use_parm'], False)
-            filename = self._parameter_value(parameters_by_name, texture_info['texture_parm'], '')
+            enabled = self._parameter_value(parameters_by_name, texture_info["use_parm"], False)
+            filename = self._parameter_value(parameters_by_name, texture_info["texture_parm"], "")
             if not (_is_truthy(enabled) and filename):
                 continue
 
             image_nodeinfo = self._image_node(
                 node_path=surface_nodeinfo.node_path,
-                node_name=texture_info['image_name'],
+                node_name=texture_info["image_name"],
                 filename=filename,
-                signature=texture_info['signature'],
+                signature=texture_info["signature"],
             )
-            image_nodeinfo.connection_info['connection_0'] = self._connection(
+            image_nodeinfo.connection_info["connection_0"] = self._connection(
                 src_nodeinfo=image_nodeinfo,
                 dest_nodeinfo=surface_nodeinfo,
-                src_parm='rgb',
+                src_parm="rgb",
                 dest_parm=surface_input,
-                src_node_type='mtlximage',
-                dest_node_type='mtlxstandard_surface',
+                src_node_type="mtlximage",
+                dest_node_type="mtlxstandard_surface",
             )
             surface_nodeinfo.children_list.append(image_nodeinfo)
 
     def _add_principled_normal_child(self, surface_nodeinfo, parameters_by_name):
-        enabled = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT['enable_parm'], False)
-        normal_type = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT['type_parm'], '')
-        filename = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT['texture_parm'], '')
-        if not (_is_truthy(enabled) and normal_type == 'normal' and filename):
+        enabled = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT["enable_parm"], False)
+        normal_type = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT["type_parm"], "")
+        filename = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT["texture_parm"], "")
+        if not (_is_truthy(enabled) and normal_type == "normal" and filename):
             return
 
         normalmap_nodeinfo = NodeInfo(
-            node_type='GENERIC::normalmap',
-            node_name=PRINCIPLED_NORMAL_INPUT['normalmap_name'],
+            node_type="GENERIC::normalmap",
+            node_name=PRINCIPLED_NORMAL_INPUT["normalmap_name"],
             node_path=f"{surface_nodeinfo.node_path}/{PRINCIPLED_NORMAL_INPUT['normalmap_name']}",
             parameters=[],
             connection_info={},
             children_list=[],
             position=None,
         )
-        normalmap_nodeinfo.connection_info['connection_0'] = self._connection(
+        normalmap_nodeinfo.connection_info["connection_0"] = self._connection(
             src_nodeinfo=normalmap_nodeinfo,
             dest_nodeinfo=surface_nodeinfo,
-            src_parm='out',
-            dest_parm='normal',
-            src_type='vector',
-            dest_type='vector',
-            src_node_type='mtlxnormalmap::2.0',
-            dest_node_type='mtlxstandard_surface',
+            src_parm="out",
+            dest_parm="normal",
+            src_type="vector",
+            dest_type="vector",
+            src_node_type="mtlxnormalmap::2.0",
+            dest_node_type="mtlxstandard_surface",
         )
 
         image_nodeinfo = self._image_node(
             node_path=surface_nodeinfo.node_path,
-            node_name=PRINCIPLED_NORMAL_INPUT['image_name'],
+            node_name=PRINCIPLED_NORMAL_INPUT["image_name"],
             filename=filename,
-            signature='color3',
+            signature="color3",
         )
-        image_nodeinfo.connection_info['connection_0'] = self._connection(
+        image_nodeinfo.connection_info["connection_0"] = self._connection(
             src_nodeinfo=image_nodeinfo,
             dest_nodeinfo=normalmap_nodeinfo,
-            src_parm='rgb',
-            dest_parm='in',
-            src_type='color',
-            dest_type='vector',
-            src_node_type='mtlximage',
-            dest_node_type='mtlxnormalmap::2.0',
+            src_parm="rgb",
+            dest_parm="in",
+            src_type="color",
+            dest_type="vector",
+            src_node_type="mtlximage",
+            dest_node_type="mtlxnormalmap::2.0",
         )
         normalmap_nodeinfo.children_list.append(image_nodeinfo)
         surface_nodeinfo.children_list.append(normalmap_nodeinfo)
 
     def _principled_displacement_node(self, surface_nodeinfo, parameters_by_name):
-        enabled = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT['enable_parm'], False)
-        filename = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT['texture_parm'], '')
+        enabled = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT["enable_parm"], False)
+        filename = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT["texture_parm"], "")
         if not (_is_truthy(enabled) and filename):
             return None
 
-        scale = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT['scale_parm'], 1.0)
+        scale = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT["scale_parm"], 1.0)
         displacement_nodeinfo = NodeInfo(
-            node_type='GENERIC::displacement',
-            node_name=PRINCIPLED_DISPLACEMENT_INPUT['displacement_name'],
+            node_type="GENERIC::displacement",
+            node_name=PRINCIPLED_DISPLACEMENT_INPUT["displacement_name"],
             node_path=f"{surface_nodeinfo.node_path}/{PRINCIPLED_DISPLACEMENT_INPUT['displacement_name']}",
             parameters=[
                 NodeParameter(
-                    generic_name='scale',
-                    generic_type='float1',
-                    direction='input',
+                    generic_name="scale",
+                    generic_type="float1",
+                    direction="input",
                     value=scale,
                 ),
             ],
@@ -473,19 +480,19 @@ class NodeStandardizer:
 
         image_nodeinfo = self._image_node(
             node_path=surface_nodeinfo.node_path,
-            node_name=PRINCIPLED_DISPLACEMENT_INPUT['image_name'],
+            node_name=PRINCIPLED_DISPLACEMENT_INPUT["image_name"],
             filename=filename,
-            signature='float',
+            signature="float",
         )
-        image_nodeinfo.connection_info['connection_0'] = self._connection(
+        image_nodeinfo.connection_info["connection_0"] = self._connection(
             src_nodeinfo=image_nodeinfo,
             dest_nodeinfo=displacement_nodeinfo,
-            src_parm='rgb',
-            dest_parm='displacement',
-            src_type='float',
-            dest_type='float',
-            src_node_type='mtlximage',
-            dest_node_type='mtlxdisplacement',
+            src_parm="rgb",
+            dest_parm="displacement",
+            src_type="float",
+            dest_type="float",
+            src_node_type="mtlximage",
+            dest_node_type="mtlxdisplacement",
         )
         displacement_nodeinfo.children_list.append(image_nodeinfo)
         return displacement_nodeinfo
@@ -495,7 +502,7 @@ class NodeStandardizer:
             return nodeinfo_list, output_connections
 
         surface_nodeinfo = nodeinfo_list[0]
-        if surface_nodeinfo.node_type != 'GENERIC::standard_surface':
+        if surface_nodeinfo.node_type != "GENERIC::standard_surface":
             return nodeinfo_list, output_connections
 
         parameters_by_name = self._parameter_by_name(surface_nodeinfo)
@@ -504,18 +511,18 @@ class NodeStandardizer:
 
         displacement_nodeinfo = self._principled_displacement_node(surface_nodeinfo, parameters_by_name)
         if displacement_nodeinfo is None:
-            output_connections.pop('GENERIC::output_displacement', None)
+            output_connections.pop("GENERIC::output_displacement", None)
             return nodeinfo_list, output_connections
 
         nodeinfo_list.append(displacement_nodeinfo)
-        displacement_output = output_connections.get('GENERIC::output_displacement')
+        displacement_output = output_connections.get("GENERIC::output_displacement")
         if displacement_output:
-            output_connections['GENERIC::output_displacement'] = replace(
+            output_connections["GENERIC::output_displacement"] = replace(
                 displacement_output,
                 connected_node_name=displacement_nodeinfo.node_name,
                 connected_node_path=displacement_nodeinfo.node_path,
-                connected_input_name='displacement',
-                connected_output_name='out',
+                connected_input_name="displacement",
+                connected_output_name="out",
             )
         return nodeinfo_list, output_connections
 
@@ -537,11 +544,9 @@ class NodeStandardizer:
         """
         nodeinfo_list = self.standardize_node_dict(self.traversed_nodes_dict)
         standardized_output_nodes_dict = self.standardize_output_dict(self.output_nodes_dict)
-        if self.material_type == 'principledshader' and self.source_type == 'hou_vop_nodes':
+        if self.material_type == "principledshader" and self.source_type == "hou_vop_nodes":
             nodeinfo_list, standardized_output_nodes_dict = self._expand_principled_standardization(
                 nodeinfo_list,
                 standardized_output_nodes_dict,
             )
         return nodeinfo_list, standardized_output_nodes_dict
-
-

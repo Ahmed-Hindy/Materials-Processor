@@ -221,9 +221,7 @@ def _install_fake_qt_and_hou(monkeypatch):
     qt_widgets.QCheckBox = _Widget
     qt_widgets.QDialog = _Widget
     qt_widgets.QDialogButtonBox = _DialogButtonBox
-    qt_widgets.QAbstractItemView = types.SimpleNamespace(
-        SelectionMode=types.SimpleNamespace(ExtendedSelection=4)
-    )
+    qt_widgets.QAbstractItemView = types.SimpleNamespace(SelectionMode=types.SimpleNamespace(ExtendedSelection=4))
     qt_widgets.QMessageBox = types.SimpleNamespace(about=lambda *args, **kwargs: None)
 
     hou = types.ModuleType("hou")
@@ -245,9 +243,7 @@ def test_available_format_choices_filters_unavailable_renderer_plugins(monkeypat
     choices = ui.available_format_choices()
 
     assert choices == {
-        key: value
-        for key, value in FORMAT_CHOICES.items()
-        if key not in {"arnold", "rs_usd_material_builder"}
+        key: value for key, value in FORMAT_CHOICES.items() if key not in {"arnold", "rs_usd_material_builder"}
     }
 
 

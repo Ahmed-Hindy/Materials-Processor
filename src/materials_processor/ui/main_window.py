@@ -47,11 +47,7 @@ def _is_renderer_available(format_name: str) -> bool:
 
 def available_format_choices() -> dict[str, str]:
     """Return renderer choices that are usable in the current session."""
-    return {
-        format_name: label
-        for format_name, label in FORMAT_CHOICES.items()
-        if _is_renderer_available(format_name)
-    }
+    return {format_name: label for format_name, label in FORMAT_CHOICES.items() if _is_renderer_available(format_name)}
 
 
 def create_window_classes():
@@ -69,9 +65,7 @@ def create_window_classes():
             self.resize(340, 160)
 
             layout = QtWidgets.QVBoxLayout(self)
-            self.replace_material_checkbox = QtWidgets.QCheckBox(
-                "Replace material assignment on linked geometry"
-            )
+            self.replace_material_checkbox = QtWidgets.QCheckBox("Replace material assignment on linked geometry")
             self.replace_material_checkbox.setEnabled(False)
             self.replace_material_checkbox.setToolTip("Planned option; conversion currently creates new materials.")
             layout.addWidget(self.replace_material_checkbox)
@@ -162,9 +156,7 @@ def create_window_classes():
             self.logger.setLevel(logging.INFO)
 
             self._qt_handler = TextEditLogger(self.log_area)
-            self._qt_handler.setFormatter(
-                logging.Formatter("%(asctime)s - %(levelname)s - %(message)s")
-            )
+            self._qt_handler.setFormatter(logging.Formatter("%(asctime)s - %(levelname)s - %(message)s"))
             self.logger.addHandler(self._qt_handler)
 
         def _refresh_renderer_choices(self):
@@ -250,8 +242,7 @@ def create_window_classes():
                 self.statusBar().showMessage(f"Converted {len(self.state.converted_paths)} material(s).")
             else:
                 self.statusBar().showMessage(
-                    f"Converted {len(self.state.converted_paths)} material(s), "
-                    f"{len(self.state.failed_paths)} failed."
+                    f"Converted {len(self.state.converted_paths)} material(s), {len(self.state.failed_paths)} failed."
                 )
 
         def show_about_dialog(self):

@@ -2,6 +2,7 @@
 copyright Ahmed Hindy. Please mention the original author if you used any part of this code
 This module defines the DCC-neutral material graph data structures.
 """
+
 import pprint
 from collections.abc import Mapping
 from dataclasses import dataclass, field
@@ -178,6 +179,7 @@ class NodeParameter:
         generic_name (Optional[str]): A standardized name for the parameter, if applicable.
         value (Optional[str]): The value of the parameter.
     """
+
     generic_name: Optional[str] = None
     generic_type: Optional[str] = None
     direction: Optional[str] = None  # 'input' or 'output'
@@ -203,16 +205,16 @@ class NodeInfo:
         output_type (Optional[str]): The type of output, e.g., 'surface', 'displacement', etc.
         position (Optional[int, int]): Position of the node in the material network.
     """
+
     node_type: str
     node_name: str
     node_path: str
     parameters: List[NodeParameter]
     connection_info: dict[str, NodeConnection] = field(default_factory=dict)
-    children_list: list['NodeInfo'] = field(default_factory=list)
+    children_list: list["NodeInfo"] = field(default_factory=list)
     is_output_node: bool = False
     output_type: Optional[str] = None
     position: Optional[list[float, float]] = None
-
 
     def __repr__(self):
         output_print = ""
@@ -223,9 +225,11 @@ class NodeInfo:
         if self.children_list:
             child_nodes_print = f", children_list={self.children_list} -->"
 
-        return (f"\n    NodeInfo(node_type='{self.node_type}', node_name='{self.node_name}', "
-                f"node_path='{self.node_path}',"
-                f"{output_print}{child_nodes_print})")
+        return (
+            f"\n    NodeInfo(node_type='{self.node_type}', node_name='{self.node_name}', "
+            f"node_path='{self.node_path}',"
+            f"{output_print}{child_nodes_print})"
+        )
 
     def print_connections(self):
         return pprint.pformat(self.connection_info, sort_dicts=False)
@@ -242,6 +246,7 @@ class MaterialData:
         nodeinfo_list (List[NodeInfo]): A list of nodes that make up the material network.
         output_connections (Dict[str, OutputConnection]): A dictionary of output connections for the material.
     """
+
     material_name: str
     material_path: Optional[str] = None
     nodeinfo_list: List[NodeInfo] = field(default_factory=list)

@@ -400,11 +400,14 @@ def test_usd_recreator_maps_blender_texture_coordinate_and_channel_sockets():
     surface_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/packed/Principled_BSDF"))
 
     assert image_shader.GetInput("texcoord").GetAttr().GetConnections()[0].pathString.endswith("/UV_Map.outputs:out")
-    assert separate_shader.GetInput("in").GetAttr().GetConnections()[0].pathString.endswith(
-        "/Packed_Texture.outputs:out"
+    assert (
+        separate_shader.GetInput("in").GetAttr().GetConnections()[0].pathString.endswith("/Packed_Texture.outputs:out")
     )
-    assert surface_shader.GetInput("metalness").GetAttr().GetConnections()[0].pathString.endswith(
-        "/Separate_Color.outputs:outb"
+    assert (
+        surface_shader.GetInput("metalness")
+        .GetAttr()
+        .GetConnections()[0]
+        .pathString.endswith("/Separate_Color.outputs:outb")
     )
 
 
@@ -558,14 +561,18 @@ def test_usd_recreator_maps_blender_texcoord_mapping_and_value_nodes():
     image_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/mapped/Image_Texture"))
     surface_shader = UsdShade.Shader.Get(stage, Sdf.Path("/materials/mapped/Principled_BSDF"))
 
-    assert mapping_shader.GetInput("texcoord").GetAttr().GetConnections()[0].pathString.endswith(
-        "/Texture_Coordinate.outputs:out"
+    assert (
+        mapping_shader.GetInput("texcoord")
+        .GetAttr()
+        .GetConnections()[0]
+        .pathString.endswith("/Texture_Coordinate.outputs:out")
     )
-    assert image_shader.GetInput("texcoord").GetAttr().GetConnections()[0].pathString.endswith(
-        "/Mapping.outputs:out"
-    )
-    assert surface_shader.GetInput("specular_roughness").GetAttr().GetConnections()[0].pathString.endswith(
-        "/Roughness_Value.outputs:out"
+    assert image_shader.GetInput("texcoord").GetAttr().GetConnections()[0].pathString.endswith("/Mapping.outputs:out")
+    assert (
+        surface_shader.GetInput("specular_roughness")
+        .GetAttr()
+        .GetConnections()[0]
+        .pathString.endswith("/Roughness_Value.outputs:out")
     )
     assert mapping_shader.GetInput("offset").Get() == (0.25, 0.5)
     assert mapping_shader.GetInput("scale").Get() == (2.0, 3.0)

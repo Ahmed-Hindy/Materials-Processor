@@ -66,9 +66,7 @@ def _blender_graph_payload() -> dict[str, object]:
                         "position": None,
                     }
                 ],
-                "output_connections": {
-                    key: value.to_dict() for key, value in graph.output_connections.items()
-                },
+                "output_connections": {key: value.to_dict() for key, value in graph.output_connections.items()},
             }
         ],
         "read_failures": [],

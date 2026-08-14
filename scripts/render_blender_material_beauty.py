@@ -17,7 +17,7 @@ from materials_processor.dcc.blender.runtime import resolve_blender_runtime
 
 def _script(scene_path: Path, material_name: str, image_path: Path, geometry_path: Path, samples: int) -> str:
     """Return Blender Python for a controlled single-material beauty render."""
-    return f'''
+    return f"""
 import bpy
 from mathutils import Vector
 
@@ -111,7 +111,7 @@ bpy.ops.wm.usd_export(
 )
 print("Rendered Cycles source beauty: " + {str(image_path)!r})
 print("Exported comparison geometry: " + {str(geometry_path)!r})
-'''.strip()
+""".strip()
 
 
 def main() -> int:

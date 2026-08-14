@@ -26,35 +26,36 @@ except ImportError:
     Panel = object
     Operator = object
 
+
 class NODE_OT_MaterialsProcessor_Ingest(Operator):
     """Ingest active material and print standardized schema."""
 
     bl_idname = "node.matproc_ingest"
     bl_label = "Ingest Material"
-    bl_options = {'REGISTER', 'UNDO'}
+    bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
         if not bpy:
-            self.report({'ERROR'}, "Blender environment not active.")
-            return {'CANCELLED'}
+            self.report({"ERROR"}, "Blender environment not active.")
+            return {"CANCELLED"}
 
         active_obj = getattr(context, "active_object", None)
         material = active_obj.active_material if active_obj else None
         if not material:
-            self.report({'WARNING'}, "No active material found.")
-            return {'CANCELLED'}
+            self.report({"WARNING"}, "No active material found.")
+            return {"CANCELLED"}
 
         try:
             mat_data = BlenderMaterialReader().read(material)
 
             logger.info("Successfully ingested material: %s", mat_data)
-            self.report({'INFO'}, f"Ingested material '{material.name}' successfully.")
-            return {'FINISHED'}
+            self.report({"INFO"}, f"Ingested material '{material.name}' successfully.")
+            return {"FINISHED"}
 
         except Exception as e:
             logger.error("Failed to ingest material: %s", e, exc_info=True)
-            self.report({'ERROR'}, f"Failed to ingest material: {e}")
-            return {'CANCELLED'}
+            self.report({"ERROR"}, f"Failed to ingest material: {e}")
+            return {"CANCELLED"}
 
 
 class NODE_PT_MaterialsProcessor_Panel(Panel):
@@ -62,8 +63,8 @@ class NODE_PT_MaterialsProcessor_Panel(Panel):
 
     bl_label = "Materials Processor"
     bl_idname = "NODE_PT_matproc_panel"
-    bl_space_type = 'NODE_EDITOR'
-    bl_region_type = 'UI'
+    bl_space_type = "NODE_EDITOR"
+    bl_region_type = "UI"
     bl_category = "Materials Processor"
 
     def draw(self, context):

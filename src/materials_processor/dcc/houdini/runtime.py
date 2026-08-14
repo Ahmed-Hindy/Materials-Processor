@@ -75,7 +75,9 @@ def _resolve_houdini_executable(
     if configured_path := os.environ.get(environment_variable):
         if candidate := _existing_file(configured_path):
             return candidate
-    return _find_on_path(executable_names) or _find_in_hfs(executable_names) or _find_in_default_install(executable_names)
+    return (
+        _find_on_path(executable_names) or _find_in_hfs(executable_names) or _find_in_default_install(executable_names)
+    )
 
 
 def resolve_hython(explicit_hython: str | Path | None = None) -> Path | None:

@@ -22,7 +22,7 @@ def _detect_arnold_output_nodes(material_node):
     """
     arnold_output = None
     for child in material_node.children():
-        if child.type().name() == 'arnold_material':
+        if child.type().name() == "arnold_material":
             arnold_output = child
             break
     if not arnold_output:
@@ -39,32 +39,32 @@ def _detect_arnold_output_nodes(material_node):
         connected_output_name = connection.inputName()
         connected_output_datatype = connection.outputDataType()
         if connected_output_index == 0:
-            output_nodes['surface'] = {
-                'node_name': arnold_output.name(),
-                'node_path': arnold_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_index': connected_output_index,
-                'connected_output_name': connected_output_name,
-                'connected_output_datatype': connected_output_datatype,
-                'generic_type': 'GENERIC::output_surface'
+            output_nodes["surface"] = {
+                "node_name": arnold_output.name(),
+                "node_path": arnold_output.path(),
+                "connected_node_name": connected_input.name(),
+                "connected_node_path": connected_input.path(),
+                "connected_input_index": connected_input_index,
+                "connected_input_name": connected_input_name,
+                "connected_input_datatype": connected_input_datatype,
+                "connected_output_index": connected_output_index,
+                "connected_output_name": connected_output_name,
+                "connected_output_datatype": connected_output_datatype,
+                "generic_type": "GENERIC::output_surface",
             }
         elif connected_output_index == 1:
-            output_nodes['displacement'] = {
-                'node_name': arnold_output.name(),
-                'node_path': arnold_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_index': connected_output_index,
-                'connected_output_name': connected_output_name,
-                'connected_output_datatype': connected_output_datatype,
-                'generic_type': 'GENERIC::output_displacement'
+            output_nodes["displacement"] = {
+                "node_name": arnold_output.name(),
+                "node_path": arnold_output.path(),
+                "connected_node_name": connected_input.name(),
+                "connected_node_path": connected_input.path(),
+                "connected_input_index": connected_input_index,
+                "connected_input_name": connected_input_name,
+                "connected_input_datatype": connected_input_datatype,
+                "connected_output_index": connected_output_index,
+                "connected_output_name": connected_output_name,
+                "connected_output_datatype": connected_output_datatype,
+                "generic_type": "GENERIC::output_displacement",
             }
     return output_nodes
 
@@ -80,7 +80,7 @@ def _detect_mtlx_output_nodes(material_node):
         Dict: A dictionary of detected MaterialX output nodes.
     """
     output_nodes = {}
-    output_nodes_list = [child for child in material_node.children() if child.type().name() == 'subnetconnector']
+    output_nodes_list = [child for child in material_node.children() if child.type().name() == "subnetconnector"]
 
     for output_node in output_nodes_list:
         connections = output_node.inputConnections()
@@ -92,22 +92,24 @@ def _detect_mtlx_output_nodes(material_node):
             connected_output_index = connection.inputIndex()
             connected_output_name = connection.inputName()
             connected_output_datatype = connection.outputDataType()
-            output_type = output_node.parm('parmname').eval()
-            if output_type not in ['surface', 'displacement']:
-                logger.warning("Unknown MaterialX output type '%s/%s' detected, skipping.", output_node.name(), output_type)
+            output_type = output_node.parm("parmname").eval()
+            if output_type not in ["surface", "displacement"]:
+                logger.warning(
+                    "Unknown MaterialX output type '%s/%s' detected, skipping.", output_node.name(), output_type
+                )
                 continue
 
             output_nodes[output_type] = {
-                'node_name': output_node.name(),
-                'node_path': output_node.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_index': connected_output_index,
-                'connected_output_name': connected_output_name,
-                'connected_output_datatype': connected_output_datatype,
+                "node_name": output_node.name(),
+                "node_path": output_node.path(),
+                "connected_node_name": connected_input.name(),
+                "connected_node_path": connected_input.path(),
+                "connected_input_index": connected_input_index,
+                "connected_input_name": connected_input_name,
+                "connected_input_datatype": connected_input_datatype,
+                "connected_output_index": connected_output_index,
+                "connected_output_name": connected_output_name,
+                "connected_output_datatype": connected_output_datatype,
             }
     return output_nodes
 
@@ -125,32 +127,32 @@ def _redshift_terminal_output_nodes(redshift_output):
         connected_output_name = connection.inputName()
         connected_output_datatype = connection.outputDataType()
         if connected_output_index == 0:
-            output_nodes['surface'] = {
-                'node_name': redshift_output.name(),
-                'node_path': redshift_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_index': connected_output_index,
-                'connected_output_name': connected_output_name,
-                'connected_output_datatype': connected_output_datatype,
-                'generic_type': 'GENERIC::output_surface'
+            output_nodes["surface"] = {
+                "node_name": redshift_output.name(),
+                "node_path": redshift_output.path(),
+                "connected_node_name": connected_input.name(),
+                "connected_node_path": connected_input.path(),
+                "connected_input_index": connected_input_index,
+                "connected_input_name": connected_input_name,
+                "connected_input_datatype": connected_input_datatype,
+                "connected_output_index": connected_output_index,
+                "connected_output_name": connected_output_name,
+                "connected_output_datatype": connected_output_datatype,
+                "generic_type": "GENERIC::output_surface",
             }
         elif connected_output_index == 1:
-            output_nodes['displacement'] = {
-                'node_name': redshift_output.name(),
-                'node_path': redshift_output.path(),
-                'connected_node_name': connected_input.name(),
-                'connected_node_path': connected_input.path(),
-                'connected_input_index': connected_input_index,
-                'connected_input_name': connected_input_name,
-                'connected_input_datatype': connected_input_datatype,
-                'connected_output_index': connected_output_index,
-                'connected_output_name': connected_output_name,
-                'connected_output_datatype': connected_output_datatype,
-                'generic_type': 'GENERIC::output_displacement'
+            output_nodes["displacement"] = {
+                "node_name": redshift_output.name(),
+                "node_path": redshift_output.path(),
+                "connected_node_name": connected_input.name(),
+                "connected_node_path": connected_input.path(),
+                "connected_input_index": connected_input_index,
+                "connected_input_name": connected_input_name,
+                "connected_input_datatype": connected_input_datatype,
+                "connected_output_index": connected_output_index,
+                "connected_output_name": connected_output_name,
+                "connected_output_datatype": connected_output_datatype,
+                "generic_type": "GENERIC::output_displacement",
             }
     return output_nodes
 
@@ -167,7 +169,7 @@ def _detect_redshift_vopnet_output_nodes(material_node):
     """
     redshift_output = None
     for child in material_node.children():
-        if child.type().name() == 'redshift_material':
+        if child.type().name() == "redshift_material":
             redshift_output = child
             break
     if not redshift_output:
@@ -188,7 +190,7 @@ def _detect_RsUsdMaterialbuilder_output_nodes(material_node):
     """
     redshift_output = None
     for child in material_node.children():
-        if child.type().name() == 'redshift_usd_material':
+        if child.type().name() == "redshift_usd_material":
             redshift_output = child
             break
     if not redshift_output:
@@ -242,17 +244,17 @@ def _detect_principled_output_nodes(material_node):
 
 def detect_output_nodes(material_node, material_type: str):
     """Route to the correct renderer-specific detector."""
-    if material_type == 'arnold':
+    if material_type == "arnold":
         return _detect_arnold_output_nodes(material_node)
-    elif material_type == 'mtlx':
+    elif material_type == "mtlx":
         return _detect_mtlx_output_nodes(material_node)
-    elif material_type == 'openpbr':
+    elif material_type == "openpbr":
         return _detect_mtlx_output_nodes(material_node)
-    elif material_type == 'redshift_vopnet':
+    elif material_type == "redshift_vopnet":
         return _detect_redshift_vopnet_output_nodes(material_node)
-    elif material_type == 'rs_usd_material_builder':
+    elif material_type == "rs_usd_material_builder":
         return _detect_RsUsdMaterialbuilder_output_nodes(material_node)
-    elif material_type == 'principledshader':
+    elif material_type == "principledshader":
         return _detect_principled_output_nodes(material_node)
     else:
         raise KeyError(f"Unsupported renderer: {material_type=}")

@@ -26,15 +26,17 @@ def test_top_level_cli_blender_export_dispatches(monkeypatch, tmp_path, capsys):
 
     monkeypatch.setattr(cli.blender_cli, "run_export_from_args", fake_export)
 
-    exit_code = cli.main([
-        "blender",
-        "export-usd",
-        str(scene),
-        "--target",
-        "materialx",
-        "--out-dir",
-        str(tmp_path / "out"),
-    ])
+    exit_code = cli.main(
+        [
+            "blender",
+            "export-usd",
+            str(scene),
+            "--target",
+            "materialx",
+            "--out-dir",
+            str(tmp_path / "out"),
+        ]
+    )
 
     assert exit_code == 0
     assert captured["args"].blender_command == "export-usd"
@@ -101,15 +103,17 @@ def test_top_level_cli_maya_export_dispatches(monkeypatch, tmp_path, capsys):
 
     monkeypatch.setattr(cli.maya_cli, "run_export_from_args", fake_export)
 
-    exit_code = cli.main([
-        "maya",
-        "export-usd",
-        str(scene),
-        "--target",
-        "openpbr",
-        "--out-dir",
-        str(tmp_path / "out"),
-    ])
+    exit_code = cli.main(
+        [
+            "maya",
+            "export-usd",
+            str(scene),
+            "--target",
+            "openpbr",
+            "--out-dir",
+            str(tmp_path / "out"),
+        ]
+    )
 
     assert exit_code == 0
     assert captured["args"].maya_command == "export-usd"
@@ -157,7 +161,9 @@ def test_doctor_houdini_validation_keeps_executable_and_hfs_separate(monkeypatch
     hython = tmp_path / "hython.exe"
     hython.write_text("fake", encoding="utf-8")
 
-    monkeypatch.setattr(cli, "_validate_houdini_runtime", lambda path, timeout: {"version": "21.0.631", "hfs": "C:/HFS"})
+    monkeypatch.setattr(
+        cli, "_validate_houdini_runtime", lambda path, timeout: {"version": "21.0.631", "hfs": "C:/HFS"}
+    )
 
     assert cli._doctor_houdini(Namespace(hython=str(hython), validate=True, timeout=3)) == {
         "dcc": "houdini",

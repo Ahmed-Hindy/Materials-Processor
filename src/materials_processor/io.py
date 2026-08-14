@@ -37,9 +37,7 @@ def load_node_tree_json(path):
         data = json.load(fp)
 
     if not isinstance(data, dict):
-        raise ValueError(
-            f"Expected a JSON object (dict) at top level, found {type(data).__name__}"
-        )
+        raise ValueError(f"Expected a JSON object (dict) at top level, found {type(data).__name__}")
 
     return data
 
@@ -49,18 +47,20 @@ def _convert_to_serializable(obj):
     [TEMP FOR DEBUG ONLY] Convert non-serializable objects to a string for JSON dumping.
     """
     import hou
+
     if not obj:
-        return 'None'
+        return "None"
     elif isinstance(obj, hou.VopNode):
         return obj.path()
     elif isinstance(obj, tuple):
-        return 'tuple'
+        return "tuple"
     elif isinstance(obj, hou.Parm):
         return obj.name()
     try:
         return str(obj)
     except:
         return "None2"  # Handle cases where conversion fails
+
 
 def dump_dict_to_json(data: Dict[str, Any], path: str):
     """

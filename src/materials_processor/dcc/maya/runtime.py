@@ -55,7 +55,9 @@ def _require_file(path: Path, label: str) -> Path:
     return resolved
 
 
-def resolve_maya_runtime(version: str = DEFAULT_MAYA_VERSION, root: str | os.PathLike[str] | None = None) -> MayaRuntime:
+def resolve_maya_runtime(
+    version: str = DEFAULT_MAYA_VERSION, root: str | os.PathLike[str] | None = None
+) -> MayaRuntime:
     """Resolve the Maya runtime executable paths.
 
     Args:
@@ -190,14 +192,14 @@ def _with_pythonpath(env: dict[str, str], package_src: Path) -> dict[str, str]:
 def _parse_validation_output(stdout: str) -> dict[str, str]:
     for line in stdout.splitlines():
         if line.startswith(VALIDATION_RESULT_PREFIX):
-            return json.loads(line[len(VALIDATION_RESULT_PREFIX):])
+            return json.loads(line[len(VALIDATION_RESULT_PREFIX) :])
     raise RuntimeError(f"Maya validation did not produce a runtime result. stdout:\n{stdout}")
 
 
 def _parse_prefixed_output(stdout: str, stderr: str, prefix: str, label: str) -> dict:
     for line in stdout.splitlines():
         if line.startswith(prefix):
-            return json.loads(line[len(prefix):])
+            return json.loads(line[len(prefix) :])
     raise RuntimeError(f"Maya {label} did not produce a runtime result.\nstdout:\n{stdout}\nstderr:\n{stderr}")
 
 
@@ -254,9 +256,7 @@ def validate_maya_runtime(
     if result["version"] != runtime.version:
         raise RuntimeError(f"Expected Maya {runtime.version}, but mayapy reported {result['version']}.")
     if expected_api_version and result["api_version"] != expected_api_version:
-        raise RuntimeError(
-            f"Expected Maya API {expected_api_version}, but mayapy reported {result['api_version']}."
-        )
+        raise RuntimeError(f"Expected Maya API {expected_api_version}, but mayapy reported {result['api_version']}.")
 
     return MayaRuntime(
         root=runtime.root,

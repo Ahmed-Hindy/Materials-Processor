@@ -671,11 +671,7 @@ def _round_node_positions(value):
 
 def _strip_node_positions(value):
     if isinstance(value, dict):
-        return {
-            key: _strip_node_positions(item_value)
-            for key, item_value in value.items()
-            if key != "node_position"
-        }
+        return {key: _strip_node_positions(item_value) for key, item_value in value.items() if key != "node_position"}
     if isinstance(value, list):
         return [_strip_node_positions(item) for item in value]
     return value
@@ -777,10 +773,7 @@ def test_hython_conversion_coverage_summary_has_no_failed_cases(hython_conversio
 def test_hython_same_engine_fidelity_reports_cover_supported_targets(hython_conversion_report):
     fidelity_cases = hython_conversion_report["same_engine_fidelity"]
 
-    assert {
-        (case["source_path"], case["target_renderer"])
-        for case in fidelity_cases
-    } == {
+    assert {(case["source_path"], case["target_renderer"]) for case in fidelity_cases} == {
         (case["source_path"], case["target_renderer"])
         for case in hython_conversion_report["conversion"]
         if case["status"] == "passed"
@@ -801,10 +794,7 @@ def test_hython_output_fidelity_reports_cover_available_targets(
 ):
     fidelity_cases = hython_conversion_report["output_fidelity"]
 
-    assert {
-        (case["source_path"], case["target_renderer"])
-        for case in fidelity_cases
-    } == {
+    assert {(case["source_path"], case["target_renderer"]) for case in fidelity_cases} == {
         (case["source_path"], case["target_renderer"])
         for case in hython_conversion_report["conversion"]
         if case["status"] == "passed" and case["target_renderer"] in OUTPUT_FIDELITY_TARGET_RENDERERS
@@ -817,11 +807,7 @@ def test_hython_output_fidelity_reports_cover_available_targets(
 
 @pytest.mark.hython
 def test_hython_same_engine_fidelity_preserves_all_nodes_parameters_and_connections(hython_conversion_report):
-    failing_cases = [
-        case
-        for case in hython_conversion_report["same_engine_fidelity"]
-        if case["status"] != "passed"
-    ]
+    failing_cases = [case for case in hython_conversion_report["same_engine_fidelity"] if case["status"] != "passed"]
     if failing_cases:
         pytest.xfail(f"Same-engine fidelity gaps remain; inspect {REPORT_PATH}.")
 
@@ -830,10 +816,7 @@ def test_hython_same_engine_fidelity_preserves_all_nodes_parameters_and_connecti
 def test_hython_cross_engine_fidelity_reports_cover_arnold_mtlx_targets(hython_conversion_report):
     fidelity_cases = hython_conversion_report["cross_engine_fidelity"]
 
-    assert {
-        (case["source_path"], case["target_renderer"])
-        for case in fidelity_cases
-    } == {
+    assert {(case["source_path"], case["target_renderer"]) for case in fidelity_cases} == {
         (case["source_path"], case["target_renderer"])
         for case in hython_conversion_report["conversion"]
         if case["status"] == "passed"
@@ -874,8 +857,7 @@ def test_hython_arnold_basic_to_mtlx_does_not_create_displacement_output(
     arnold_basic_to_mtlx = next(
         case
         for case in hython_conversion_report["cross_engine_fidelity"]
-        if case["source_path"] == "/mat/arnold_materialbuilder_basic"
-        and case["target_renderer"] == "mtlx"
+        if case["source_path"] == "/mat/arnold_materialbuilder_basic" and case["target_renderer"] == "mtlx"
     )
     converted_outputs = arnold_basic_to_mtlx["converted_fingerprint"]["outputs"]
 
@@ -941,9 +923,7 @@ def test_hython_arnold_to_redshift_displacement_uses_redshift_displacement_wrapp
 
     for case in arnold_to_redshift_cases:
         expected_output_node = (
-            "redshift_material1"
-            if case["target_renderer"] == "redshift_vopnet"
-            else "redshift_usd_material1"
+            "redshift_material1" if case["target_renderer"] == "redshift_vopnet" else "redshift_usd_material1"
         )
         converted_outputs = case["converted_fingerprint"]["outputs"]
 
@@ -967,10 +947,7 @@ def test_hython_redshift_targets_create_expected_terminal_nodes(hython_conversio
     if not redshift_target_cases:
         pytest.skip("Redshift target is not available")
 
-    assert {
-        (case["target_renderer"], case["created_type"])
-        for case in redshift_target_cases
-    } == {
+    assert {(case["target_renderer"], case["created_type"]) for case in redshift_target_cases} == {
         ("redshift_vopnet", "redshift_vopnet"),
         ("rs_usd_material_builder", "rs_usd_material_builder"),
     }
@@ -1017,14 +994,9 @@ def test_hython_openpbr_basic_ingests_as_materialx_openpbr_surface(hython_ingest
 
     assert result["material_type"] == "openpbr"
     assert set(result["output_nodes"]) == {"surface", "displacement"}
-    traversed_types = {
-        node_data["node_type"]
-        for node_data in result["traversed_nodes"].values()
-    }
+    traversed_types = {node_data["node_type"] for node_data in result["traversed_nodes"].values()}
     child_types = {
-        child["node_type"]
-        for node_data in result["traversed_nodes"].values()
-        for child in node_data["children_list"]
+        child["node_type"] for node_data in result["traversed_nodes"].values() for child in node_data["children_list"]
     }
     assert "mtlxopen_pbr_surface" in traversed_types | child_types
     assert result["standardized_output_keys"] == [
@@ -1114,10 +1086,7 @@ def test_hython_redshift_output_fidelity_reports_cover_available_targets(
 ):
     fidelity_cases = hython_redshift_conversion_report["output_fidelity"]
 
-    assert {
-        (case["source_path"], case["target_renderer"])
-        for case in fidelity_cases
-    } == {
+    assert {(case["source_path"], case["target_renderer"]) for case in fidelity_cases} == {
         (case["source_path"], case["target_renderer"])
         for case in hython_redshift_conversion_report["conversion"]
         if case["status"] == "passed" and case["target_renderer"] in OUTPUT_FIDELITY_TARGET_RENDERERS
@@ -1146,10 +1115,6 @@ def test_hython_redshift_same_engine_roundtrip_preserves_outputs(
 
 @pytest.mark.hython
 def test_hython_cross_engine_fidelity_preserves_all_nodes_parameters_and_connections(hython_conversion_report):
-    failing_cases = [
-        case
-        for case in hython_conversion_report["cross_engine_fidelity"]
-        if case["status"] != "passed"
-    ]
+    failing_cases = [case for case in hython_conversion_report["cross_engine_fidelity"] if case["status"] != "passed"]
     if failing_cases:
         pytest.xfail(f"Cross-engine fidelity gaps remain; inspect {REPORT_PATH}.")

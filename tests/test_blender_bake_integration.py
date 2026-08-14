@@ -238,7 +238,13 @@ def test_auto_bake_uses_pbr_for_principled_and_beauty_for_mixed_closure(tmp_path
     )
 
     baked = {entry["material"]: entry for entry in report["baked_materials"]}
-    assert set(baked) == {"Direct PBR", "Normal Map PBR", "Group Input PBR", "Group Input Linked PBR", "Complex Closure"}
+    assert set(baked) == {
+        "Direct PBR",
+        "Normal Map PBR",
+        "Group Input PBR",
+        "Group Input Linked PBR",
+        "Complex Closure",
+    }
     assert baked["Direct PBR"]["bake_mode"] == "pbr"
     assert baked["Normal Map PBR"]["bake_mode"] == "pbr"
     assert baked["Group Input PBR"]["bake_mode"] == "pbr"
@@ -460,4 +466,10 @@ def test_auto_bake_fixture_loads_pbr_and_beauty_materials_in_solaris(tmp_path):
             "Group_Input_PBR",
             "Normal_Map_PBR",
         ]
-        assert loaded["shader_ids"] == [expected_pbr_id, expected_pbr_id, expected_pbr_id, expected_pbr_id, "ND_surface_unlit"]
+        assert loaded["shader_ids"] == [
+            expected_pbr_id,
+            expected_pbr_id,
+            expected_pbr_id,
+            expected_pbr_id,
+            "ND_surface_unlit",
+        ]

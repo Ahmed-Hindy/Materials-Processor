@@ -112,7 +112,9 @@ class BlenderNodeTraverser:
     def _active_group_output(node_tree):
         """Return the active group output node, when a group has one."""
         outputs = [node for node in node_tree.nodes if node.bl_idname == "NodeGroupOutput"]
-        return next((node for node in outputs if getattr(node, "is_active_output", True)), outputs[0] if outputs else None)
+        return next(
+            (node for node in outputs if getattr(node, "is_active_output", True)), outputs[0] if outputs else None
+        )
 
     def _group_output_source(self, group_node, output_socket):
         """Resolve a group output to its internal source node and socket."""
@@ -157,8 +159,10 @@ class BlenderNodeTraverser:
             return None
         group_node = group_instances[-1]
         socket_name = link.from_socket.name
-        return group_node.inputs.get(socket_name) if hasattr(group_node.inputs, "get") else next(
-            (socket for socket in group_node.inputs if socket.name == socket_name), None
+        return (
+            group_node.inputs.get(socket_name)
+            if hasattr(group_node.inputs, "get")
+            else next((socket for socket in group_node.inputs if socket.name == socket_name), None)
         )
 
     def create_output_dict(self, material):
@@ -313,7 +317,7 @@ class BlenderNodeTraverser:
                         "node_index": 0,
                         "parm_name": _socket_parameter_name(link.to_socket, node=parent_node),
                         "data_type": link.to_socket.type,
-                    }
+                    },
                 }
                 connection_idx += 1
 
@@ -347,62 +351,64 @@ class BlenderNodeTraverser:
 
             val = override["value"] if override is not None else _socket_default_value(socket, node)
 
-            parms["input"].append({
-                "generic_name": parameter_name,
-                "value": val,
-                "type": override["type"] if override is not None else _socket_generic_type(socket, node=node),
-                "direction": "input",
-            })
+            parms["input"].append(
+                {
+                    "generic_name": parameter_name,
+                    "value": val,
+                    "type": override["type"] if override is not None else _socket_generic_type(socket, node=node),
+                    "direction": "input",
+                }
+            )
 
         # Internal node properties (e.g. image file path for ShaderNodeTexImage)
         if node.bl_idname == "ShaderNodeTexImage" and getattr(node, "image", None):
-            parms["input"].append({
-                "generic_name": "image",
-                "value": _resolve_blender_image_path(node.image),
-                "type": "string1",
-                "direction": "input"
-            })
+            parms["input"].append(
+                {
+                    "generic_name": "image",
+                    "value": _resolve_blender_image_path(node.image),
+                    "type": "string1",
+                    "direction": "input",
+                }
+            )
         elif node.bl_idname == "ShaderNodeUVMap":
-            parms["input"].append({
-                "generic_name": "uv_map",
-                "value": getattr(node, "uv_map", ""),
-                "type": "string1",
-                "direction": "input"
-            })
+            parms["input"].append(
+                {
+                    "generic_name": "uv_map",
+                    "value": getattr(node, "uv_map", ""),
+                    "type": "string1",
+                    "direction": "input",
+                }
+            )
         elif node.bl_idname == "ShaderNodeTexCoord":
-            parms["input"].append({
-                "generic_name": "uv_map",
-                "value": "",
-                "type": "string1",
-                "direction": "input"
-            })
+            parms["input"].append({"generic_name": "uv_map", "value": "", "type": "string1", "direction": "input"})
         elif node.bl_idname == "ShaderNodeValue":
             value_socket = next((socket for socket in node.outputs if socket.name == "Value"), None)
-            parms["input"].append({
-                "generic_name": "value",
-                "value": getattr(value_socket, "default_value", 0.0),
-                "type": "float1",
-                "direction": "input"
-            })
+            parms["input"].append(
+                {
+                    "generic_name": "value",
+                    "value": getattr(value_socket, "default_value", 0.0),
+                    "type": "float1",
+                    "direction": "input",
+                }
+            )
         elif node.bl_idname == "ShaderNodeNormalMap":
             strength_val = 1.0
             if hasattr(node, "inputs") and "Strength" in node.inputs:
                 strength_val = node.inputs["Strength"].default_value
-            parms["input"].append({
-                "generic_name": "Strength",
-                "value": strength_val,
-                "type": "float1",
-                "direction": "input"
-            })
+            parms["input"].append(
+                {"generic_name": "Strength", "value": strength_val, "type": "float1", "direction": "input"}
+            )
 
         # Node outputs mapped as output parameters
         for socket in node.outputs:
-            parms["output"].append({
-                "generic_name": _socket_parameter_name(socket, is_output=True, node=node),
-                "value": None,
-                "type": _socket_generic_type(socket, is_output=True, node=node),
-                "direction": "output",
-            })
+            parms["output"].append(
+                {
+                    "generic_name": _socket_parameter_name(socket, is_output=True, node=node),
+                    "value": None,
+                    "type": _socket_generic_type(socket, is_output=True, node=node),
+                    "direction": "output",
+                }
+            )
 
         return parms
 
@@ -461,13 +467,13 @@ class BlenderNodeTraverser:
 
         # Initialize the node's dictionary with metadata
         node_dict = {
-            'node_name': node.name,
-            'node_path': node_path,
-            'node_type': node.bl_idname,
-            'node_position': (node.location.x, node.location.y) if hasattr(node, 'location') else (0.0, 0.0),
-            'node_parms': self._convert_parms_to_dict(node, input_overrides),
-            'connections_dict': connections_dict,
-            'children_list': []
+            "node_name": node.name,
+            "node_path": node_path,
+            "node_type": node.bl_idname,
+            "node_position": (node.location.x, node.location.y) if hasattr(node, "location") else (0.0, 0.0),
+            "node_parms": self._convert_parms_to_dict(node, input_overrides),
+            "connections_dict": connections_dict,
+            "children_list": [],
         }
 
         # Traverse inputs (upstream links)
@@ -520,7 +526,7 @@ class BlenderNodeTraverser:
                 if input_node_entry is None:
                     continue
 
-                node_dict['children_list'].append(input_node_entry)
+                node_dict["children_list"].append(input_node_entry)
 
         return {node_path: node_dict}
 

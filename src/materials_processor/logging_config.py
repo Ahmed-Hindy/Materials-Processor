@@ -5,6 +5,7 @@ from logging.handlers import RotatingFileHandler
 import os
 import tempfile
 
+
 def setup_file_logging(
     logger_name: str = "materials_processor",
     log_dir: str | None = None,
@@ -53,20 +54,18 @@ def setup_file_logging(
         try:
             os.makedirs(candidate_dir, exist_ok=True)
             log_file = os.path.join(candidate_dir, "materials_processor.log")
-            
+
             # Test file writability
             with open(log_file, "a", encoding="utf-8") as f:
                 pass
-                
+
             handler = RotatingFileHandler(
                 log_file,
                 maxBytes=max_bytes,
                 backupCount=backup_count,
                 encoding="utf-8",
             )
-            handler.setFormatter(logging.Formatter(
-                "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-            ))
+            handler.setFormatter(logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s"))
             logger.addHandler(handler)
             logger.info("File logging successfully initialized at: %s", log_file)
             configured_handler = handler

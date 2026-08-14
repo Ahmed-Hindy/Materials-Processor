@@ -15,12 +15,15 @@ from materials_processor.logging_config import setup_file_logging
 logger = logging.getLogger(__name__)
 setup_file_logging()
 
+
 def ingest_material(material_node):
     try:
         material_type = get_material_type(material_node)
         if not material_type:
-            logger.warning("Couldn't determine Input material type, "
-                           "currently only Arnold, MTLX/OpenPBR, Redshift Standard Material and Principled Shader are supported!")
+            logger.warning(
+                "Couldn't determine Input material type, "
+                "currently only Arnold, MTLX/OpenPBR, Redshift Standard Material and Principled Shader are supported!"
+            )
             return None, None, None
 
         logger.info("NodeTraverser() START----------------------")
@@ -44,13 +47,12 @@ def ingest_material(material_node):
         # DEBUG: material_node: 'arnold_materialbuilder_basic'
         logger.info("NodeTraverser() Finished----------------------")
 
-
         logger.info("NodeStandardizer() START----------------------")
         standardizer = NodeStandardizer(
             traversed_nodes_dict=nested_nodes_dict,
             output_nodes_dict=output_nodes_dict,
             material_type=material_type,
-            source_type='hou_vop_nodes',
+            source_type="hou_vop_nodes",
         )
         nodeinfo_list, output_connections = standardizer.run()
 
@@ -76,7 +78,7 @@ def ingest_material(material_node):
         return None, None, None
 
 
-def run(input_material_builder_node, target_context, target_format='arnold'):
+def run(input_material_builder_node, target_context, target_format="arnold"):
     """
     Run the material conversion process for the selected node.
 
@@ -96,7 +98,7 @@ def run(input_material_builder_node, target_context, target_format='arnold'):
             nodeinfo_list=nodeinfo_list,
             output_connections=output_connections,
             target_context=target_context,
-            target_renderer=target_format
+            target_renderer=target_format,
         )
         recreator.run()
         logger.info("NodeRecreator() Finished----------------------")
@@ -127,35 +129,34 @@ def convert_material_from_opmenu(kwargs):
          }
     """
 
-    if not kwargs.get('items'):
+    if not kwargs.get("items"):
         return
 
     node = kwargs["node"]
 
     # display a choice dialog for the user to select the target renderer
     allowed_types = FORMAT_CHOICES.copy()
-    if 'HTOA' not in os.environ:
-        allowed_types.pop('arnold', None)
-    if 'REDSHIFT_COREDATAPATH' not in os.environ:
-        allowed_types.pop('redshift_vopnet', None)
-        allowed_types.pop('rs_usd_material_builder', None)
+    if "HTOA" not in os.environ:
+        allowed_types.pop("arnold", None)
+    if "REDSHIFT_COREDATAPATH" not in os.environ:
+        allowed_types.pop("redshift_vopnet", None)
+        allowed_types.pop("rs_usd_material_builder", None)
 
-    allowed_types['cancel'] = 'Cancel'
+    allowed_types["cancel"] = "Cancel"
     names, labels = zip(*allowed_types.items(), strict=False)
 
     choice = hou.ui.displayMessage(
         text="Select Target Renderer",
         buttons=list(labels),
         default_choice=0,
-        close_choice=len(labels)-1,
-        title='Material Conversion',
+        close_choice=len(labels) - 1,
+        title="Material Conversion",
     )
-    if choice < 0 or choice >= len(names) or choice == len(labels)-1:
+    if choice < 0 or choice >= len(names) or choice == len(labels) - 1:
         return
     target_format = names[choice]
 
-
-    for input_material_builder_node in kwargs['items']:
+    for input_material_builder_node in kwargs["items"]:
         # Check if the selected nodes are VOP nodes
         if not isinstance(input_material_builder_node, hou.VopNode):
             logger.warning("Selected node '%s' is not a VOP node. Skipping.", input_material_builder_node.path())
@@ -178,34 +179,35 @@ def convert_material_from_opmenu(kwargs):
             )
             recreator.run()
             logger.info("NodeRecreator() Finished----------------------")
-            logger.info("Material conversion complete. Converted material from '%s' to '%s'.", material_type, target_format)
+            logger.info(
+                "Material conversion complete. Converted material from '%s' to '%s'.", material_type, target_format
+            )
         except Exception:
-            logger.exception("Exception in convert_material_from_opmenu for node %s", input_material_builder_node.name())
+            logger.exception(
+                "Exception in convert_material_from_opmenu for node %s", input_material_builder_node.name()
+            )
             continue
-
-
-
-
-
-
-
 
 
 def test():
     """
     Test function to validate the node traversal, standardization, and recreation process.
     """
-    target_renderer = 'mtlx'
-    material_type = 'mtlx'
+    target_renderer = "mtlx"
+    material_type = "mtlx"
 
-    node_tree = io.load_node_tree_json(resources.files("materials_processor.fixtures") / "houdini_mtlx_full_traversed_nodes.json")
-    output_nodes = io.load_node_tree_json(resources.files("materials_processor.fixtures") / "houdini_mtlx_full_output_nodes.json")
+    node_tree = io.load_node_tree_json(
+        resources.files("materials_processor.fixtures") / "houdini_mtlx_full_traversed_nodes.json"
+    )
+    output_nodes = io.load_node_tree_json(
+        resources.files("materials_processor.fixtures") / "houdini_mtlx_full_output_nodes.json"
+    )
 
     standardizer = NodeStandardizer(
         traversed_nodes_dict=node_tree,
         output_nodes_dict=output_nodes,
         material_type=material_type,
-        source_type='hou_vop_nodes',
+        source_type="hou_vop_nodes",
     )
     nodeinfo_list, output_connections = standardizer.run()
 
@@ -213,12 +215,10 @@ def test():
     return nodeinfo_list, output_connections
 
 
-
-
 def test_hou():
-    target_context = hou.node('/mat')
-    target_renderer = 'arnold'
-    material_type = 'arnold'
+    target_context = hou.node("/mat")
+    target_renderer = "arnold"
+    material_type = "arnold"
     try:
         nodeinfo_list, output_connections = test()
 
@@ -226,7 +226,7 @@ def test_hou():
             nodeinfo_list=nodeinfo_list,
             output_connections=output_connections,
             target_context=target_context,
-            target_renderer=target_renderer
+            target_renderer=target_renderer,
         )
         recreator.run()
     except Exception:
@@ -260,10 +260,5 @@ if selected_nodes:
 """
 
 
-
-
-
 if __name__ == "__main__":
     test()
-
-

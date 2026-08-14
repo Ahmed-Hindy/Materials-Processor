@@ -44,9 +44,13 @@ def _enforce_report_policies(
 ) -> None:
     """Raise when report policy flags request hard failures."""
     if fail_on_unsupported and report.get("unsupported_nodes"):
-        raise RuntimeError(f"Unsupported Maya nodes were found: {json.dumps(report['unsupported_nodes'], sort_keys=True)}")
+        raise RuntimeError(
+            f"Unsupported Maya nodes were found: {json.dumps(report['unsupported_nodes'], sort_keys=True)}"
+        )
     if missing_textures == "error" and report.get("missing_texture_paths"):
-        raise RuntimeError(f"Missing texture paths were found: {json.dumps(report['missing_texture_paths'], sort_keys=True)}")
+        raise RuntimeError(
+            f"Missing texture paths were found: {json.dumps(report['missing_texture_paths'], sort_keys=True)}"
+        )
 
 
 def _extract_code(scene_path: Path, graph_json_path: Path) -> str:
@@ -179,7 +183,7 @@ def extract_maya_material_graphs(
 
     for line in completed.stdout.splitlines():
         if line.startswith(MAYA_GRAPH_EXPORT_PREFIX):
-            return json.loads(line[len(MAYA_GRAPH_EXPORT_PREFIX):])
+            return json.loads(line[len(MAYA_GRAPH_EXPORT_PREFIX) :])
 
     raise RuntimeError(
         "Maya material graph extraction did not report a summary."
@@ -203,7 +207,9 @@ def export_maya_scene_to_usd(
     """Export Maya scene materials to USD MaterialX/OpenPBR files."""
     output_dir = Path(out_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
-    graph_json_path = Path(graph_json).expanduser().resolve() if graph_json else output_dir / "maya_material_graphs.json"
+    graph_json_path = (
+        Path(graph_json).expanduser().resolve() if graph_json else output_dir / "maya_material_graphs.json"
+    )
     graph_json_path.parent.mkdir(parents=True, exist_ok=True)
 
     extract_maya_material_graphs(
@@ -334,7 +340,9 @@ def add_maya_export_parser(subparsers) -> argparse.ArgumentParser:
         help="USD material target to export. Can be passed more than once. Default: all.",
     )
     export_parser.add_argument("--report-json", default=None, help="Explicit path for the export report JSON.")
-    export_parser.add_argument("--graph-json", default=None, help="Explicit path for the extracted material graph JSON.")
+    export_parser.add_argument(
+        "--graph-json", default=None, help="Explicit path for the extracted material graph JSON."
+    )
     add_maya_runtime_arguments(export_parser)
     add_policy_arguments(export_parser)
     return export_parser
@@ -348,7 +356,9 @@ def add_maya_inspect_parser(subparsers) -> argparse.ArgumentParser:
     )
     inspect_parser.add_argument("scene", help="Path to the .ma or .mb scene.")
     inspect_parser.add_argument("--report-json", default=None, help="Optional path for the inspection report JSON.")
-    inspect_parser.add_argument("--graph-json", default=None, help="Optional path for the extracted material graph JSON.")
+    inspect_parser.add_argument(
+        "--graph-json", default=None, help="Optional path for the extracted material graph JSON."
+    )
     add_maya_runtime_arguments(inspect_parser)
     add_policy_arguments(inspect_parser)
     return inspect_parser

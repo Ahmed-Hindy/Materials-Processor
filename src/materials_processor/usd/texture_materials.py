@@ -23,7 +23,7 @@ def detect_if_transmissive(material_name):
     Returns:
         bool: True if transmissive keywords are present.
     """
-    transmissive_matnames_list = ['glass', 'glas']
+    transmissive_matnames_list = ["glass", "glas"]
     is_transmissive = any(substring in material_name.lower() for substring in transmissive_matnames_list)
     if is_transmissive:
         logger.debug("Detected Transmissive Material: '%s'", material_name)
@@ -45,8 +45,15 @@ class TextureMaterialFactory(
         self.material_dict = material_dict or {}
         self.is_transmissive = is_transmissive
 
-    def _create_collect_prim(self, parent_prim_path: str, create_usd_preview=False, usd_preview_format=None,
-                             create_arnold=False, create_mtlx=False, enable_transmission=False):
+    def _create_collect_prim(
+        self,
+        parent_prim_path: str,
+        create_usd_preview=False,
+        usd_preview_format=None,
+        create_arnold=False,
+        create_mtlx=False,
+        enable_transmission=False,
+    ):
         """
         creates a collect material prim on stage
         :return: collect prim
@@ -54,26 +61,34 @@ class TextureMaterialFactory(
         """
         parent_prim_sdf = Sdf.Path(parent_prim_path)
         UsdGeom.Scope.Define(self.stage, parent_prim_sdf)
-        collect_prim_path = f'{parent_prim_path}/mat_{self.material_name}_collect'
+        collect_prim_path = f"{parent_prim_path}/mat_{self.material_name}_collect"
         collect_usd_material = UsdShade.Material.Define(self.stage, collect_prim_path)
         collect_usd_material.CreateInput("inputnum", Sdf.ValueTypeNames.Int).Set(2)
 
         if create_usd_preview:
             # Create the USD Preview Shader under the collect material
-            usd_preview_material = self._create_usd_preview_material(collect_prim_path, usd_preview_format=usd_preview_format)
+            usd_preview_material = self._create_usd_preview_material(
+                collect_prim_path, usd_preview_format=usd_preview_format
+            )
             usd_preview_shader = usd_preview_material.GetSurfaceOutput().GetConnectedSource()[0]
-            collect_usd_material.CreateOutput("surface", Sdf.ValueTypeNames.Token).ConnectToSource(usd_preview_shader, "surface")
+            collect_usd_material.CreateOutput("surface", Sdf.ValueTypeNames.Token).ConnectToSource(
+                usd_preview_shader, "surface"
+            )
 
         if create_arnold:
             # Create the Arnold Shader under the collect material
             arnold_material = self._arnold_create_material(collect_prim_path, enable_transmission=enable_transmission)
             arnold_shader = arnold_material.GetOutput("arnold:surface").GetConnectedSource()[0]
-            collect_usd_material.CreateOutput("arnold:surface", Sdf.ValueTypeNames.Token).ConnectToSource(arnold_shader, "surface")
+            collect_usd_material.CreateOutput("arnold:surface", Sdf.ValueTypeNames.Token).ConnectToSource(
+                arnold_shader, "surface"
+            )
 
         if create_mtlx:
             # Create the mtlx Shader under the collect material
             mtlx_material = self._mtlx_create_material(collect_prim_path, enable_transmission=enable_transmission)
             mtlx_shader = mtlx_material.GetOutput("mtlx:surface").GetConnectedSource()[0]
-            collect_usd_material.CreateOutput("mtlx:surface", Sdf.ValueTypeNames.Token).ConnectToSource(mtlx_shader, "surface")
+            collect_usd_material.CreateOutput("mtlx:surface", Sdf.ValueTypeNames.Token).ConnectToSource(
+                mtlx_shader, "surface"
+            )
 
         return collect_usd_material

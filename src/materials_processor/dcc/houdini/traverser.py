@@ -12,6 +12,7 @@ except:
 from materials_processor.dcc.houdini.output_detector import detect_output_nodes  # noqa: E402
 from materials_processor.mappings import OPENPBR_NODE_TYPE  # noqa: E402
 
+
 class NodeTraverser:
     """
     Class for traversing Houdini nodes to extract their connections and output nodes.
@@ -57,7 +58,6 @@ class NodeTraverser:
         logger.info("detect_output_nodes START for %s", material_node.path())
         return detect_output_nodes(material_node, material_type)
 
-
     @staticmethod
     def _detect_node_connections(node, parent_node):
         """
@@ -95,7 +95,6 @@ class NodeTraverser:
         # DEBUG: parent_node.name(): displacement_output,   node.name(): 'mtlxdisplacement1'
         # DEBUG: parent_node.name(): mtlxdisplacement1,     node.name(): 'image_disp'
 
-
         connections_dict = {}
         if parent_node is None:
             return connections_dict
@@ -107,26 +106,28 @@ class NodeTraverser:
 
             # print(f"DEBUG: -------------[{i}] input: '{input_conn.inputNode().name()}' index: '{input_conn.inputIndex()}', parm_name: '{input_conn.inputName()}'")
             # print(f"DEBUG: -------------[{i}] output: '{input_conn.outputNode().name()}' index: '{input_conn.outputIndex()}', parm_name: '{input_conn.outputName()}'")
-            connections_dict.update({f"connection_{i}":
+            connections_dict.update(
                 {
-                    "input": {
-                        "node_name": connection.inputNode().name(),
-                        "node_path": connection.inputNode().path(),
-                        "node_type": connection.inputNode().type().name(),
-                        "node_index": connection.outputIndex(),
-                        "parm_name": connection.inputName(),
-                        "data_type": connection.inputDataType(),
-                    },
-                    "output": {
-                        "node_name": connection.outputNode().name(),
-                        "node_path": connection.outputNode().path(),
-                        "node_type": connection.outputNode().type().name(),
-                        "node_index": connection.inputIndex(),
-                        "parm_name": connection.outputName(),
-                        "data_type": connection.outputDataType(),
+                    f"connection_{i}": {
+                        "input": {
+                            "node_name": connection.inputNode().name(),
+                            "node_path": connection.inputNode().path(),
+                            "node_type": connection.inputNode().type().name(),
+                            "node_index": connection.outputIndex(),
+                            "parm_name": connection.inputName(),
+                            "data_type": connection.inputDataType(),
+                        },
+                        "output": {
+                            "node_name": connection.outputNode().name(),
+                            "node_path": connection.outputNode().path(),
+                            "node_type": connection.outputNode().type().name(),
+                            "node_index": connection.inputIndex(),
+                            "parm_name": connection.outputName(),
+                            "data_type": connection.outputDataType(),
+                        },
                     }
                 }
-            })
+            )
 
         return connections_dict
 
@@ -138,9 +139,9 @@ class NodeTraverser:
         """
 
         def strip_prefix(s: str, prefix: str) -> str:
-            return s[len(prefix):] if s.startswith(prefix) else s
+            return s[len(prefix) :] if s.startswith(prefix) else s
 
-        def compute_datatype_and_components(tpl) -> tuple[str,int]:
+        def compute_datatype_and_components(tpl) -> tuple[str, int]:
             # e.g. tpl.dataType().name() -> "parmData.Float"
             raw_dt = tpl.dataType().name()
             dt = strip_prefix(raw_dt, "parmData.").lower()
@@ -149,7 +150,7 @@ class NodeTraverser:
             if dt == "float":
                 raw_scheme = tpl.namingScheme().name()  # e.g. "parmNamingScheme.RGBA"
                 scheme = strip_prefix(raw_scheme, "parmNamingScheme.").lower().rstrip("1")
-                if scheme in {"rgb","rgba","xyzw"}:
+                if scheme in {"rgb", "rgba", "xyzw"}:
                     dt = scheme
 
             return dt, tpl.numComponents()
@@ -164,7 +165,7 @@ class NodeTraverser:
                 hou.parmTemplateType.FolderSet,
                 hou.parmTemplateType.Folder,
                 hou.parmTemplateType.Label,
-                hou.parmTemplateType.Separator
+                hou.parmTemplateType.Separator,
             }:
                 continue
             val = p.eval()
@@ -172,32 +173,35 @@ class NodeTraverser:
                 continue
 
             dt, comps = compute_datatype_and_components(tpl)
-            parms["input"].append({
-                "generic_name": p.name(),
-                "value": val,
-                "type": f"{dt}{comps}",
-                "direction": "input",
-            })
+            parms["input"].append(
+                {
+                    "generic_name": p.name(),
+                    "value": val,
+                    "type": f"{dt}{comps}",
+                    "direction": "input",
+                }
+            )
 
         # ——— Outputs via actual connections ———
         for conn in node.outputConnections():
-            in_name   = conn.inputName()
-            out_node  = conn.outputNode()
-            out_name  = conn.outputName()
+            in_name = conn.inputName()
+            out_node = conn.outputNode()
+            out_name = conn.outputName()
             if not out_node.parmTuple(out_name):
                 print(f"WARNING: Parm Not found {out_node.path()}/{out_name}, skipping.")
                 continue
 
-            tpl       = out_node.parmTuple(out_name).parmTemplate()
+            tpl = out_node.parmTuple(out_name).parmTemplate()
             dt, comps = compute_datatype_and_components(tpl)
-            parms["output"].append({
-                "generic_name": in_name,
-                "value": None,
-                "type": f"{dt}{comps}",
-                "direction": "output",
-            })
+            parms["output"].append(
+                {
+                    "generic_name": in_name,
+                    "value": None,
+                    "type": f"{dt}{comps}",
+                    "direction": "output",
+                }
+            )
         return parms
-
 
     def _traverse_recursively_node_tree(self, node, parent_node=None, active_paths=None):
         """
@@ -224,13 +228,13 @@ class NodeTraverser:
 
         # Initialize the node's dictionary with metadata
         node_dict = {
-            'node_name': node.name(),
-            'node_path': node.path(),
-            'node_type': node.type().name(),
-            'node_position': (node.position()[0], node.position()[1]),
-            'node_parms': self._convert_parms_to_dict(node),
-            'connections_dict': connections_dict,
-            'children_list': []
+            "node_name": node.name(),
+            "node_path": node.path(),
+            "node_type": node.type().name(),
+            "node_position": (node.position()[0], node.position()[1]),
+            "node_parms": self._convert_parms_to_dict(node),
+            "connections_dict": connections_dict,
+            "children_list": [],
         }
 
         if not node.inputs():
@@ -246,12 +250,9 @@ class NodeTraverser:
             if input_node_entry is None:
                 continue
 
-            node_dict['children_list'].append(
-                input_node_entry
-            )
+            node_dict["children_list"].append(input_node_entry)
 
         return {node.path(): node_dict}
-
 
     def run(self):
         """
@@ -262,16 +263,14 @@ class NodeTraverser:
         # first, get an output_nodes_dict
         output_tree = self.create_output_dict(self.material_node, self.material_type)
 
-        if self.material_type == 'principledshader':
+        if self.material_type == "principledshader":
             node_tree = self._traverse_recursively_node_tree(self.material_node)
         else:
             node_tree = {}
             for output_type, output_dict in output_tree.items():
-                node_tree.update(self._traverse_recursively_node_tree(hou.node(output_dict['node_path'])))
+                node_tree.update(self._traverse_recursively_node_tree(hou.node(output_dict["node_path"])))
 
         return node_tree, output_tree
-
-
 
 
 def _subnet_has_node_type(materialbuilder_node, node_type):
@@ -280,11 +279,11 @@ def _subnet_has_node_type(materialbuilder_node, node_type):
 
 def _subnet_surface_output_node_type(materialbuilder_node):
     for child in materialbuilder_node.children():
-        if child.type().name() != 'subnetconnector':
+        if child.type().name() != "subnetconnector":
             continue
 
-        parm = child.parm('parmname')
-        if parm is not None and parm.eval() != 'surface':
+        parm = child.parm("parmname")
+        if parm is not None and parm.eval() != "surface":
             continue
 
         for connection in child.inputConnections():
@@ -304,29 +303,28 @@ def get_material_type(materialbuilder_node):
     material_type = None
 
     materialbuilder_type = materialbuilder_node.type().name()
-    if materialbuilder_type == 'arnold_materialbuilder':
-        material_type = 'arnold'
-    elif materialbuilder_type == 'subnet':
+    if materialbuilder_type == "arnold_materialbuilder":
+        material_type = "arnold"
+    elif materialbuilder_type == "subnet":
         surface_output_type = _subnet_surface_output_node_type(materialbuilder_node)
-        has_output_connectors = _subnet_has_node_type(materialbuilder_node, 'subnetconnector')
+        has_output_connectors = _subnet_has_node_type(materialbuilder_node, "subnetconnector")
         if surface_output_type == OPENPBR_NODE_TYPE or (
-            surface_output_type is None and not has_output_connectors and _subnet_has_node_type(materialbuilder_node, OPENPBR_NODE_TYPE)
+            surface_output_type is None
+            and not has_output_connectors
+            and _subnet_has_node_type(materialbuilder_node, OPENPBR_NODE_TYPE)
         ):
-            material_type = 'openpbr'
+            material_type = "openpbr"
         else:
             for child_node in materialbuilder_node.children():
-                if 'mtlx' in child_node.type().name():
-                    material_type = 'mtlx'
+                if "mtlx" in child_node.type().name():
+                    material_type = "mtlx"
                     break
-    elif materialbuilder_type == 'redshift_vopnet':
-        material_type = 'redshift_vopnet'
-    elif materialbuilder_type == 'rs_usd_material_builder':
-        material_type = 'rs_usd_material_builder'
+    elif materialbuilder_type == "redshift_vopnet":
+        material_type = "redshift_vopnet"
+    elif materialbuilder_type == "rs_usd_material_builder":
+        material_type = "rs_usd_material_builder"
 
-    elif materialbuilder_type == 'principledshader::2.0':
-        material_type = 'principledshader'
+    elif materialbuilder_type == "principledshader::2.0":
+        material_type = "principledshader"
 
     return material_type
-
-
-

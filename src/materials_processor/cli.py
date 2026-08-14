@@ -65,7 +65,9 @@ def _add_runtime_parser(subparsers) -> argparse.ArgumentParser:
         default=None,
         help="Source directory to expose to the DCC. Defaults to this checkout's src directory.",
     )
-    validate_parser.add_argument("--material-smoke", action="store_true", help="Run material traversal/recreation smoke.")
+    validate_parser.add_argument(
+        "--material-smoke", action="store_true", help="Run material traversal/recreation smoke."
+    )
 
     blender_group = validate_parser.add_argument_group("Blender")
     blender_group.add_argument("--blender-exe", help="Explicit path to blender.exe.")

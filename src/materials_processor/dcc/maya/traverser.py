@@ -159,12 +159,15 @@ class MayaNodeTraverser:
             return bool(self.cmds.objExists(_plug(node, attr)))
 
     def _surface_shader_from_shading_engine(self, shading_engine: str) -> tuple[str | None, str | None]:
-        sources = self.cmds.listConnections(
-            _plug(shading_engine, "surfaceShader"),
-            source=True,
-            destination=False,
-            plugs=True,
-        ) or []
+        sources = (
+            self.cmds.listConnections(
+                _plug(shading_engine, "surfaceShader"),
+                source=True,
+                destination=False,
+                plugs=True,
+            )
+            or []
+        )
         if not sources:
             return None, None
         source_node, source_attr = _split_plug(sources[0])
@@ -176,12 +179,15 @@ class MayaNodeTraverser:
         for output_attr in output_attrs:
             if not self._attr_exists(shader_node, output_attr):
                 continue
-            destinations = self.cmds.listConnections(
-                _plug(shader_node, output_attr),
-                source=False,
-                destination=True,
-                plugs=True,
-            ) or []
+            destinations = (
+                self.cmds.listConnections(
+                    _plug(shader_node, output_attr),
+                    source=False,
+                    destination=True,
+                    plugs=True,
+                )
+                or []
+            )
             for destination in destinations:
                 dest_node, dest_attr = _split_plug(destination)
                 if dest_attr == "surfaceShader" and self.cmds.nodeType(dest_node) == "shadingEngine":
@@ -222,12 +228,15 @@ class MayaNodeTraverser:
         for output_attr in MAYA_OUTPUT_ATTRS.get(node_type, []):
             if not self._attr_exists(node, output_attr):
                 continue
-            destinations = self.cmds.listConnections(
-                _plug(node, output_attr),
-                source=False,
-                destination=True,
-                plugs=True,
-            ) or []
+            destinations = (
+                self.cmds.listConnections(
+                    _plug(node, output_attr),
+                    source=False,
+                    destination=True,
+                    plugs=True,
+                )
+                or []
+            )
             for destination in destinations:
                 dest_node, dest_attr = _split_plug(destination)
                 if dest_node != parent_node:
@@ -254,12 +263,15 @@ class MayaNodeTraverser:
         return connections_dict
 
     def _input_source_plug(self, node: str, attr: str) -> str | None:
-        sources = self.cmds.listConnections(
-            _plug(node, attr),
-            source=True,
-            destination=False,
-            plugs=True,
-        ) or []
+        sources = (
+            self.cmds.listConnections(
+                _plug(node, attr),
+                source=True,
+                destination=False,
+                plugs=True,
+            )
+            or []
+        )
         return sources[0] if sources else None
 
     def _convert_parms_to_dict(self, node: str) -> dict:

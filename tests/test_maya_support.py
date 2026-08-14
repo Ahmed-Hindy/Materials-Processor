@@ -165,21 +165,30 @@ def _iter_nodeinfos(nodeinfos):
 
 def test_maya_profile_maps_generic_nodes_without_becoming_houdini_target():
     assert "maya_nodes" in mappings.STANDARDIZER_SUPPORTED_SOURCE_TYPES
-    assert mappings.convert_generic(
-        "GENERIC::standard_surface",
-        "maya",
-        profile="maya_nodes",
-    ) == "standardSurface"
-    assert mappings.convert_generic(
-        "GENERIC::image",
-        "maya",
-        profile="maya_nodes",
-    ) == "file"
-    assert mappings.convert_generic(
-        "GENERIC::uvmap",
-        "maya",
-        profile="maya_nodes",
-    ) == "place2dTexture"
+    assert (
+        mappings.convert_generic(
+            "GENERIC::standard_surface",
+            "maya",
+            profile="maya_nodes",
+        )
+        == "standardSurface"
+    )
+    assert (
+        mappings.convert_generic(
+            "GENERIC::image",
+            "maya",
+            profile="maya_nodes",
+        )
+        == "file"
+    )
+    assert (
+        mappings.convert_generic(
+            "GENERIC::uvmap",
+            "maya",
+            profile="maya_nodes",
+        )
+        == "place2dTexture"
+    )
     assert "maya" not in mappings.FORMAT_CHOICES
 
 
@@ -209,11 +218,7 @@ def test_maya_traverser_preserves_texture_and_bump_graph(monkeypatch, caplog):
     assert image_params["filename"].value == "C:/textures/basecolor.png"
     assert image_params["colorspace"].value == "sRGB"
 
-    connections = [
-        connection
-        for node in all_nodes
-        for connection in node.connection_info.values()
-    ]
+    connections = [connection for node in all_nodes for connection in node.connection_info.values()]
     assert any(
         connection.input.parm_name == "rgb" and connection.output.parm_name == "base_color"
         for connection in connections

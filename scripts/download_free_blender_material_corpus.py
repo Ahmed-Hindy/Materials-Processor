@@ -70,11 +70,7 @@ def _digest(path: Path) -> str:
 
 def _verify(path: Path, entry: dict[str, object]) -> bool:
     """Return whether a local corpus file matches its pinned size and digest."""
-    return (
-        path.is_file()
-        and path.stat().st_size == entry["expected_bytes"]
-        and _digest(path) == entry["sha256"]
-    )
+    return path.is_file() and path.stat().st_size == entry["expected_bytes"] and _digest(path) == entry["sha256"]
 
 
 def _download(destination: Path, entry: dict[str, object]) -> None:
@@ -105,8 +101,7 @@ def main() -> int:
     total_bytes = sum(int(entry["expected_bytes"]) for entry in CORPUS)
     if total_bytes > budget:
         raise ValueError(
-            f"Corpus requires {total_bytes / 1024 / 1024:.2f} MiB, above the "
-            f"{args.budget_mib:.2f} MiB safety budget."
+            f"Corpus requires {total_bytes / 1024 / 1024:.2f} MiB, above the {args.budget_mib:.2f} MiB safety budget."
         )
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -124,9 +119,7 @@ def main() -> int:
         "total_expected_bytes": total_bytes,
         "entries": manifest_entries,
     }
-    (output_dir / "free_blender_material_manifest.json").write_text(
-        json.dumps(manifest, indent=2), encoding="utf-8"
-    )
+    (output_dir / "free_blender_material_manifest.json").write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     print(f"Downloaded {len(CORPUS)} verified materials ({total_bytes / 1024 / 1024:.2f} MiB) to {output_dir}")
     return 0
 

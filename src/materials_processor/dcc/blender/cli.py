@@ -42,6 +42,8 @@ GROUP_BAKE_OUTPUT_NAMES = {
     "opacity": ("Opacity Bake", "Alpha Bake"),
     "emission_color": ("Emission Color Bake", "Emission Bake"),
 }
+
+
 def _default_package_src() -> Path:
     return Path(__file__).resolve().parents[3]
 
@@ -54,8 +56,7 @@ def _nodeinfo_from_dict(data: dict[str, Any]) -> NodeInfo:
         node_path=data["node_path"],
         parameters=[NodeParameter(**param) for param in data.get("parameters") or []],
         connection_info={
-            key: NodeConnection.from_mapping(value)
-            for key, value in (data.get("connection_info") or {}).items()
+            key: NodeConnection.from_mapping(value) for key, value in (data.get("connection_info") or {}).items()
         },
         children_list=[_nodeinfo_from_dict(child) for child in data.get("children_list") or []],
         is_output_node=data.get("is_output_node", False),
@@ -71,8 +72,7 @@ def _material_graph_from_dict(data: dict[str, Any]) -> MaterialGraph:
         material_path=data.get("material_path"),
         nodeinfo_list=[_nodeinfo_from_dict(node) for node in data.get("nodeinfo_list") or []],
         output_connections={
-            key: OutputConnection.from_mapping(value)
-            for key, value in (data.get("output_connections") or {}).items()
+            key: OutputConnection.from_mapping(value) for key, value in (data.get("output_connections") or {}).items()
         },
     )
 
@@ -108,7 +108,7 @@ def _apply_texture_remaps_to_path(
         old_norm = old_prefix.replace("\\", "/").rstrip("/")
         current_norm = remapped.replace("\\", "/")
         if current_norm == old_norm or current_norm.startswith(f"{old_norm}/"):
-            suffix = current_norm[len(old_norm):].lstrip("/")
+            suffix = current_norm[len(old_norm) :].lstrip("/")
             remapped = str(Path(new_prefix) / Path(suffix.replace("/", "\\")))
             break
 
@@ -192,9 +192,13 @@ def _enforce_report_policies(
 ) -> None:
     """Raise when report policy flags request hard failures."""
     if fail_on_unsupported and report.get("unsupported_nodes"):
-        raise RuntimeError(f"Unsupported Blender nodes were found: {json.dumps(report['unsupported_nodes'], sort_keys=True)}")
+        raise RuntimeError(
+            f"Unsupported Blender nodes were found: {json.dumps(report['unsupported_nodes'], sort_keys=True)}"
+        )
     if missing_textures == "error" and report.get("missing_texture_paths"):
-        raise RuntimeError(f"Missing texture paths were found: {json.dumps(report['missing_texture_paths'], sort_keys=True)}")
+        raise RuntimeError(
+            f"Missing texture paths were found: {json.dumps(report['missing_texture_paths'], sort_keys=True)}"
+        )
 
 
 def _extract_code(scene_path: Path, graph_json_path: Path) -> str:
@@ -876,14 +880,10 @@ def _write_baked_usd_material_file(
                 "base" if target == "mtlx" else "base_weight",
                 Sdf.ValueTypeNames.Float,
             ).Set(1.0)
-        material.CreateOutput("mtlx:surface", Sdf.ValueTypeNames.Token).ConnectToSource(
-            surface.ConnectableAPI(), "out"
-        )
+        material.CreateOutput("mtlx:surface", Sdf.ValueTypeNames.Token).ConnectToSource(surface.ConnectableAPI(), "out")
         # Karma selects its renderer-context output rather than the generic
         # MaterialX context when rendering a USD stage headlessly.
-        material.CreateOutput("kma:surface", Sdf.ValueTypeNames.Token).ConnectToSource(
-            surface.ConnectableAPI(), "out"
-        )
+        material.CreateOutput("kma:surface", Sdf.ValueTypeNames.Token).ConnectToSource(surface.ConnectableAPI(), "out")
 
         texcoord = UsdShade.Shader.Define(stage, material_path.AppendChild("texcoord"))
         texcoord.CreateIdAttr("ND_texcoord_vector2")
@@ -897,7 +897,9 @@ def _write_baked_usd_material_file(
                 file_input = image.CreateInput("file", Sdf.ValueTypeNames.Asset)
                 file_input.Set(Sdf.AssetPath(texture_path.replace("\\", "/")))
                 file_input.GetAttr().SetColorSpace(baked.get("stream_color_space", "lin_ap1"))
-                image.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(texcoord.ConnectableAPI(), "out")
+                image.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(
+                    texcoord.ConnectableAPI(), "out"
+                )
                 image.CreateOutput("out", Sdf.ValueTypeNames.Color3f)
                 surface.CreateInput("emission_color", Sdf.ValueTypeNames.Color3f).ConnectToSource(
                     image.ConnectableAPI(), "out"
@@ -910,18 +912,21 @@ def _write_baked_usd_material_file(
             is_color = map_name in {"base_color", "emission_color", "sheen_color", "specular_color"}
             image = UsdShade.Shader.Define(stage, material_path.AppendChild(f"{map_name}_image"))
             image.CreateIdAttr(
-                "ND_gltf_normalmap_vector3_1_0"
-                if is_normal
-                else "ND_image_color3"
-                if is_color
-                else "ND_image_float"
+                "ND_gltf_normalmap_vector3_1_0" if is_normal else "ND_image_color3" if is_color else "ND_image_float"
             )
             file_input = image.CreateInput("file", Sdf.ValueTypeNames.Asset)
             # Normalize Windows filenames to the portable USD asset form.
             file_input.Set(Sdf.AssetPath(texture_path.replace("\\", "/")))
             file_input.GetAttr().SetColorSpace(baked.get("stream_color_space", "lin_ap1") if is_color else "raw")
             image.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(texcoord.ConnectableAPI(), "out")
-            image.CreateOutput("out", Sdf.ValueTypeNames.Float3 if is_normal else Sdf.ValueTypeNames.Color3f if is_color else Sdf.ValueTypeNames.Float)
+            image.CreateOutput(
+                "out",
+                Sdf.ValueTypeNames.Float3
+                if is_normal
+                else Sdf.ValueTypeNames.Color3f
+                if is_color
+                else Sdf.ValueTypeNames.Float,
+            )
 
             if is_normal:
                 surface.CreateInput(surface_input_names[map_name], Sdf.ValueTypeNames.Float3).ConnectToSource(
@@ -929,7 +934,9 @@ def _write_baked_usd_material_file(
                 )
             else:
                 value_type = Sdf.ValueTypeNames.Color3f if is_color else Sdf.ValueTypeNames.Float
-                surface.CreateInput(surface_input_names[map_name], value_type).ConnectToSource(image.ConnectableAPI(), "out")
+                surface.CreateInput(surface_input_names[map_name], value_type).ConnectToSource(
+                    image.ConnectableAPI(), "out"
+                )
         material_paths.append(material_path.pathString)
 
     stage.GetRootLayer().Save()
@@ -988,13 +995,10 @@ def export_baked_blender_materials(
         timeout=timeout,
     )
     if completed.returncode != 0:
-        raise RuntimeError(
-            "Blender material baking failed."
-            f"\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
-        )
+        raise RuntimeError(f"Blender material baking failed.\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}")
     bake_result = next(
         (
-            json.loads(line[len(BAKED_MATERIAL_EXPORT_PREFIX):])
+            json.loads(line[len(BAKED_MATERIAL_EXPORT_PREFIX) :])
             for line in completed.stdout.splitlines()
             if line.startswith(BAKED_MATERIAL_EXPORT_PREFIX)
         ),
@@ -1008,7 +1012,9 @@ def export_baked_blender_materials(
         usd_path = output_dir / f"blender_baked_materials_{TARGET_FILE_LABELS[target]}.usda"
         usd_files[target] = _write_baked_usd_material_file(bake_result["baked_materials"], usd_path, target)
 
-    bake_result.update({"source": "blender-baked-materials", "bake_mode": bake_mode, "resolution": resolution, "usd_files": usd_files})
+    bake_result.update(
+        {"source": "blender-baked-materials", "bake_mode": bake_mode, "resolution": resolution, "usd_files": usd_files}
+    )
     return bake_result
 
 
@@ -1091,8 +1097,7 @@ def export_native_blender_materialx(
         )
         if completed.returncode != 0 or not native_scene_usd_path.is_file():
             raise RuntimeError(
-                "Blender native MaterialX export failed."
-                f"\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+                f"Blender native MaterialX export failed.\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
             )
         report = _copy_native_materials(native_scene_usd_path, material_usd_path)
 
@@ -1143,7 +1148,7 @@ def extract_blender_material_graphs(
 
     for line in completed.stdout.splitlines():
         if line.startswith(BLENDER_GRAPH_EXPORT_PREFIX):
-            return json.loads(line[len(BLENDER_GRAPH_EXPORT_PREFIX):])
+            return json.loads(line[len(BLENDER_GRAPH_EXPORT_PREFIX) :])
 
     raise RuntimeError(
         "Blender material graph extraction did not report a summary."
@@ -1262,7 +1267,9 @@ def export_blender_scene_to_usd(
             timeout=timeout,
         )
     else:
-        graph_json_path = Path(graph_json).expanduser().resolve() if graph_json else output_dir / "blender_material_graphs.json"
+        graph_json_path = (
+            Path(graph_json).expanduser().resolve() if graph_json else output_dir / "blender_material_graphs.json"
+        )
         graph_json_path.parent.mkdir(parents=True, exist_ok=True)
 
         extract_blender_material_graphs(
@@ -1442,7 +1449,9 @@ def add_blender_export_parser(subparsers) -> argparse.ArgumentParser:
         help="USD material target to export. Can be passed more than once. Default: all.",
     )
     export_parser.add_argument("--report-json", default=None, help="Explicit path for the export report JSON.")
-    export_parser.add_argument("--graph-json", default=None, help="Explicit path for the extracted material graph JSON.")
+    export_parser.add_argument(
+        "--graph-json", default=None, help="Explicit path for the extracted material graph JSON."
+    )
     export_parser.add_argument(
         "--native-materialx",
         action="store_true",
@@ -1491,7 +1500,9 @@ def add_blender_inspect_parser(subparsers) -> argparse.ArgumentParser:
     )
     inspect_parser.add_argument("scene", help="Path to the .blend scene.")
     inspect_parser.add_argument("--report-json", default=None, help="Optional path for the inspection report JSON.")
-    inspect_parser.add_argument("--graph-json", default=None, help="Optional path for the extracted material graph JSON.")
+    inspect_parser.add_argument(
+        "--graph-json", default=None, help="Optional path for the extracted material graph JSON."
+    )
     add_blender_runtime_arguments(inspect_parser)
     add_texture_arguments(inspect_parser)
     return inspect_parser

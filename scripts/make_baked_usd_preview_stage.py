@@ -13,7 +13,9 @@ from pathlib import Path
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdRender, UsdShade
 
 
-def _create_plane(stage: Usd.Stage, path: Sdf.Path, center_x: float, center_y: float, material: UsdShade.Material) -> None:
+def _create_plane(
+    stage: Usd.Stage, path: Sdf.Path, center_x: float, center_y: float, material: UsdShade.Material
+) -> None:
     """Create one UV-mapped plane and bind a material from the baked USD layer."""
     mesh = UsdGeom.Mesh.Define(stage, path)
     half_size = 1.0
@@ -137,7 +139,9 @@ def create_preview_stage(
         if albedo_only:
             material = _create_albedo_material(stage, Sdf.Path(f"/albedo_materials/{material_names[0]}"), material)
         elif normal_vectors:
-            material = _create_normal_vector_material(stage, Sdf.Path(f"/normal_materials/{material_names[0]}"), material)
+            material = _create_normal_vector_material(
+                stage, Sdf.Path(f"/normal_materials/{material_names[0]}"), material
+            )
         UsdShade.MaterialBindingAPI.Apply(stage.GetPrimAtPath(mesh_paths[0])).Bind(material)
     else:
         UsdGeom.Xform.Define(stage, "/preview")
@@ -156,7 +160,11 @@ def create_preview_stage(
         center_y = 0.0 if len(material_names) == 1 else -(index // 5) * 2.25 + 1.125
         _create_plane(stage, Sdf.Path(f"/preview/{name}"), center_x, center_y, material)
 
-    camera = UsdGeom.Camera(stage.GetPrimAtPath(camera_paths[0])) if geometry_usd else UsdGeom.Camera.Define(stage, "/camera")
+    camera = (
+        UsdGeom.Camera(stage.GetPrimAtPath(camera_paths[0]))
+        if geometry_usd
+        else UsdGeom.Camera.Define(stage, "/camera")
+    )
     # Match the Blender reference grid camera: 50 mm focal length on a 36 mm
     # horizontal sensor rendered at 1000x420.  Without these apertures USD's
     # smaller default aperture crops the material grid, invalidating a
@@ -184,7 +192,9 @@ def create_preview_stage(
         fill.CreateHeightAttr(6.0)
         fill.AddTranslateOp().Set((-2.0, 2.0, 4.0))
 
-    stage.SetDefaultPrim(stage.GetPrimAtPath("/preview") if not geometry_usd else stage.GetPrimAtPath(mesh_paths[0]).GetParent())
+    stage.SetDefaultPrim(
+        stage.GetPrimAtPath("/preview") if not geometry_usd else stage.GetPrimAtPath(mesh_paths[0]).GetParent()
+    )
     stage.GetRootLayer().Save()
     return material_names
 
@@ -196,7 +206,9 @@ def main() -> int:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--albedo-only", action="store_true")
     parser.add_argument("--normal-vectors", action="store_true")
-    parser.add_argument("--geometry", type=Path, help="USD geometry, camera, and lights exported from the Cycles comparison scene.")
+    parser.add_argument(
+        "--geometry", type=Path, help="USD geometry, camera, and lights exported from the Cycles comparison scene."
+    )
     parser.add_argument("--material", help="Restrict the preview to one named material in the input USD.")
     args = parser.parse_args()
     if args.albedo_only and args.normal_vectors:

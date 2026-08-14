@@ -104,7 +104,7 @@ def _collect_assets(asset_ids: tuple[str, ...], budget_bytes: int) -> list[dict[
 def _write_builder_script(path: Path) -> None:
     """Write the Blender-only scene builder used by this independent corpus."""
     path.write_text(
-        '''import json
+        """import json
 import sys
 from pathlib import Path
 
@@ -189,7 +189,7 @@ for index, entry in enumerate(manifest["assets"]):
 
 bpy.context.scene.render.engine = "CYCLES"
 bpy.ops.wm.save_as_mainfile(filepath=str(scene_path))
-''',
+""",
         encoding="utf-8",
     )
 
@@ -203,7 +203,15 @@ def _build_blender_scene(output_dir: Path, manifest: dict[str, Any]) -> Path:
     scene_path = output_dir / "polyhaven_real_world_materials.blend"
     runtime = resolve_blender_runtime()
     subprocess.run(
-        [str(runtime.blender_exe), "--background", "--python", str(builder_path), "--", str(manifest_path), str(scene_path)],
+        [
+            str(runtime.blender_exe),
+            "--background",
+            "--python",
+            str(builder_path),
+            "--",
+            str(manifest_path),
+            str(scene_path),
+        ],
         check=True,
     )
     return scene_path

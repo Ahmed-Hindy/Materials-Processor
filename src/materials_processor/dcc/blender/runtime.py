@@ -212,7 +212,7 @@ def _with_pythonpath(env: dict[str, str], package_src: Path) -> dict[str, str]:
 def _parse_prefixed_output(stdout: str, stderr: str, prefix: str, label: str) -> dict:
     for line in stdout.splitlines():
         if line.startswith(prefix):
-            return json.loads(line[len(prefix):])
+            return json.loads(line[len(prefix) :])
     raise RuntimeError(f"Blender {label} did not produce a runtime result.\nstdout:\n{stdout}\nstderr:\n{stderr}")
 
 
@@ -226,15 +226,15 @@ def _matches_requested_version(requested_version: str, reported_version: str) ->
     return reported_version == requested_version or reported_version.startswith(f"{requested_version}.")
 
 
-def _run_blender_python(runtime: BlenderRuntime, code: str, package_src: Path, timeout: int) -> subprocess.CompletedProcess:
+def _run_blender_python(
+    runtime: BlenderRuntime, code: str, package_src: Path, timeout: int
+) -> subprocess.CompletedProcess:
     env = _with_pythonpath(os.environ.copy(), package_src)
     with tempfile.TemporaryDirectory(prefix="materials_processor_blender_user_") as blender_user_dir:
         user_dir = Path(blender_user_dir)
         script_path = user_dir / "validate_materials_processor.py"
         script_path.write_text(
-            "import sys\n"
-            f"sys.path.insert(0, {str(package_src.resolve())!r})\n\n"
-            f"{code}\n",
+            f"import sys\nsys.path.insert(0, {str(package_src.resolve())!r})\n\n{code}\n",
             encoding="utf-8",
         )
         env["BLENDER_USER_CONFIG"] = str(user_dir / "config")

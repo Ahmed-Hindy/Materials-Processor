@@ -16,17 +16,17 @@ def _coerce_usd_value(value, generic_type):
     if isinstance(value, (list, tuple)) and len(value) == 1:
         return value[0]
     if generic_type in {
-        'float2',
-        'float3',
-        'float4',
-        'vector2',
-        'vector3',
-        'vector4',
-        'color3',
-        'rgba3',
-        'color4',
-        'rgba4',
-        'xyzw3',
+        "float2",
+        "float3",
+        "float4",
+        "vector2",
+        "vector3",
+        "vector4",
+        "color3",
+        "rgba3",
+        "color4",
+        "rgba4",
+        "xyzw3",
     }:
         if isinstance(value, (list, tuple)):
             return tuple(value)
@@ -81,8 +81,8 @@ class USDGraphBuilder:
         Returns:
             bool: True if an ID was found and set, False otherwise.
         """
-        mapping = GENERIC_NODE_TYPES_TO_REGULAR_USD.get(generic_type or 'GENERIC::null', {})
-        shader_id = mapping.get('info_id', {}).get(self.target_renderer)
+        mapping = GENERIC_NODE_TYPES_TO_REGULAR_USD.get(generic_type or "GENERIC::null", {})
+        shader_id = mapping.get("info_id", {}).get(self.target_renderer)
         if shader_id:
             shader.CreateIdAttr(shader_id)
             return True
@@ -109,12 +109,12 @@ class USDGraphBuilder:
         renderer_node_type = convert_generic(
             node_type=generic_node_type,
             target_renderer=self.target_renderer,
-            profile='usd_prims',
+            profile="usd_prims",
         )
         if not renderer_node_type:
             return generic_parm_name
 
-        std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(renderer_node_type.replace('::', ':'), {})
+        std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(renderer_node_type.replace("::", ":"), {})
         for renderer_name, mapped_generic_name in std_parm_map.items():
             if mapped_generic_name == generic_parm_name:
                 return renderer_name
@@ -151,23 +151,33 @@ class USDGraphBuilder:
             logger.warning("No renderer node type found for shader: '%s'", shader.GetPath().pathString)
             return
 
-        std_parm_map: dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'))
+        std_parm_map: dict = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace("::", ":"))
         if not std_parm_map:
             logger.warning("No generic parameter mappings found for node type: '%s'", node_type)
             return
 
         for param in parameters:
-            if param.direction != 'input':
-                logger.warning("Parameter '%s' is not an input parameter for node type '%s'. Skipping.", param.generic_name, node_type)
+            if param.direction != "input":
+                logger.warning(
+                    "Parameter '%s' is not an input parameter for node type '%s'. Skipping.",
+                    param.generic_name,
+                    node_type,
+                )
                 continue
             if not param.generic_name:
-                logger.warning("Parameter of value:'%s' has no generic_name for node type '%s'. Skipping.", param.value, node_type)
+                logger.warning(
+                    "Parameter of value:'%s' has no generic_name for node type '%s'. Skipping.", param.value, node_type
+                )
                 continue
 
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
 
             if not parm_new_name:
-                logger.warning("No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.", param.generic_name, node_type)
+                logger.warning(
+                    "No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.",
+                    param.generic_name,
+                    node_type,
+                )
                 continue  # skip unsupported params
 
             parm_new_name = parm_new_name[0]
@@ -184,8 +194,15 @@ class USDGraphBuilder:
             try:
                 inp.Set(val)
             except Exception as e:
-                logger.error("failed to set input '%s' to '%s[%s]' for value_type: %s->%s, error: %s", parm_new_name, val, type(val), param.generic_type, val_type, e)
-
+                logger.error(
+                    "failed to set input '%s' to '%s[%s]' for value_type: %s->%s, error: %s",
+                    parm_new_name,
+                    val,
+                    type(val),
+                    param.generic_type,
+                    val_type,
+                    e,
+                )
 
     def create_material_prim(self):
         """
@@ -201,7 +218,6 @@ class USDGraphBuilder:
                 self.created_out_primpaths.append(mat_primpath)
             self.output_old_new_map[output_connection.node_path] = mat_primpath.pathString
 
-
     def create_child_shaders(self, nodeinfo_list):
         """
         Recursively define all intermediate UsdShade.Shader prims.
@@ -211,7 +227,7 @@ class USDGraphBuilder:
         """
 
         for nodeinfo in nodeinfo_list:
-            if nodeinfo.is_output_node or nodeinfo.node_type == 'GENERIC::output_node':
+            if nodeinfo.is_output_node or nodeinfo.node_type == "GENERIC::output_node":
                 self.old_new_map[nodeinfo.node_path] = self.output_old_new_map.get(
                     nodeinfo.node_path,
                     self.created_out_primpaths[0].pathString,
@@ -225,9 +241,9 @@ class USDGraphBuilder:
                 self._create_shader_id(shader, nodeinfo.node_type)
 
                 regular_node_type = convert_generic(
-                    node_type=nodeinfo.node_type or 'GENERIC::null',
+                    node_type=nodeinfo.node_type or "GENERIC::null",
                     target_renderer=self.target_renderer,
-                    profile='usd_prims'
+                    profile="usd_prims",
                 )
                 self._apply_parameters(shader, regular_node_type, nodeinfo.parameters)
 
@@ -237,7 +253,6 @@ class USDGraphBuilder:
             # recurse into children:
             if nodeinfo.children_list:
                 self.create_child_shaders(nodeinfo.children_list)
-
 
     def set_output_connections(self):
         """
@@ -253,11 +268,10 @@ class USDGraphBuilder:
             if dst_path not in [x.pathString for x in self.created_out_primpaths]:
                 continue
 
-
             src_api = UsdShade.Shader(self.stage.GetPrimAtPath(Sdf.Path(src_path)))
-            mat_usdshade.CreateOutput(OUT_PRIM_DICT[self.target_renderer][generic_output]['dest'], Sdf.ValueTypeNames.Token).ConnectToSource(
-                src_api.ConnectableAPI(), OUT_PRIM_DICT[self.target_renderer][generic_output]['src'])
-
+            mat_usdshade.CreateOutput(
+                OUT_PRIM_DICT[self.target_renderer][generic_output]["dest"], Sdf.ValueTypeNames.Token
+            ).ConnectToSource(src_api.ConnectableAPI(), OUT_PRIM_DICT[self.target_renderer][generic_output]["src"])
 
     def _find_valid_src(self, nodeinfo, parent_nodeinfo=None):
         """
@@ -279,7 +293,7 @@ class USDGraphBuilder:
                 child_path = self.old_new_map[child_nodeinfo.node_path]
                 prim = self.stage.GetPrimAtPath(Sdf.Path(child_path))
                 logger.debug("child prim: '%s'", child_path)
-                if prim and prim.GetAttribute('info:id').Get():
+                if prim and prim.GetAttribute("info:id").Get():
                     for c_conn_index, c_conn in child_nodeinfo.connection_info.items():
                         logger.debug("child: %s -> %s", c_conn.input.parm_name, c_conn.output.parm_name)
                         if nodeinfo and c_conn.output.node_path != nodeinfo.node_path:
@@ -298,11 +312,24 @@ class USDGraphBuilder:
         try:
             src_api = UsdShade.Shader(src_prim)
             dst_api = UsdShade.Shader(dst_prim)
-            logger.info("Connecting prims: %s[%s] -> %s[%s]", src_prim.GetPath().pathString, src_parm, dst_prim.GetPath().pathString, dst_parm)
+            logger.info(
+                "Connecting prims: %s[%s] -> %s[%s]",
+                src_prim.GetPath().pathString,
+                src_parm,
+                dst_prim.GetPath().pathString,
+                dst_parm,
+            )
             inp = dst_api.CreateInput(dst_parm, Sdf.ValueTypeNames.Token)
             inp.ConnectToSource(src_api.ConnectableAPI(), src_parm)
         except Exception as e:
-            logger.error("FAILED to connect %s[%s] -> %s[%s]: %s", src_prim.GetPath(), src_parm, dst_prim.GetPath().pathString, dst_parm, e)
+            logger.error(
+                "FAILED to connect %s[%s] -> %s[%s]: %s",
+                src_prim.GetPath(),
+                src_parm,
+                dst_prim.GetPath().pathString,
+                dst_parm,
+                e,
+            )
 
     def set_shader_connections(self, nodeinfo_list, parent_node=None):
         """
@@ -322,18 +349,22 @@ class USDGraphBuilder:
                 if not (src_prim and dst_prim and src_prim.IsValid() and dst_prim.IsValid()):
                     logger.warning("SKIPPING connection, invalid prims found src:%s, dst:%s", src_prim, dst_prim)
                     continue
-                if not src_prim.GetAttribute('info:id').Get() and not dst_prim.GetAttribute('info:id').Get():
+                if not src_prim.GetAttribute("info:id").Get() and not dst_prim.GetAttribute("info:id").Get():
                     logger.warning("SKIPPING connection, both missing 'info:id'")
                     continue
-                if dst_prim.GetTypeName() == 'Material':
+                if dst_prim.GetTypeName() == "Material":
                     logger.warning("SKIPPING connection, dst_prim's primitive type is a Material not a Shader!")
                     continue
 
-                if not src_prim.GetAttribute('info:id').Get():
+                if not src_prim.GetAttribute("info:id").Get():
                     logger.debug("No info:id found, searching children...")
                     new_src_prim, new_conn = self._find_valid_src(nodeinfo)
                     if not new_src_prim:
-                        logger.warning("SKIPPING child connection '%s -> %s': _find_valid_src() didn't find anything!", src_path, dst_path)
+                        logger.warning(
+                            "SKIPPING child connection '%s -> %s': _find_valid_src() didn't find anything!",
+                            src_path,
+                            dst_path,
+                        )
                         continue
 
                     logger.debug("new_src_prim=%s", new_src_prim)
@@ -342,13 +373,11 @@ class USDGraphBuilder:
                     self._connect_pair(new_src_prim, dst_prim, new_src_parm, dst_parm)
                     continue
 
-
                 self._connect_pair(src_prim, dst_prim, src_parm, dst_parm)
 
             # recurse into children:
             if nodeinfo.children_list:
                 self.set_shader_connections(nodeinfo.children_list)
-
 
     def run(self):
         """
