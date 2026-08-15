@@ -39,11 +39,26 @@ On Windows, runtime discovery checks these sources in order:
 
 Useful per-command overrides are `--blender-exe`, `--blender-root`, `--blender-version`, `--timeout`, and `--package-src`. The default headless timeout is 300 seconds. Use an explicit executable when a production scene requires a particular Blender version.
 
+## Install the Blender extension
+
+Build a private installable archive without writing build output into the repository:
+
+```powershell
+uv --native-tls run python scripts/build_blender_extension.py `
+  --output "C:\temp\materials_processor-1.0.0.zip"
+```
+
+In Blender 4.2 or later, open **Preferences → Get Extensions → Install from Disk**, select that archive, then enable **Materials Processor**. The extension contains the Blender integration and the runtime package it needs; no separate Python installation is required.
+
+The development manifest declares `SPDX:LicenseRef-Proprietary` because this repository has no release license yet. Replace it with the chosen final SPDX license before publishing or distributing the archive.
+
 ## Rebuild an active material in Blender
 
 The Blender add-on now offers **Convert to Rebuilt Material** in the Shader Editor sidebar. It standardizes the active material into the neutral graph and recreates it as a separate Blender material, matching the in-DCC read/convert/write shape of the Houdini workflow.
 
 On success, the source material remains unchanged and the rebuilt material is assigned only to the active object's active material slot. The default result name is `<source>_converted`; Blender adds its normal numeric suffix when that name already exists.
+
+Use **Convert Selected Active Materials** in the sidebar or Shader Editor context menu to process the active slots of all selected objects. Shared source materials are rebuilt once and the same rebuilt material is assigned to each selected object's active slot. Other slots and unselected objects remain unchanged.
 
 The conversion is strict. If a node, connected socket, input, or group path cannot be reconstructed, it creates no material and leaves the active slot unchanged. Use the existing native MaterialX or bake workflows for procedural or non-portable graphs.
 

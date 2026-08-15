@@ -323,6 +323,88 @@ print({STRICT_CONVERSION_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
 
 
 @pytest.mark.blender
+def test_selected_active_blender_materials_are_rebuilt_as_a_batch(tmp_path):
+    """Rebuild selected objects' active slots once per source material."""
+    try:
+        runtime = resolve_blender_runtime(version=None)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    scene_path = tmp_path / "batch_conversion_fixture.blend"
+    build_bake_decision_fixture(scene_path, runtime, ROOT / "src")
+    code = f"""
+import json
+import bpy
+
+from materials_processor.dcc.blender.adapters import convert_selected_active_materials
+
+bpy.ops.wm.open_mainfile(filepath={str(scene_path)!r})
+direct = bpy.data.objects["Direct PBR Plane"]
+group = bpy.data.objects["Group Input PBR Plane"]
+unselected = bpy.data.objects["Normal Map PBR Plane"]
+before = {{obj.name: obj.active_material.name for obj in (direct, group, unselected)}}
+converted = convert_selected_active_materials([direct, group])
+result = {{
+    "converted_count": len(converted),
+    "direct_after": direct.active_material.name,
+    "group_after": group.active_material.name,
+    "unselected_after": unselected.active_material.name,
+    "before": before,
+}}
+print({STRICT_CONVERSION_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
+""".strip()
+    completed = _run_blender_python(runtime, code, ROOT / "src", timeout=120)
+    if completed.returncode != 0 or "Traceback (most recent call last):" in completed.stdout:
+        pytest.fail(f"Blender batch conversion failed:\n{completed.stdout}\n{completed.stderr}")
+    result = _read_prefixed_json(completed.stdout, STRICT_CONVERSION_RESULT_PREFIX, "Blender batch conversion")
+
+    assert result["converted_count"] == 2
+    assert result["direct_after"] != result["before"]["Direct PBR Plane"]
+    assert result["group_after"] != result["before"]["Group Input PBR Plane"]
+    assert result["unselected_after"] == result["before"]["Normal Map PBR Plane"]
+
+
+@pytest.mark.blender
+def test_selected_active_blender_materials_reject_the_whole_batch_on_unsupported_input(tmp_path):
+    """Keep every selected slot unchanged when any selected graph is unsupported."""
+    try:
+        runtime = resolve_blender_runtime(version=None)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    scene_path = tmp_path / "batch_rejection_fixture.blend"
+    build_bake_decision_fixture(scene_path, runtime, ROOT / "src")
+    code = f"""
+import json
+import bpy
+
+from materials_processor.dcc.blender.adapters import BlenderMaterialConversionError, convert_selected_active_materials
+
+bpy.ops.wm.open_mainfile(filepath={str(scene_path)!r})
+direct = bpy.data.objects["Direct PBR Plane"]
+complex_material = bpy.data.objects["Complex Closure Plane"]
+before = {{obj.name: obj.active_material.name for obj in (direct, complex_material)}}
+before_names = {{material.name for material in bpy.data.materials}}
+try:
+    convert_selected_active_materials([direct, complex_material])
+except BlenderMaterialConversionError:
+    result = {{
+        "assignments_unchanged": before == {{obj.name: obj.active_material.name for obj in (direct, complex_material)}},
+        "material_names_unchanged": before_names == {{material.name for material in bpy.data.materials}},
+    }}
+else:
+    raise RuntimeError("unsupported batch was converted")
+print({STRICT_CONVERSION_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
+""".strip()
+    completed = _run_blender_python(runtime, code, ROOT / "src", timeout=120)
+    if completed.returncode != 0 or "Traceback (most recent call last):" in completed.stdout:
+        pytest.fail(f"Blender batch rejection failed:\n{completed.stdout}\n{completed.stderr}")
+    result = _read_prefixed_json(completed.stdout, STRICT_CONVERSION_RESULT_PREFIX, "Blender batch rejection")
+
+    assert result == {"assignments_unchanged": True, "material_names_unchanged": True}
+
+
+@pytest.mark.blender
 def test_auto_bake_uses_pbr_for_principled_and_beauty_for_mixed_closure(tmp_path):
     """Export a generated scene and verify the strict PBR/beauty decision."""
     try:

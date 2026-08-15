@@ -613,6 +613,7 @@ def test_blender_addon_exposes_the_active_material_conversion_operator():
     operator_ids = {operator.bl_idname for operator in addon.classes if hasattr(operator, "bl_idname")}
 
     assert "node.matproc_convert_active_material" in operator_ids
+    assert "node.matproc_convert_selected_materials" in operator_ids
 
 
 def test_blender_material_writer_recreates_graph_into_target_material():

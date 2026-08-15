@@ -222,7 +222,13 @@ def convert_material(source_material: Any, *, target_name: str | None = None) ->
     if analysis.issues:
         raise BlenderMaterialConversionError(analysis.graph.material_name, analysis.issues)
 
-    target_material = bpy.data.materials.new(target_name or f"{source_material.name}_converted")
+    return _write_rebuilt_material(analysis, target_name=target_name)
+
+
+def _write_rebuilt_material(analysis: BlenderMaterialAnalysis, *, target_name: str | None = None) -> Any:
+    """Create one material from a preflighted graph and remove it on write failure."""
+    source_name = analysis.graph.material_name
+    target_material = bpy.data.materials.new(target_name or f"{source_name}_converted")
     target_material.use_nodes = True
     try:
         BlenderMaterialWriter().write(analysis.graph, target_material)
@@ -241,3 +247,51 @@ def convert_active_material(active_object: Any, *, target_name: str | None = Non
     converted_material = convert_material(source_material, target_name=target_name)
     active_object.active_material = converted_material
     return converted_material
+
+
+def convert_selected_active_materials(objects: list[Any] | tuple[Any, ...]) -> tuple[Any, ...]:
+    """Strictly rebuild selected objects' active slots as one all-or-nothing operation."""
+    if bpy is None:
+        raise RuntimeError("Blender material conversion requires bpy.")
+
+    source_objects: dict[str, tuple[Any, list[Any]]] = {}
+    for obj in objects:
+        source_material = getattr(obj, "active_material", None)
+        if source_material is None:
+            continue
+        entry = source_objects.setdefault(source_material.name, (source_material, []))
+        entry[1].append(obj)
+
+    analyses = [
+        (source_material, BlenderMaterialReader().analyze(source_material), material_objects)
+        for source_material, material_objects in source_objects.values()
+    ]
+    issues = tuple(issue for _, analysis, _ in analyses for issue in analysis.issues)
+    if issues:
+        raise BlenderMaterialConversionError("selected materials", issues)
+
+    converted_by_source: dict[str, Any] = {}
+    created_materials: list[Any] = []
+    try:
+        for source_material, analysis, _ in analyses:
+            converted_material = _write_rebuilt_material(analysis)
+            converted_by_source[source_material.name] = converted_material
+            created_materials.append(converted_material)
+    except Exception:
+        for material in created_materials:
+            bpy.data.materials.remove(material, do_unlink=True)
+        raise
+
+    original_slots = [(obj, obj.active_material) for _, _, material_objects in analyses for obj in material_objects]
+    try:
+        for source_material, _, material_objects in analyses:
+            converted_material = converted_by_source[source_material.name]
+            for obj in material_objects:
+                obj.active_material = converted_material
+    except Exception:
+        for obj, source_material in original_slots:
+            obj.active_material = source_material
+        for material in created_materials:
+            bpy.data.materials.remove(material, do_unlink=True)
+        raise
+    return tuple(created_materials)
