@@ -21,6 +21,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SOLARIS_RESULT_PREFIX = "MATERIALS_PROCESSOR_SOLARIS_BAKE_FIXTURE="
 RAW_NORMAL_RESULT_PREFIX = "MATERIALS_PROCESSOR_RAW_NORMAL="
 RAW_EXR_COMPARISON_PREFIX = "MATERIALS_PROCESSOR_RAW_EXR_COMPARISON="
+STRICT_CONVERSION_RESULT_PREFIX = "MATERIALS_PROCESSOR_STRICT_CONVERSION="
 RAW_COLOR_SPACES = ("Utility - Raw", "Raw", "raw", "Non-Color")
 ALBEDO_MAX_MAE = 0.005
 ALBEDO_MAX_ABSOLUTE_ERROR = 0.01
@@ -214,6 +215,111 @@ print({RAW_EXR_COMPARISON_PREFIX!r} + json.dumps(result, sort_keys=True))
         dict[str, float | int],
         _read_prefixed_json(completed.stdout, RAW_EXR_COMPARISON_PREFIX, "Raw EXR comparison"),
     )
+
+
+@pytest.mark.blender
+def test_active_blender_material_is_strictly_rebuilt_and_reassigned(tmp_path):
+    """Rebuild a supported active material without changing its source datablock."""
+    try:
+        runtime = resolve_blender_runtime(version=None)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    scene_path = tmp_path / "strict_conversion_fixture.blend"
+    build_bake_decision_fixture(scene_path, runtime, ROOT / "src")
+    code = f"""
+import json
+import bpy
+
+from materials_processor.dcc.blender.adapters import convert_active_material
+
+bpy.ops.wm.open_mainfile(filepath={str(scene_path)!r})
+source = bpy.data.materials["Direct PBR"]
+obj = bpy.data.objects["Direct PBR Plane"]
+bpy.context.view_layer.objects.active = obj
+direct_result = convert_active_material(obj)
+result_principled = next(node for node in direct_result.node_tree.nodes if node.bl_idname == "ShaderNodeBsdfPrincipled")
+result_output = next(node for node in direct_result.node_tree.nodes if node.bl_idname == "ShaderNodeOutputMaterial")
+source_principled = next(node for node in source.node_tree.nodes if node.bl_idname == "ShaderNodeBsdfPrincipled")
+
+group_source = bpy.data.materials["Group Input PBR"]
+group_obj = bpy.data.objects["Group Input PBR Plane"]
+bpy.context.view_layer.objects.active = group_obj
+group_result = convert_active_material(group_obj)
+group_principled = next(node for node in group_result.node_tree.nodes if node.bl_idname == "ShaderNodeBsdfPrincipled")
+
+result = {{
+    "assigned_material": obj.active_material.name,
+    "result_name": direct_result.name,
+    "source_name": source.name,
+    "source_base_color": list(source_principled.inputs["Base Color"].default_value),
+    "result_base_color": list(result_principled.inputs["Base Color"].default_value),
+    "surface_is_linked": result_output.inputs["Surface"].is_linked,
+    "group_assigned_material": group_obj.active_material.name,
+    "group_result_name": group_result.name,
+    "group_source_name": group_source.name,
+    "group_base_color": list(group_principled.inputs["Base Color"].default_value),
+    "group_roughness": group_principled.inputs["Roughness"].default_value,
+}}
+print({STRICT_CONVERSION_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
+""".strip()
+    completed = _run_blender_python(runtime, code, ROOT / "src", timeout=120)
+    if completed.returncode != 0 or "Traceback (most recent call last):" in completed.stdout:
+        pytest.fail(f"Blender strict conversion failed:\n{completed.stdout}\n{completed.stderr}")
+    result = _read_prefixed_json(completed.stdout, STRICT_CONVERSION_RESULT_PREFIX, "Blender strict conversion")
+
+    assert result["source_name"] == "Direct PBR"
+    assert result["result_name"] != result["source_name"]
+    assert result["assigned_material"] == result["result_name"]
+    assert result["source_base_color"] == pytest.approx([0.12, 0.42, 0.8, 1.0])
+    assert result["result_base_color"] == pytest.approx(result["source_base_color"])
+    assert result["surface_is_linked"] is True
+    assert result["group_result_name"] != result["group_source_name"]
+    assert result["group_assigned_material"] == result["group_result_name"]
+    assert result["group_base_color"] == pytest.approx([0.75, 0.2, 0.1, 1.0])
+    assert result["group_roughness"] == pytest.approx(0.55)
+
+
+@pytest.mark.blender
+def test_active_blender_material_rejects_unsupported_graph_without_assignment(tmp_path):
+    """Reject a non-portable graph before a result material or slot change is made."""
+    try:
+        runtime = resolve_blender_runtime(version=None)
+    except FileNotFoundError as exc:
+        pytest.skip(str(exc))
+
+    scene_path = tmp_path / "strict_rejection_fixture.blend"
+    build_bake_decision_fixture(scene_path, runtime, ROOT / "src")
+    code = f"""
+import json
+import bpy
+
+from materials_processor.dcc.blender.adapters import BlenderMaterialConversionError, convert_active_material
+
+bpy.ops.wm.open_mainfile(filepath={str(scene_path)!r})
+source = bpy.data.materials["Complex Closure"]
+obj = bpy.data.objects["Complex Closure Plane"]
+before_names = {{material.name for material in bpy.data.materials}}
+try:
+    convert_active_material(obj)
+except BlenderMaterialConversionError as exc:
+    result = {{
+        "assigned_material": obj.active_material.name,
+        "issues": [issue.detail for issue in exc.issues],
+        "material_names_unchanged": before_names == {{material.name for material in bpy.data.materials}},
+    }}
+else:
+    raise RuntimeError("unsupported graph was converted")
+print({STRICT_CONVERSION_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
+""".strip()
+    completed = _run_blender_python(runtime, code, ROOT / "src", timeout=120)
+    if completed.returncode != 0 or "Traceback (most recent call last):" in completed.stdout:
+        pytest.fail(f"Blender strict rejection failed:\n{completed.stdout}\n{completed.stderr}")
+    result = _read_prefixed_json(completed.stdout, STRICT_CONVERSION_RESULT_PREFIX, "Blender strict rejection")
+
+    assert result["assigned_material"] == "Complex Closure"
+    assert result["material_names_unchanged"] is True
+    assert any("unsupported node type ShaderNodeBsdfDiffuse" in issue for issue in result["issues"])
 
 
 @pytest.mark.blender

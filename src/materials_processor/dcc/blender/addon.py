@@ -2,7 +2,11 @@
 
 import logging
 
-from materials_processor.dcc.blender.adapters import BlenderMaterialReader
+from materials_processor.dcc.blender.adapters import (
+    BlenderMaterialConversionError,
+    BlenderMaterialReader,
+    convert_active_material,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +61,39 @@ class NODE_OT_MaterialsProcessor_Ingest(Operator):
             return {'CANCELLED'}
 
 
+class NODE_OT_MaterialsProcessor_ConvertActiveMaterial(Operator):
+    """Strictly rebuild the active material into a separate Blender material."""
+
+    bl_idname = "node.matproc_convert_active_material"
+    bl_label = "Convert to Rebuilt Material"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        if not bpy:
+            self.report({'ERROR'}, "Blender environment not active.")
+            return {'CANCELLED'}
+
+        active_obj = getattr(context, "active_object", None)
+        material = active_obj.active_material if active_obj else None
+        if not material:
+            self.report({'WARNING'}, "No active material found.")
+            return {'CANCELLED'}
+
+        try:
+            converted = convert_active_material(active_obj)
+        except BlenderMaterialConversionError as exc:
+            logger.warning("Strict conversion rejected '%s': %s", material.name, exc)
+            self.report({'ERROR'}, f"Cannot convert '{material.name}': {exc.issues[0].detail}")
+            return {'CANCELLED'}
+        except Exception as exc:
+            logger.error("Failed to convert material '%s': %s", material.name, exc, exc_info=True)
+            self.report({'ERROR'}, f"Failed to convert '{material.name}': {exc}")
+            return {'CANCELLED'}
+
+        self.report({'INFO'}, f"Created '{converted.name}' from '{material.name}'.")
+        return {'FINISHED'}
+
+
 class NODE_PT_MaterialsProcessor_Panel(Panel):
     """Sidebar Panel inside Blender Shader Editor."""
 
@@ -74,12 +111,14 @@ class NODE_PT_MaterialsProcessor_Panel(Panel):
         if material:
             layout.label(text=f"Active Material: {material.name}")
             layout.operator("node.matproc_ingest", text="Ingest & Standardize")
+            layout.operator("node.matproc_convert_active_material", text="Convert to Rebuilt Material")
         else:
             layout.label(text="No active material.")
 
 
 classes = (
     NODE_OT_MaterialsProcessor_Ingest,
+    NODE_OT_MaterialsProcessor_ConvertActiveMaterial,
     NODE_PT_MaterialsProcessor_Panel,
 )
 

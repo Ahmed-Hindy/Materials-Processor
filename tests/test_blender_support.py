@@ -11,7 +11,9 @@ from materials_processor.core.graph import (
     OutputConnection,
 )
 from materials_processor.core.conversion import ConversionService
-from materials_processor.dcc.blender.adapters import BlenderMaterialReader, BlenderMaterialWriter
+from materials_processor.dcc.blender import adapters
+from materials_processor.dcc.blender import addon
+from materials_processor.dcc.blender.adapters import BlenderMaterialReader, BlenderMaterialWriter, convert_material
 from materials_processor.dcc.blender.recreator import BlenderNodeRecreator
 from materials_processor.dcc.blender.traverser import BlenderNodeTraverser
 
@@ -577,6 +579,40 @@ def test_blender_material_reader_returns_material_graph():
     assert graph.material_path == "/mat/adapter_source"
     assert graph.nodeinfo_list[0].node_type == "GENERIC::standard_surface"
     assert graph.output_connections["GENERIC::output_surface"].connected_node_name == "Principled BSDF"
+
+
+def test_blender_material_reader_reports_a_supported_graph_as_strictly_recreatable():
+    material = _make_simple_fake_blender_material("strict_source")
+
+    analysis = BlenderMaterialReader().analyze(material)
+
+    assert analysis.graph.material_name == "strict_source"
+    assert analysis.issues == ()
+
+
+def test_blender_material_reader_reports_unsupported_source_nodes_for_strict_conversion():
+    material = _make_simple_fake_blender_material("unsupported_source")
+    material.node_tree._nodes_list[-1].bl_idname = "ShaderNodeTexNoise"
+
+    analysis = BlenderMaterialReader().analyze(material)
+
+    assert [(issue.node_path, issue.detail) for issue in analysis.issues] == [
+        ("/mat/unsupported_source/Image Texture", "unsupported node type ShaderNodeTexNoise")
+    ]
+
+
+def test_blender_convert_material_requires_a_blender_runtime(monkeypatch):
+    material = _make_simple_fake_blender_material("conversion_source")
+    monkeypatch.setattr(adapters, "bpy", None)
+
+    with pytest.raises(RuntimeError, match="requires bpy"):
+        convert_material(material)
+
+
+def test_blender_addon_exposes_the_active_material_conversion_operator():
+    operator_ids = {operator.bl_idname for operator in addon.classes if hasattr(operator, "bl_idname")}
+
+    assert "node.matproc_convert_active_material" in operator_ids
 
 
 def test_blender_material_writer_recreates_graph_into_target_material():

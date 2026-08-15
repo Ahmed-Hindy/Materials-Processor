@@ -39,6 +39,26 @@ On Windows, runtime discovery checks these sources in order:
 
 Useful per-command overrides are `--blender-exe`, `--blender-root`, `--blender-version`, `--timeout`, and `--package-src`. The default headless timeout is 300 seconds. Use an explicit executable when a production scene requires a particular Blender version.
 
+## Rebuild an active material in Blender
+
+The Blender add-on now offers **Convert to Rebuilt Material** in the Shader Editor sidebar. It standardizes the active material into the neutral graph and recreates it as a separate Blender material, matching the in-DCC read/convert/write shape of the Houdini workflow.
+
+On success, the source material remains unchanged and the rebuilt material is assigned only to the active object's active material slot. The default result name is `<source>_converted`; Blender adds its normal numeric suffix when that name already exists.
+
+The conversion is strict. If a node, connected socket, input, or group path cannot be reconstructed, it creates no material and leaves the active slot unchanged. Use the existing native MaterialX or bake workflows for procedural or non-portable graphs.
+
+For Blender Python automation:
+
+```python
+from materials_processor.dcc.blender.adapters import convert_active_material, convert_material
+
+# Create and assign a rebuilt material to an object's active slot.
+rebuilt = convert_active_material(bpy.context.active_object)
+
+# Or create an unassigned rebuilt material from a known source material.
+rebuilt = convert_material(bpy.data.materials["Source Material"])
+```
+
 ## Inspect before exporting
 
 Inspection is read-only with respect to the source scene. It writes a JSON report only if requested.
