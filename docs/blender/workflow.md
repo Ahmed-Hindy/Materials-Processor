@@ -34,7 +34,7 @@ On Windows, runtime discovery checks these sources in order:
 2. `MATERIALS_PROCESSOR_BLENDER_EXE`
 3. `--blender-root C:\path\to\Blender`
 4. `MATERIALS_PROCESSOR_BLENDER_ROOT`
-5. Installed Blender directories under `C:\Program Files\Blender Foundation`, preferring Blender 4.x candidates
+5. Installed Blender directories under `C:\Program Files\Blender Foundation`, preferring Blender 5.2, then other Blender 5.x candidates
 6. `blender` on `PATH`
 
 Useful per-command overrides are `--blender-exe`, `--blender-root`, `--blender-version`, `--timeout`, and `--package-src`. The default headless timeout is 300 seconds. Use an explicit executable when a production scene requires a particular Blender version.
@@ -48,7 +48,7 @@ uv --native-tls run python scripts/build_blender_extension.py `
   --output "C:\temp\materials_processor-1.0.0.zip"
 ```
 
-In Blender 4.2 or later, open **Preferences → Get Extensions → Install from Disk**, select that archive, then enable **Materials Processor**. The extension contains the Blender integration and the runtime package it needs; no separate Python installation is required.
+The extension requires Blender 5.0 or later and targets Blender 5.2. In Blender, open **Preferences → Get Extensions → Install from Disk**, select that archive, then enable **Materials Processor**. The extension contains the Blender integration and the runtime package it needs; no separate Python installation is required.
 
 The development manifest declares `SPDX:LicenseRef-Proprietary` because this repository has no release license yet. Replace it with the chosen final SPDX license before publishing or distributing the archive.
 

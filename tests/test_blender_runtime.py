@@ -9,6 +9,8 @@ from materials_processor.dcc.blender.runtime import (
     BLENDER_EXE_ENV_VAR,
     BLENDER_ROOT_ENV_VAR,
     MATERIAL_SMOKE_RESULT_PREFIX,
+    MINIMUM_BLENDER_VERSION,
+    TARGET_BLENDER_VERSION,
     VALIDATION_RESULT_PREFIX,
     BlenderRuntime,
     _default_package_src,
@@ -35,7 +37,9 @@ def _fake_blender_root(tmp_path):
 
 
 def test_default_blender_root_uses_standard_windows_install_path():
-    assert _default_blender_root("4.0") == Path("C:/Program Files/Blender Foundation/Blender 4.0")
+    assert TARGET_BLENDER_VERSION == "5.2"
+    assert MINIMUM_BLENDER_VERSION == "5.0"
+    assert _default_blender_root() == Path("C:/Program Files/Blender Foundation/Blender 5.2")
 
 
 def test_resolve_blender_runtime_uses_explicit_root(tmp_path):

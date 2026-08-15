@@ -34,7 +34,7 @@ def test_blender_extension_manifest_declares_an_installable_addon():
     assert manifest["schema_version"] == "1.0.0"
     assert manifest["id"] == "materials_processor"
     assert manifest["type"] == "add-on"
-    assert manifest["blender_version_min"] == "4.2.0"
+    assert manifest["blender_version_min"] == "5.0.0"
     assert manifest["license"] == ["SPDX:LicenseRef-Proprietary"]
 
 

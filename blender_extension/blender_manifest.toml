@@ -6,7 +6,7 @@ tagline = "Rebuild supported Blender materials safely"
 maintainer = "Ahmed Hindy"
 type = "add-on"
 tags = ["Material"]
-blender_version_min = "4.2.0"
+blender_version_min = "5.0.0"
 license = ["SPDX:LicenseRef-Proprietary"]
 
 [build]

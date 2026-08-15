@@ -11,7 +11,9 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_BLENDER_VERSION = "4.0"
+MINIMUM_BLENDER_VERSION = "5.0"
+TARGET_BLENDER_VERSION = "5.2"
+DEFAULT_BLENDER_VERSION = TARGET_BLENDER_VERSION
 BLENDER_ROOT_ENV_VAR = "MATERIALS_PROCESSOR_BLENDER_ROOT"
 BLENDER_EXE_ENV_VAR = "MATERIALS_PROCESSOR_BLENDER_EXE"
 VALIDATION_RESULT_PREFIX = "MATERIALS_PROCESSOR_BLENDER_RUNTIME="
@@ -57,9 +59,17 @@ def _candidate_roots(version: str | None) -> list[Path]:
 
     candidates = [path for path in blender_foundation.glob("Blender *") if path.is_dir()]
     sorted_candidates = sorted(candidates, key=_version_sort_key, reverse=True)
-    blender_4_candidates = [path for path in sorted_candidates if _version_from_root(path).startswith("4.")]
-    other_candidates = [path for path in sorted_candidates if path not in blender_4_candidates]
-    return blender_4_candidates + other_candidates
+    target_candidate = [
+        path for path in sorted_candidates if _version_from_root(path).startswith(f"{TARGET_BLENDER_VERSION}.")
+        or _version_from_root(path) == TARGET_BLENDER_VERSION
+    ]
+    blender_5_candidates = [
+        path
+        for path in sorted_candidates
+        if path not in target_candidate and _version_from_root(path).startswith("5.")
+    ]
+    other_candidates = [path for path in sorted_candidates if path not in target_candidate and path not in blender_5_candidates]
+    return target_candidate + blender_5_candidates + other_candidates
 
 
 def _require_file(path: Path, label: str) -> Path:

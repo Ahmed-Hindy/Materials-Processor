@@ -15,7 +15,7 @@ bl_info = {
     "name": "Materials Processor Blender Integration",
     "author": "Ahmed Hindy",
     "version": (1, 0, 0),
-    "blender": (4, 2, 0),
+    "blender": (5, 0, 0),
     "location": "Shader Editor > Sidebar > Materials Processor",
     "description": "Ingest, Standardize, and Recreate shader networks in Blender",
     "warning": "",
