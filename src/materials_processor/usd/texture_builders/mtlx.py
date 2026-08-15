@@ -12,6 +12,16 @@ class MaterialXTextureMaterialMixin:
 
     ###  mtlx ###
     def _mtlx_create_material(self, parent_path, enable_transmission=False):
+        """
+        Create a MaterialX texture-based material with a standard-surface shader.
+        
+        Parameters:
+        	parent_path: USD path where the material and shader network are defined.
+        	enable_transmission (bool): Whether to enable transmission on the surface shader.
+        
+        Returns:
+        	UsdShade.Material: The created USD material.
+        """
         shader_path = f"{parent_path}/mtlx_mtlxstandard_surface1"
         shader_usdshade = UsdShade.Shader.Define(self.stage, shader_path)
         material_prim = self.stage.GetPrimAtPath(parent_path)
@@ -28,6 +38,12 @@ class MaterialXTextureMaterialMixin:
         return material_usdshade
 
     def _mtlx_initialize_standard_surface_shader(self, shader_usdshade):
+        """
+        Initialize a MaterialX standard-surface shader with default material properties.
+        
+        Parameters:
+        	shader_usdshade: The shader to configure.
+        """
         shader_usdshade.CreateIdAttr("ND_standard_surface_surfaceshader")
 
         shader_usdshade.CreateInput("base", Sdf.ValueTypeNames.Float).Set(1)
@@ -46,29 +62,76 @@ class MaterialXTextureMaterialMixin:
         shader_usdshade.CreateInput("opacity", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(1, 1, 1))
 
     def _mtlx_initialize_image_shader(self, image_path: str, signature="color3"):
+        """
+        Define a MaterialX image shader for the specified texture path and value signature.
+        
+        Parameters:
+            image_path (str): USD path where the image shader is defined.
+            signature (str): MaterialX value signature used to select the image node definition.
+        
+        Returns:
+            UsdShade.Shader: The defined image shader.
+        """
         image_shader = UsdShade.Shader.Define(self.stage, image_path)
         image_shader.CreateIdAttr(f"ND_image_{signature}")
         image_shader.CreateInput("file", Sdf.ValueTypeNames.Asset)
         return image_shader
 
     def _mtlx_initialize_color_correct_shader(self, color_correct_path: str, signature="color3"):
+        """Create a MaterialX color-correction shader.
+        
+        Parameters:
+        	color_correct_path (str): USD path where the shader is defined.
+        	signature (str): MaterialX data signature used to select the shader variant.
+        
+        Returns:
+        	color_correct_shader (UsdShade.Shader): The defined color-correction shader.
+        """
         color_correct_shader = UsdShade.Shader.Define(self.stage, color_correct_path)
         color_correct_shader.CreateIdAttr(f"ND_colorcorrect_{signature}")
 
         return color_correct_shader
 
     def _mtlx_initialize_range_shader(self, range_path: str, signature="color3"):
+        """
+        Create a MaterialX range shader at the specified path.
+        
+        Parameters:
+        	range_path (str): USD path where the range shader is defined.
+        	signature (str): MaterialX data signature used to construct the shader identifier.
+        
+        Returns:
+        	UsdShade.Shader: The defined range shader.
+        """
         range_shader = UsdShade.Shader.Define(self.stage, range_path)
         range_shader.CreateIdAttr(f"ND_range_{signature}")
         return range_shader
 
     def _mtlx_initialize_normal_map_shader(self, normal_map_path: str):
+        """
+        Create a MaterialX normal-map shader at the specified path.
+        
+        Parameters:
+            normal_map_path (str): USD path where the shader is defined.
+        
+        Returns:
+            UsdShade.Shader: The created normal-map shader.
+        """
         normal_map_shader = UsdShade.Shader.Define(self.stage, normal_map_path)
         normal_map_shader.CreateIdAttr("ND_normalmap")
 
         return normal_map_shader
 
     def _mtlx_initialize_bump2d_shader(self, bump2d_path: str):
+        """
+        Create and initialize a MaterialX bump shader.
+        
+        Parameters:
+        	bump2d_path (str): USD path at which to define the bump shader.
+        
+        Returns:
+        	bump2d_shader: The initialized bump shader.
+        """
         bump2d_shader = UsdShade.Shader.Define(self.stage, bump2d_path)
         bump2d_shader.CreateIdAttr("ND_bump_vector3")
 
@@ -83,14 +146,22 @@ class MaterialXTextureMaterialMixin:
 
     def _mtlx_enable_transmission(self, shader_usdshade):
         """
-        given the mtlx standard surface, will set input primvar 'transmission' to value '0.9'
+        Enable transmission on a MaterialX standard-surface shader.
+        
+        Parameters:
+        	shader_usdshade: The standard-surface shader to configure.
         """
         shader_usdshade.GetInput("transmission").Set(0.9)
         shader_usdshade.GetInput("thin_walled").Set(1)
 
     def _mtlx_fill_texture_file_paths(self, material_prim, std_surf_shader):
         """
-        Fills the texture file paths for the given shader using the material_data.
+        Connects supported material textures to the corresponding MaterialX standard-surface shader inputs.
+        
+        Parameters:
+        	material_prim: The material prim under which texture and processing shader nodes are created.
+        	std_surf_shader: The standard-surface shader receiving the texture connections.
+        
         """
         texture_types_to_inputs = {
             "basecolor": "base_color",

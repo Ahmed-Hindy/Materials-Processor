@@ -162,6 +162,15 @@ class FakeMaterial:
 
 
 def _make_simple_fake_blender_material(name="test_mat"):
+    """
+    Create a fake Blender material with an image texture connected to a Principled BSDF shader and material output.
+    
+    Parameters:
+    	name (str): Name assigned to the fake material.
+    
+    Returns:
+    	FakeMaterial: A material containing the connected output, shader, and image-texture nodes.
+    """
     out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
     bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
     tex_node = FakeNode("ShaderNodeTexImage", "Image Texture")
@@ -259,6 +268,14 @@ def _make_packed_texture_fake_blender_material(name="packed_mat"):
 
 
 def _make_mapped_texture_fake_blender_material(name="mapped_mat"):
+    """Create a fake Blender material with mapped texture coordinates and a value-driven roughness input.
+    
+    Parameters:
+    	name (str): The material name.
+    
+    Returns:
+    	FakeMaterial: A material containing texture-coordinate, mapping, image-texture, value, Principled BSDF, and material-output nodes.
+    """
     out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
     bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
     tex_node = FakeNode("ShaderNodeTexImage", "Image Texture")
@@ -437,7 +454,7 @@ def test_blender_traverser_flattens_group_connected_to_a_surface_input():
 
 
 def test_blender_traverser_preserves_packed_texture_graph(caplog):
-    """Test that texture coordinates and packed channel splits survive standardization."""
+    """Verify that packed texture channel connections and UV mapping survive standardization."""
     material = _make_packed_texture_fake_blender_material()
 
     nodes_dict, output_dict = BlenderNodeTraverser(material).run()

@@ -201,6 +201,15 @@ class _DialogButtonBox(_Widget):
 
 
 def _install_fake_qt_and_hou(monkeypatch):
+    """
+    Install fake Qt and Houdini modules for isolated UI tests.
+    
+    Parameters:
+        monkeypatch: Pytest fixture used to replace module dependencies.
+    
+    Returns:
+        hou: The configured fake Houdini module.
+    """
     qt_core = qt.QtCore
     qt_core.Qt = types.SimpleNamespace(
         Key=types.SimpleNamespace(Key_Delete=1),

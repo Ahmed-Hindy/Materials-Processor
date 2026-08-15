@@ -49,6 +49,15 @@ def _add_doctor_parser(subparsers) -> argparse.ArgumentParser:
 
 
 def _add_runtime_parser(subparsers) -> argparse.ArgumentParser:
+    """
+    Register the runtime validation command and its DCC-specific options.
+    
+    Parameters:
+        subparsers: Argument parser subparsers to which the runtime command is added.
+    
+    Returns:
+        argparse.ArgumentParser: The configured runtime command parser.
+    """
     runtime_parser = subparsers.add_parser("runtime", help="Runtime discovery and validation commands.")
     runtime_subparsers = runtime_parser.add_subparsers(dest="runtime_command", required=True)
 
@@ -141,6 +150,16 @@ def _validate_blender_runtime(args) -> dict:
 
 
 def _validate_maya_runtime(args) -> dict:
+    """Validate the selected Maya runtime and return its metadata.
+    
+    Parameters:
+        args: Parsed command-line arguments containing Maya runtime selection,
+            package source, timeout, and material smoke validation options.
+    
+    Returns:
+        dict: Maya runtime metadata, optionally including material smoke validation
+            results.
+    """
     from materials_processor.dcc.maya.runtime import (
         resolve_maya_runtime,
         validate_maya_material_smoke,
@@ -168,6 +187,18 @@ def _validate_maya_runtime(args) -> dict:
 
 
 def _validate_houdini_runtime(hython: Path, timeout: int) -> dict:
+    """Validate Houdini and return its runtime version and installation path.
+    
+    Parameters:
+        hython (Path): Path to the Houdini Python executable.
+        timeout (int): Maximum time in seconds allowed for validation.
+    
+    Returns:
+        dict: Runtime metadata containing the Houdini version and installation path.
+    
+    Raises:
+        RuntimeError: If validation fails or produces no runtime result.
+    """
     code = (
         "import json\n"
         "import hou\n"
@@ -249,6 +280,15 @@ def _doctor_maya(args) -> dict:
 
 
 def _doctor_houdini(args) -> dict:
+    """
+    Reports Houdini runtime discovery and optional validation results.
+    
+    Parameters:
+    	args: Command-line options containing the Houdini executable, validation flag, and timeout.
+    
+    Returns:
+    	dict: A Houdini status record containing discovery information and, when requested, validation results.
+    """
     try:
         hython = resolve_hython(args.hython)
         if hython is None:

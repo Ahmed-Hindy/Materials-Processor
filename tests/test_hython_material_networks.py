@@ -134,6 +134,19 @@ def _hython_script(
     output_fidelity_target_renderers=OUTPUT_FIDELITY_TARGET_RENDERERS,
     cross_engine_fidelity_targets=CROSS_ENGINE_FIDELITY_TARGETS,
 ):
+    """
+    Generate a Houdini Python script for material ingestion, conversion, and fidelity analysis.
+    
+    Parameters:
+    	hip_file (str): Houdini HIP file to load.
+    	material_cases (iterable): Material node paths to process.
+    	same_engine_fidelity_targets (iterable): Renderers whose same-engine conversions receive fidelity analysis.
+    	output_fidelity_target_renderers (iterable): Renderers whose conversions receive output-fidelity analysis.
+    	cross_engine_fidelity_targets (iterable): Source and target renderer pairs for cross-engine fidelity analysis.
+    
+    Returns:
+    	str: The generated Houdini Python script.
+    """
     material_cases = material_cases or MATERIAL_CASES
     material_paths = json.dumps(list(material_cases))
     return f"""
@@ -539,6 +552,11 @@ print({JSON_END!r})
 
 @pytest.fixture(scope="module")
 def hython_material_results():
+    """Run the material ingestion and conversion probe using Houdini's hython executable.
+    
+    Returns:
+    	dict: The parsed probe results.
+    """
     hython = resolve_hython()
     if not hython:
         pytest.skip("hython is not available")
@@ -613,6 +631,7 @@ def _hython_supports_node_type(hython, node_type):
 
 @pytest.fixture(scope="module")
 def hython_redshift_material_results():
+    """Run the Redshift material integration probe and return its results."""
     hython = resolve_hython()
     if not hython:
         pytest.skip("hython is not available")
@@ -670,6 +689,7 @@ def _round_node_positions(value):
 
 
 def _strip_node_positions(value):
+    """Remove ``node_position`` entries from nested dictionaries and lists."""
     if isinstance(value, dict):
         return {key: _strip_node_positions(item_value) for key, item_value in value.items() if key != "node_position"}
     if isinstance(value, list):

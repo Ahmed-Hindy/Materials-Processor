@@ -117,7 +117,16 @@ class BlenderNodeTraverser:
         )
 
     def _group_output_source(self, group_node, output_socket):
-        """Resolve a group output to its internal source node and socket."""
+        """
+        Finds the internal source connected to a group output socket.
+        
+        Parameters:
+        	group_node: The node group whose internal output is queried.
+        	output_socket: The outer socket corresponding to the desired group output.
+        
+        Returns:
+        	A tuple containing the source node and socket, or `None` when no connected source is available.
+        """
         node_tree = getattr(group_node, "node_tree", None)
         if not node_tree or not output_socket:
             return None
@@ -133,11 +142,16 @@ class BlenderNodeTraverser:
         return link.from_node, link.from_socket
 
     def _flattened_source(self, node, output_socket, group_chain=(), group_instances=()):
-        """Resolve nested group nodes into their concrete source.
-
-        ``group_instances`` parallels ``group_chain`` and retains the outer
-        group nodes needed to evaluate Group Input sockets while traversing an
-        otherwise supported internal graph.
+        """Resolve nested group nodes to their concrete source node and socket.
+        
+        Parameters:
+            node: The node whose output source should be resolved.
+            output_socket: The output socket to trace through nested groups.
+            group_chain: Names of groups traversed so far.
+            group_instances: Group instances corresponding to `group_chain`.
+        
+        Returns:
+            A tuple containing the resolved node, socket, group-name chain, and group-instance chain, or `None` when no source is connected.
         """
         if node.bl_idname != "ShaderNodeGroup":
             return node, output_socket, group_chain, group_instances
@@ -154,7 +168,16 @@ class BlenderNodeTraverser:
 
     @staticmethod
     def _group_input_socket(link, group_instances):
-        """Resolve an internal Group Input link to its outer instance socket."""
+        """
+        Resolve an internal group input link to its corresponding outer group-instance socket.
+        
+        Parameters:
+            link: The node link originating from a group input.
+            group_instances: The enclosing group-instance nodes, ordered from outermost to innermost.
+        
+        Returns:
+            The matching outer group-instance socket, or `None` when the link is not from a group input or no group instance is available.
+        """
         if link.from_node.bl_idname != "NodeGroupInput" or not group_instances:
             return None
         group_node = group_instances[-1]
@@ -166,13 +189,14 @@ class BlenderNodeTraverser:
         )
 
     def create_output_dict(self, material):
-        """Detect output nodes in the material's node tree.
-
+        """Collect metadata for the linked surface and displacement material outputs.
+        
         Args:
-            material: The Blender material object.
-
+            material: The Blender material whose node tree is inspected.
+        
         Returns:
-            Dict: A dictionary of detected output nodes mapped by output slot.
+            A dictionary containing metadata for each linked surface or displacement
+            output, or an empty dictionary when no material output is available.
         """
         if not material or not getattr(material, "node_tree", None):
             return {}
@@ -256,15 +280,20 @@ class BlenderNodeTraverser:
         source_socket=None,
         parent_socket=None,
     ):
-        """Detect connections for a node going to its parent node (downstream).
-
-        Args:
-            node: The current node.
-            parent_node: The parent node.
-            material_name: The name of the material.
-
+        """
+        Detect connections from a node to its downstream parent node.
+        
+        Parameters:
+            node: The upstream node.
+            parent_node: The downstream node receiving the connection.
+            material_name: The material containing the nodes.
+            node_path: Optional path identifying the upstream node.
+            parent_node_path: Optional path identifying the downstream node.
+            source_socket: Optional explicitly connected output socket.
+            parent_socket: Optional explicitly connected input socket.
+        
         Returns:
-            Dict: Node connections dictionary.
+            A dictionary describing the connected sockets and their node metadata.
         """
         connections_dict = {}
         if parent_node is None:
@@ -325,13 +354,15 @@ class BlenderNodeTraverser:
 
     @staticmethod
     def _convert_parms_to_dict(node, input_overrides=None):
-        """Convert Blender node input socket default values and internal attributes into standard dictionaries.
-
-        Args:
-            node: The Blender node.
-
+        """
+        Convert a Blender node's inputs, outputs, and relevant internal properties into parameter dictionaries.
+        
+        Parameters:
+        	node: The Blender node to convert.
+        	input_overrides (dict, optional): Values and types to use for resolved linked inputs.
+        
         Returns:
-            Dict: Parameters dictionary.
+        	dict: A dictionary containing input and output parameter lists.
         """
         parms = {"input": [], "output": []}
         input_overrides = input_overrides or {}
@@ -424,15 +455,21 @@ class BlenderNodeTraverser:
         source_socket=None,
         parent_socket=None,
     ):
-        """Recursively traverse the node tree.
-
+        """Build a dictionary representation of a node and its upstream network.
+        
         Args:
-            node: The current Blender node.
-            parent_node: The parent node.
-            active_paths: Set of traversed paths to prevent cycles.
-
+            node: The node to traverse.
+            parent_node: The downstream node connected to the current node.
+            active_paths: Node paths already being traversed, used to prevent cycles.
+            group_chain: Nested group names containing the node.
+            group_instances: Nested group instances used to resolve group inputs.
+            parent_node_path: Path of the downstream parent node.
+            source_socket: Socket supplying the current node through a group boundary.
+            parent_socket: Downstream socket connected to the source socket.
+        
         Returns:
-            Dict: Dictionary representation of the node tree.
+            A mapping from the node path to its metadata and upstream child nodes. Cyclic
+            paths produce an empty mapping.
         """
         if active_paths is None:
             active_paths = set()
@@ -531,10 +568,11 @@ class BlenderNodeTraverser:
         return {node_path: node_dict}
 
     def run(self):
-        """Traverse the Blender shader node tree.
-
+        """
+        Traverse connected shader node trees and describe their material outputs.
+        
         Returns:
-            Tuple[Dict, Dict]: Node tree dictionary and output tree dictionary.
+            tuple[dict, dict]: Node metadata tree and material output metadata.
         """
         self._output_sources = {}
         output_tree = self.create_output_dict(self.material)

@@ -15,13 +15,13 @@ logger = logging.getLogger(__name__)
 
 def detect_if_transmissive(material_name):
     """
-    Heuristically detect if a material should enable transmission.
-
-    Args:
-        material_name (str): The name of the material (e.g. contains 'glass').
-
+    Determine whether a material name indicates a transmissive material.
+    
+    Parameters:
+    	material_name (str): Material name checked for case-insensitive occurrences of "glass" or "glas".
+    
     Returns:
-        bool: True if transmissive keywords are present.
+    	bool: `True` if the material name contains a transmissive keyword, `False` otherwise.
     """
     transmissive_matnames_list = ["glass", "glas"]
     is_transmissive = any(substring in material_name.lower() for substring in transmissive_matnames_list)
@@ -55,9 +55,15 @@ class TextureMaterialFactory(
         enable_transmission=False,
     ):
         """
-        creates a collect material prim on stage
-        :return: collect prim
-        :rtype: UsdShade.Material
+        Create a collect material at a path derived from the parent prim path and material name.
+        
+        Parameters:
+            parent_prim_path (str): Path under which to create the collect material.
+            usd_preview_format: Optional format for the USD Preview material.
+            enable_transmission (bool): Whether to enable transmission for Arnold and MaterialX materials.
+        
+        Returns:
+            UsdShade.Material: The created collect material.
         """
         parent_prim_sdf = Sdf.Path(parent_prim_path)
         UsdGeom.Scope.Define(self.stage, parent_prim_sdf)

@@ -15,10 +15,17 @@ setup_file_logging()
 
 def get_material_type(usd_material):
     """
+    Determine the renderer-specific type of a USD material.
+    
     Args:
-        usd_material (Usd.Material): input material prim, e.g., arnold materialbuilder
+        usd_material (Usd.Material): USD material prim to inspect.
+    
     Returns:
-        (str): material type.
+        str: Detected material type.
+    
+    Raises:
+        NotImplementedError: If no supported material type is found or multiple
+            supported material types are present.
     """
     material_list = []
     infoId_list = []
@@ -48,6 +55,14 @@ def get_material_type(usd_material):
 
 
 def test(stage, mat_node, target_renderer="mtlx"):
+    """
+    Recreates a USD material from a Houdini material node.
+    
+    Parameters:
+        stage: USD stage receiving the recreated material.
+        mat_node: Houdini material node to ingest.
+        target_renderer (str): Renderer targeted by the recreation.
+    """
     import hou
 
     material_type, nodeinfo_list, output_connections = houdini_commands.ingest_material(mat_node)
@@ -79,12 +94,12 @@ def test(stage, mat_node, target_renderer="mtlx"):
 
 def test2(stage, usd_material, target_renderer="arnold"):
     """
+    Convert a USD material to the selected target renderer.
+    
     Args:
-        stage (Usd.Stage): USD stage
-        usd_material (Usd.Material): USD material
-        target_renderer (str): target renderer to convert to ['arnold', 'mtlx']
-    Returns:
-        None
+        stage (Usd.Stage): USD stage containing the material.
+        usd_material (Usd.Material): USD material to convert.
+        target_renderer (str): Renderer to target, such as ``"arnold"`` or ``"mtlx"``.
     """
     import hou
 

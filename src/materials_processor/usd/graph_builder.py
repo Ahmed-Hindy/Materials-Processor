@@ -12,7 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 def _coerce_usd_value(value, generic_type):
-    """Shape JSON-friendly parameter values for USD's typed attribute setters."""
+    """
+    Coerce parameter values into shapes accepted by USD typed attribute setters.
+    
+    Parameters:
+        value: The parameter value to coerce.
+        generic_type: The generic type name used to determine vector and color conversion.
+    
+    Returns:
+        The unwrapped scalar, tuple-converted vector or color value, or original value.
+    """
     if isinstance(value, (list, tuple)) and len(value) == 1:
         return value[0]
     if generic_type in {
@@ -127,20 +136,12 @@ class USDGraphBuilder:
 
     def _apply_parameters(self, shader, node_type, parameters):
         """
-        Map generic parameters over to renderer-specific USD inputs.
-
-        This:
-          1) Uses REGULAR_PARAM_NAMES_TO_GENERIC to canonicalize incoming names.
-          2) Finds the USD input names in GENERIC_NODE_TYPES_TO_REGULAR_USD[node_type]['info_id'].
-          3) Creates and sets each UsdShade.Input with the proper Sdf.ValueTypeNames.
-
-        Args:
-            shader (UsdShade.Shader): The USD shader prim.
-            node_type (str): The renderer node type key (e.g. 'arnold::image').
-            parameters (List[NodeParameter]): List of standardized Parameter objects.
-
-        Raises:
-            KeyError: If node_type is not found in the parameter-name mapping.
+        Apply generic input parameters to a shader using renderer-specific names and USD value types.
+        
+        Parameters:
+            shader (UsdShade.Shader): Shader to which the inputs are added.
+            node_type (str): Renderer node type used to resolve parameter mappings.
+            parameters (list[NodeParameter]): Parameters to apply to the shader.
         """
         if not parameters:
             logger.warning("No parameters found for shader: '%s'", shader.GetPath().pathString)
@@ -206,9 +207,7 @@ class USDGraphBuilder:
 
     def create_material_prim(self):
         """
-        Define the collect-Material prim(s) at `<parent_scope>/<material_name>`.
-
-        Populates self.output_old_new_map for each Houdini output node.
+        Define material prims for each output connection and map output node paths to their material paths.
         """
         for output_connection in self.orig_output_connections.values():
             mat_primpath = self._material_prim_path()
@@ -220,10 +219,10 @@ class USDGraphBuilder:
 
     def create_child_shaders(self, nodeinfo_list):
         """
-        Recursively define all intermediate UsdShade.Shader prims.
-
-        Args:
-            nodeinfo_list (List[NodeInfo]): Generic node info hierarchy.
+        Recursively creates shader prims for intermediate nodes and maps source node paths to their USD paths.
+        
+        Parameters:
+        	nodeinfo_list (List[NodeInfo]): Hierarchical node information used to define shader prims and traverse child nodes.
         """
 
         for nodeinfo in nodeinfo_list:
@@ -256,7 +255,9 @@ class USDGraphBuilder:
 
     def set_output_connections(self):
         """
-        Wire core shaders to output material surface slots.
+        Connects shader outputs to the renderer-specific material output slots.
+        
+        Connections whose destination material prim was not created are skipped.
         """
         mat_primpath = self._material_prim_path()
         mat_usdshade = UsdShade.Material.Get(self.stage, mat_primpath)
@@ -275,9 +276,15 @@ class USDGraphBuilder:
 
     def _find_valid_src(self, nodeinfo, parent_nodeinfo=None):
         """
-        Recursively walk nodeinfo.children_list looking for the
-        first child whose prim has a non‐empty info:id.
-        Returns (dst_prim, dst_nodeinfo) or (None, None).
+        Finds the first descendant shader prim with a non-empty ``info:id`` attribute.
+        
+        Parameters:
+            nodeinfo: Node information whose descendants are searched.
+            parent_nodeinfo: Optional parent node used to constrain valid connections.
+        
+        Returns:
+            A tuple containing the matching shader prim and its connection information,
+            or ``(None, None)`` when no valid source is found.
         """
         logger.debug("prim: '%s': children_list: %s", nodeinfo.node_path, nodeinfo.children_list)
         if parent_nodeinfo:
@@ -309,6 +316,15 @@ class USDGraphBuilder:
         return None, None
 
     def _connect_pair(self, src_prim, dst_prim, src_parm, dst_parm):
+        """
+        Connects a shader output to a shader input.
+        
+        Parameters:
+            src_prim: Source shader prim.
+            dst_prim: Destination shader prim.
+            src_parm: Source output name.
+            dst_parm: Destination input name.
+        """
         try:
             src_api = UsdShade.Shader(src_prim)
             dst_api = UsdShade.Shader(dst_prim)
@@ -333,7 +349,11 @@ class USDGraphBuilder:
 
     def set_shader_connections(self, nodeinfo_list, parent_node=None):
         """
-        Connect child shader prims based on stored connection_tasks.
+        Connects shader outputs to inputs for the stored node connections, including nested child nodes.
+        
+        Parameters:
+            nodeinfo_list: Node information containing connection definitions to process.
+            parent_node: Unused compatibility parameter.
         """
         nodeinfo_by_path = self._nodeinfo_by_path()
         for nodeinfo in nodeinfo_list:
@@ -381,13 +401,7 @@ class USDGraphBuilder:
 
     def run(self):
         """
-        Main entry: replicate Houdini NodeRecreator.run() flow:
-
-          1. Ensure parent scope exists.
-          2. Create collect-Material prim(s).
-          3. Create all child shader prims.
-          4. Wire outputs into the collect-Material.
-          5. Wire inter-shader connections.
+        Builds the USD material and shader graph, including output and inter-shader connections.
         """
         # 1. create parent scope exists
         UsdGeom.Scope.Define(self.stage, Sdf.Path(self.parent_scope_path))

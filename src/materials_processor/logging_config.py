@@ -12,24 +12,22 @@ def setup_file_logging(
     max_bytes: int = 5 * 1024 * 1024,
     backup_count: int = 3,
 ) -> logging.FileHandler | None:
-    """Sets up a safe, rotating file logging handler for the package logger.
-
-    If the specified log directory is not writable or creates an exception,
-    this function will gracefully fall back to the system temporary directory.
-    If the temporary directory is also not writable, it logs a warning and
-    returns None to ensure the application never crashes due to logging issues.
-
-    Args:
-        logger_name: The name of the logger to configure. Defaults to "materials_processor".
-        log_dir: Absolute path to the directory where logs should be stored. If None,
-            it defaults to a subdirectory in the user's documents/home directory, or falls
-            back to the system temp folder.
-        max_bytes: Maximum size of each log file in bytes before rotation occurs.
-            Defaults to 5MB.
-        backup_count: Number of rotated log backup files to keep. Defaults to 3.
-
+    """
+    Configure rotating file logging for a named logger.
+    
+    Uses the provided directory when available, then falls back to user and
+    system temporary directories. If the logger already has a file handler, that
+    handler is returned unchanged.
+    
+    Parameters:
+        logger_name (str): Name of the logger to configure.
+        log_dir (str | None): Preferred directory for the log file.
+        max_bytes (int): Maximum log file size before rotation.
+        backup_count (int): Number of rotated log files to retain.
+    
     Returns:
-        The configured RotatingFileHandler, or None if file logging could not be set up safely.
+        logging.FileHandler | None: The configured file handler, or None if no
+        candidate directory can be used.
     """
     logger = logging.getLogger(logger_name)
 

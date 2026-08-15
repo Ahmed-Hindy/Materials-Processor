@@ -51,7 +51,12 @@ def available_format_choices() -> dict[str, str]:
 
 
 def create_window_classes():
-    """Create Qt classes after a binding has been loaded."""
+    """
+    Create and return the Qt window, node-list, and preferences-dialog classes.
+    
+    Returns:
+        tuple: The MaterialProcessorWindow, NodeDropList, and PreferencesDialog classes.
+    """
     NodeDropList = create_node_drop_list_class()
     selection_mode = extended_selection_mode()
     dialog_button = dialog_button_namespace()
@@ -60,6 +65,12 @@ def create_window_classes():
         """Small preferences dialog for session-local UI settings."""
 
         def __init__(self, parent=None, preferences=None):
+            """
+            Initialize the preferences dialog with the available logging-level options.
+            
+            Parameters:
+                preferences (dict, optional): Initial preferences used to select the logging level.
+            """
             super().__init__(parent)
             self.setWindowTitle("Preferences")
             self.resize(340, 160)
@@ -152,6 +163,7 @@ def create_window_classes():
             self.statusBar().showMessage(f"Qt binding: {QT_BACKEND_NAME}")
 
         def _configure_logging(self):
+            """Configure application logging and route formatted messages to the log display."""
             self.logger = logging.getLogger("materials_processor")
             self.logger.setLevel(logging.INFO)
 
@@ -160,6 +172,7 @@ def create_window_classes():
             self.logger.addHandler(self._qt_handler)
 
         def _refresh_renderer_choices(self):
+            """Refresh the target-renderer choices and update conversion availability."""
             current = self.current_target_format()
             choices = available_format_choices()
             self._format_names = list(choices)
@@ -189,7 +202,11 @@ def create_window_classes():
             return node
 
         def run(self):
-            """Convert all listed materials to the selected renderer."""
+            """
+            Convert the selected material nodes to the chosen renderer.
+            
+            Conversion results are recorded in the window state. Successfully converted nodes are cleared from the list; failed conversions remain listed.
+            """
             self.state.selected_node_paths = self.node_list.paths()
             self.state.target_format = self.current_target_format()
             self.state.converted_paths = []
@@ -246,6 +263,7 @@ def create_window_classes():
                 )
 
         def show_about_dialog(self):
+            """Display the application's About dialog."""
             QtWidgets.QMessageBox.about(
                 self,
                 "About Material Processor",

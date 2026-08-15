@@ -17,6 +17,15 @@ setup_file_logging()
 
 
 def ingest_material(material_node):
+    """
+    Extract and standardize the node data from a Houdini material network.
+    
+    Parameters:
+    	material_node: The Houdini material node to process.
+    
+    Returns:
+    	tuple: The material type, standardized node information, and output connections; `(None, None, None)` if the material type is unsupported or processing fails.
+    """
     try:
         material_type = get_material_type(material_node)
         if not material_type:
@@ -80,13 +89,15 @@ def ingest_material(material_node):
 
 def run(input_material_builder_node, target_context, target_format="arnold"):
     """
-    Run the material conversion process for the selected node.
-
-    Args:
-        input_material_builder_node (hou.Node): The selected Houdini shading network,
-                                                e.g., arnold materialbuilder or mtlx materialbuilder.
-        target_context (hou.Node): The target Houdini context node.
-        target_format (str, optional): The target renderer (default is 'mtlx').
+    Convert a material node to the specified target renderer.
+    
+    Parameters:
+        input_material_builder_node: The Houdini material builder node to convert.
+        target_context: The Houdini node that receives the recreated material.
+        target_format (str): The target renderer format.
+    
+    Returns:
+        bool: `True` if conversion succeeds, `False` if ingestion or recreation fails.
     """
     material_type, nodeinfo_list, output_connections = ingest_material(input_material_builder_node)
     if not (material_type and nodeinfo_list and output_connections):
@@ -111,22 +122,10 @@ def run(input_material_builder_node, target_context, target_format="arnold"):
 
 def convert_material_from_opmenu(kwargs):
     """
-    Houdini op-menu / shelf tool entry to convert selected material builder(s)
-    into the given target_format (e.g. 'mtlx', 'arnold', 'rs_usd_material_builder').
-
-    Example:
-         kwargs={
-         'items': [<hou.VopNode of type subnet at /mat/mtlxmaterial_basic>],
-         'node': <hou.VopNode of type subnet at /mat/mtlxmaterial_basic>,
-         'networkeditorpos': (6.704338180657215, 3.538853007111061),
-         'commonparent': True,
-         'networkeditor': <hou.NetworkEditor panetab10>,
-         'toolname': 'h.pane.wsheet.axe_convert_material',
-         'altclick': False,
-         'ctrlclick': False,
-         'shiftclick': False,
-         'cmdclick': False
-         }
+    Convert selected Houdini material builder nodes to a user-selected target renderer.
+    
+    Parameters:
+        kwargs (dict): Houdini operator-menu or shelf-tool context containing the selected nodes.
     """
 
     if not kwargs.get("items"):
@@ -216,6 +215,7 @@ def test():
 
 
 def test_hou():
+    """Recreate the test material in the `/mat` context using Arnold."""
     target_context = hou.node("/mat")
     target_renderer = "arnold"
     material_type = "arnold"

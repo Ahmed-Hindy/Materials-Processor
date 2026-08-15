@@ -65,7 +65,19 @@ def _create_albedo_material(
 def _create_normal_vector_material(
     stage: Usd.Stage, material_path: Sdf.Path, source_material: UsdShade.Material
 ) -> UsdShade.Material:
-    """Visualize the raw encoded tangent-space normal texture."""
+    """
+    Create a material that displays a baked tangent-space normal texture as raw color.
+    
+    Parameters:
+        material_path (Sdf.Path): Path at which to define the visualization material.
+        source_material (UsdShade.Material): Source material containing the baked normal-map connection.
+    
+    Returns:
+        UsdShade.Material: Material connected to the raw normal-texture visualization.
+    
+    Raises:
+        ValueError: If the source material lacks a connected surface, baked normal map, or texture coordinates.
+    """
     source_surface = source_material.GetSurfaceOutput("mtlx")
     source = source_surface.GetConnectedSource() if source_surface else None
     if not source:
@@ -109,7 +121,23 @@ def create_preview_stage(
     geometry_usd: Path | None = None,
     material_name: str | None = None,
 ) -> list[str]:
-    """Compose baked MaterialX USD with ten geometry previews and optional lights."""
+    """
+    Create a USD preview stage for baked MaterialX materials.
+    
+    Parameters:
+        materials_usd (Path): USD file containing the baked materials.
+        output_usd (Path): Destination path for the generated USD stage.
+        albedo_only (bool): Use albedo visualization materials instead of the baked materials.
+        normal_vectors (bool): Use raw normal-texture visualization materials.
+        geometry_usd (Path | None): Optional USD file containing comparison geometry and a camera.
+        material_name (str | None): Optional name selecting a single material for preview.
+    
+    Returns:
+        list[str]: Names of the materials included in the preview stage.
+    
+    Raises:
+        ValueError: If no materials are available, the requested material is missing, or comparison geometry does not contain exactly one mesh and one camera.
+    """
     materials_usd = materials_usd.resolve()
     output_usd.parent.mkdir(parents=True, exist_ok=True)
     stage = Usd.Stage.CreateNew(str(output_usd))
@@ -200,7 +228,11 @@ def create_preview_stage(
 
 
 def main() -> int:
-    """Create the stage and print the material count for shell validation."""
+    """Parse command-line arguments, create the USD preview stage, and report its material count.
+    
+    Returns:
+    	int: Zero after the preview stage is created successfully.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("materials_usd", type=Path)
     parser.add_argument("--output", type=Path, required=True)

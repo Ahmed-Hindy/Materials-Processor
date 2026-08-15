@@ -13,6 +13,16 @@ class USDPreviewTextureMaterialMixin:
 
     ###  usd_preview ###
     def _create_usd_preview_material(self, parent_path, usd_preview_format):
+        """
+        Create a USD Preview material with texture-driven shader inputs.
+        
+        Parameters:
+        	parent_path (str): Path under which to define the material.
+        	usd_preview_format (str): File extension to use for texture assets, or an empty value to preserve the original extension.
+        
+        Returns:
+        	material (UsdShade.Material): The created USD Preview material.
+        """
         material_path = f"{parent_path}/UsdPreviewMaterial"
         material = UsdShade.Material.Define(self.stage, material_path)
 

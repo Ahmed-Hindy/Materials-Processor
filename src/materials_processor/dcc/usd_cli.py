@@ -20,7 +20,15 @@ TARGET_FILE_LABELS = {
 
 
 def nodeinfo_from_dict(data: dict[str, Any]) -> NodeInfo:
-    """Rebuild a ``NodeInfo`` from JSON-compatible data."""
+    """
+    Reconstruct a ``NodeInfo`` instance from serialized mapping data.
+    
+    Parameters:
+    	data (dict[str, Any]): JSON-compatible node data, including nested child nodes.
+    
+    Returns:
+    	NodeInfo: The reconstructed node information.
+    """
     return NodeInfo(
         node_type=data.get("node_type"),
         node_name=data["node_name"],

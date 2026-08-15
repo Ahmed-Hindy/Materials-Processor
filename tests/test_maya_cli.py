@@ -13,6 +13,15 @@ from materials_processor.dcc.maya import cli
 
 
 def _graph_payload(material_name="Maya Cli Material"):
+    """
+    Build a serialized material-graph payload for a Maya scene.
+    
+    Parameters:
+    	material_name (str): Name assigned to the material and its graph paths.
+    
+    Returns:
+    	dict: Payload containing the scene metadata, serialized material graph, and empty issue collections.
+    """
     graph = MaterialGraph(
         material_name=material_name,
         material_path=f"/maya/{material_name}",
@@ -130,6 +139,15 @@ def test_inspect_maya_scene_writes_report_before_missing_texture_failure(tmp_pat
     report_json = tmp_path / "inspect_report.json"
 
     def fake_extract(scene_path, graph_json_path, **kwargs):
+        """Write a test material-graph payload with a missing texture path and report one extracted graph.
+        
+        Parameters:
+        	scene_path: Scene path accepted for compatibility with the extraction interface.
+        	graph_json_path: Destination path for the serialized graph payload.
+        
+        Returns:
+        	A mapping containing the number of extracted graphs.
+        """
         Path(graph_json_path).write_text(
             json.dumps(_texture_graph_payload("C:/missing/basecolor.png")), encoding="utf-8"
         )

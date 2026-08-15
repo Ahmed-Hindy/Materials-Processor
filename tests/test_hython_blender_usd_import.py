@@ -76,7 +76,17 @@ def _blender_graph_payload() -> dict[str, object]:
 
 
 def _load_in_solaris(hython: str, usd_path: Path, material_path: str, shader_path: str) -> dict[str, object]:
-    """Cook a Solaris sublayer LOP and return its loaded USD material details."""
+    """
+    Load a USD material through Solaris and collect its material and shader details.
+    
+    Parameters:
+        usd_path (Path): Path to the exported USD file.
+        material_path (str): USD prim path of the material to inspect.
+        shader_path (str): USD prim path of the shader to inspect.
+    
+    Returns:
+        dict[str, object]: Material and shader validity flags and the shader's identifier.
+    """
     script = "\n".join(
         [
             "import json",

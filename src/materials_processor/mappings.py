@@ -346,9 +346,17 @@ for renderer, profiles in REGULAR_NODE_TYPES_TO_GENERIC.items():
 # 3) a single little helper to pick which map you want:
 def convert_generic(node_type: str, target_renderer: str, profile: str = "hou_vop_nodes") -> str:
     """
-    profile == 'hou_vop_nodes'  → VOP node‐type mapping
-    profile == 'usd_prims'      → USD‐prim info:id mapping
-    profile == 'blender_shader_nodes' → Blender shader node mapping
+    Convert a generic node type to the target renderer's node type for the selected profile.
+    
+    Parameters:
+        node_type (str): Generic node type to convert.
+        target_renderer (str): Renderer whose node type mapping should be used.
+        profile (str): Mapping profile to select, such as Houdini VOP nodes, USD prims,
+            or Blender shader nodes.
+    
+    Returns:
+        str: Renderer-specific node type, or the profile's generic null node when no
+            mapping exists.
     """
     lookup = GENERIC_TO_RENDERER[target_renderer].get(profile, {})
     return lookup.get(node_type, lookup.get("GENERIC::null"))

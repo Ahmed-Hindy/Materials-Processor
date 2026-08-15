@@ -12,13 +12,16 @@ except ImportError:
 
 def _detect_arnold_output_nodes(material_node):
     """
-    Detect Arnold output nodes in the node tree.
-
-    Args:
-        material_node (hou.Node): The parent Houdini node.
-
+    Identify Arnold surface and displacement output connections in a material node.
+    
+    Parameters:
+        material_node (hou.Node): The parent material node containing the Arnold output node.
+    
     Returns:
-        Dict: A dictionary of detected Arnold output nodes.
+        dict: Output metadata keyed by "surface" and "displacement" for detected connections.
+    
+    Raises:
+        Exception: If the material node does not contain an Arnold output node.
     """
     arnold_output = None
     for child in material_node.children():
@@ -71,13 +74,13 @@ def _detect_arnold_output_nodes(material_node):
 
 def _detect_mtlx_output_nodes(material_node):
     """
-    Detect MaterialX output nodes in the node tree.
-
-    Args:
-        material_node (hou.Node): The parent Houdini node.
-
+    Detect MaterialX surface and displacement output connections.
+    
+    Parameters:
+    	material_node (hou.Node): The MaterialX material node whose subnet connectors are inspected.
+    
     Returns:
-        Dict: A dictionary of detected MaterialX output nodes.
+    	Dict: A mapping of output types to connection metadata for detected surface and displacement outputs.
     """
     output_nodes = {}
     output_nodes_list = [child for child in material_node.children() if child.type().name() == "subnetconnector"]
@@ -159,13 +162,16 @@ def _redshift_terminal_output_nodes(redshift_output):
 
 def _detect_redshift_vopnet_output_nodes(material_node):
     """
-    Detect redshift_vopnet output nodes in the node tree.
-
-    Args:
-        material_node (hou.Node): The parent Houdini node.
-
+    Detect the Redshift material output connections in a material node.
+    
+    Parameters:
+        material_node (hou.Node): The parent Houdini material node.
+    
     Returns:
-        Dict: A dictionary of detected redshift_vopnet output nodes.
+        dict: Detected surface and displacement connection metadata.
+    
+    Raises:
+        Exception: If the material node has no Redshift material output node.
     """
     redshift_output = None
     for child in material_node.children():
@@ -180,13 +186,16 @@ def _detect_redshift_vopnet_output_nodes(material_node):
 
 def _detect_RsUsdMaterialbuilder_output_nodes(material_node):
     """
-    Detect rs usd materialbuilder output nodes in the node tree.
-
+    Detect Redshift USD material builder output connections.
+    
     Args:
-        material_node (hou.Node): The parent Houdini node.
-
+        material_node (hou.Node): The material node whose children are inspected.
+    
     Returns:
-        Dict: A dictionary of detected redshift_vopnet output nodes.
+        dict: Surface and displacement output connection metadata.
+    
+    Raises:
+        Exception: If the material node has no Redshift USD material output.
     """
     redshift_output = None
     for child in material_node.children():
@@ -243,7 +252,19 @@ def _detect_principled_output_nodes(material_node):
 
 
 def detect_output_nodes(material_node, material_type: str):
-    """Route to the correct renderer-specific detector."""
+    """
+    Selects the output detector for the specified material renderer.
+    
+    Parameters:
+        material_node: Material node whose outputs are inspected.
+        material_type (str): Renderer or shader type identifying the detector to use.
+    
+    Returns:
+        Renderer-specific surface and displacement output metadata.
+    
+    Raises:
+        KeyError: If the material type is unsupported.
+    """
     if material_type == "arnold":
         return _detect_arnold_output_nodes(material_node)
     elif material_type == "mtlx":

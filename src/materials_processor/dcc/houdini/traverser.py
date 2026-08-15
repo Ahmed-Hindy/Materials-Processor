@@ -31,29 +31,14 @@ class NodeTraverser:
 
     def create_output_dict(self, material_node, material_type: str):
         """
-        Detect output nodes in the node tree based on the material type.
-
-        Args:
-            material_node (hou.VopNode): The Houdini material node.
-            material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
-
+        Detect output nodes for a material node.
+        
+        Parameters:
+            material_node (hou.VopNode): The material node whose outputs are detected.
+            material_type (str): The material type used to identify its output nodes.
+        
         Returns:
-            Dict: A dictionary of detected output nodes.
-
-        Examples:
-            >>> output_dict = self.create_output_dict(material_node=hou.node('/mat/arnold_materialbuilder_basic'), material_type='arnold')
-            >>> print(output_dict)
-            {'surface':
-                {'node_name': 'OUT_material',
-                 'node_path': '/mat/arnold_materialbuilder_basic/OUT_material',
-                 'connected_node_name': 'standard_surface',
-                 'connected_node_path': '/mat/arnold_materialbuilder_basic/standard_surface',
-                 'connected_input_index': 0,
-                 'connected_input_name': 'surface',
-                 'connected_output_name': 'shader',
-                 'generic_type': 'GENERIC::output_surface'
-                 }
-            }
+            dict: A dictionary describing the detected output nodes.
         """
         logger.info("detect_output_nodes START for %s", material_node.path())
         return detect_output_nodes(material_node, material_type)
@@ -61,29 +46,14 @@ class NodeTraverser:
     @staticmethod
     def _detect_node_connections(node, parent_node):
         """
-        Detect and extract the output connections of a given node, including input and output connections.
-
-        Args:
-            node (hou.Node): The Houdini node to analyze connections for.
-
+        Collect connections from a node to its specified parent node.
+        
+        Parameters:
+        	node (hou.Node): The node whose outgoing connections are examined.
+        	parent_node (hou.Node): The parent node used to filter relevant connections.
+        
         Returns:
-            Dict[str, Dict[str, Dict[str, Any]]]: A dictionary containing the connection information with the following structure:
-                {
-                    "connection_<index>": {
-                        "input": {
-                            "node_name": str,  # Name of the input node
-                            "node_path": str,  # Path of the input path
-                            "node_index": int, # Index of the input connection
-                            "parm_name": str   # Name of the input parameter
-                        },
-                        "output": {
-                            "node_name": str,  # Name of the output node
-                            "node_path": str,  # Path of the input path
-                            "node_index": int, # Index of the output connection
-                            "parm_name": str   # Name of the output parameter
-                        }
-                    }
-                }
+        	Dict[str, Dict[str, Dict[str, Any]]]: Connection metadata keyed by connection index. Each entry contains input and output node names, paths, types, indices, parameter names, and data types.
         """
         # print(f"DEBUG: parent_node.name(): {parent_node.name() if parent_node else 'None'},   node.name(): {node.name()}")
         # e.g. prints:
@@ -134,15 +104,39 @@ class NodeTraverser:
     @staticmethod
     def _convert_parms_to_dict(node):
         """
-        Convert all input‐tuple parms and actual output‐connections on a Houdini VOP node
-        into two lists of {generic_name, value, type, direction}.
+        Convert a Houdini VOP node's parameters and outgoing connections into input and output metadata.
+        
+        Parameters:
+            node: Houdini VOP node to inspect.
+        
+        Returns:
+            A dictionary with ``input`` and ``output`` lists containing parameter names,
+            values, data types, and directions.
         """
 
         def strip_prefix(s: str, prefix: str) -> str:
+            """Remove the specified prefix from a string when it is present.
+            
+            Parameters:
+            	s (str): The string to process.
+            	prefix (str): The prefix to remove.
+            
+            Returns:
+            	str: The string without the prefix when present; otherwise, the original string.
+            """
             return s[len(prefix) :] if s.startswith(prefix) else s
 
         def compute_datatype_and_components(tpl) -> tuple[str, int]:
             # e.g. tpl.dataType().name() -> "parmData.Float"
+            """
+            Determine a parameter's normalized data type and component count.
+            
+            Parameters:
+                tpl: Parameter template providing data type, naming scheme, and component count.
+            
+            Returns:
+                tuple[str, int]: The normalized data type and number of components.
+            """
             raw_dt = tpl.dataType().name()
             dt = strip_prefix(raw_dt, "parmData.").lower()
 
@@ -205,15 +199,15 @@ class NodeTraverser:
 
     def _traverse_recursively_node_tree(self, node, parent_node=None, active_paths=None):
         """
-        Recursively traverse the node tree and return a dictionary of node connections with additional metadata,
-        separating the input index and input node path as key-value pairs.
-
-        Args:
-            node (hou.Node): The current Houdini node.
-            parent_node (hou.Node), optional): The traversal path.
-
+        Build a dictionary representation of a node and its input hierarchy.
+        
+        Parameters:
+            node (hou.Node): The node to traverse.
+            parent_node (hou.Node, optional): The parent node used to describe connections to the current node.
+            active_paths (set, optional): Node paths currently being traversed, used to skip recursive cycles.
+        
         Returns:
-            Dict[str, Dict]: A dictionary representing the node tree with additional metadata.
+            dict: A dictionary keyed by node path containing node metadata, connections, parameters, and child nodes.
         """
         if active_paths is None:
             active_paths = set()
@@ -256,9 +250,10 @@ class NodeTraverser:
 
     def run(self):
         """
-        Traverse the children nodes of a parent node to extract the node tree and detect output nodes.
+        Builds the material node tree and identifies its output nodes.
+        
         Returns:
-            (Dict, Dict): 2 Dictionaries, First for the node dict and Second for the Output Dict.
+            tuple: The node tree dictionary and output-node dictionary.
         """
         # first, get an output_nodes_dict
         output_tree = self.create_output_dict(self.material_node, self.material_type)
@@ -274,10 +269,27 @@ class NodeTraverser:
 
 
 def _subnet_has_node_type(materialbuilder_node, node_type):
+    """Determine whether a material builder contains a child node of the specified type.
+    
+    Parameters:
+    	materialbuilder_node: The material builder node whose children are inspected.
+    	node_type: The node type name to find.
+    
+    Returns:
+    	bool: `true` if a child has the specified type, `false` otherwise.
+    """
     return any(child.type().name() == node_type for child in materialbuilder_node.children())
 
 
 def _subnet_surface_output_node_type(materialbuilder_node):
+    """Return the node type connected to the subnet's surface output connector.
+    
+    Parameters:
+    	materialbuilder_node: The subnet node whose surface output connection is inspected.
+    
+    Returns:
+    	str or None: The connected node type, or `None` when no surface output connection is available.
+    """
     for child in materialbuilder_node.children():
         if child.type().name() != "subnetconnector":
             continue
@@ -295,10 +307,13 @@ def _subnet_surface_output_node_type(materialbuilder_node):
 
 def get_material_type(materialbuilder_node):
     """
-    Args:
-        materialbuilder_node (hou.VopNode): input material shading network, e.g., arnold materialbuilder
+    Determine the material type represented by a material-builder node.
+    
+    Parameters:
+    	materialbuilder_node (hou.VopNode): Material shading network node to classify.
+    
     Returns:
-        (str): material type.
+    	str or None: Normalized material type, or `None` when the node type is unsupported.
     """
     material_type = None
 

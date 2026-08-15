@@ -115,7 +115,19 @@ print("Exported comparison geometry: " + {str(geometry_path)!r})
 
 
 def main() -> int:
-    """Render the source and export the same comparison geometry."""
+    """
+    Render the selected material and export matching comparison geometry.
+    
+    Parameters:
+        Command-line arguments specify the source scene, material, image output,
+        geometry USD output, and optional Cycles sample count.
+    
+    Raises:
+        RuntimeError: If the Blender render or USD export fails.
+    
+    Returns:
+        int: Zero after successful completion.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_scene", type=Path)
     parser.add_argument("--material", required=True)

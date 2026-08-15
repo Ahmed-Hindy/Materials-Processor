@@ -14,6 +14,14 @@ from materials_processor.dcc.blender import cli
 
 
 def _graph_payload(material_name="Cli Material"):
+    """Build a serialized material graph payload for test fixtures.
+    
+    Parameters:
+    	material_name (str): Name used for the material and its graph paths.
+    
+    Returns:
+    	dict: Serialized scene metadata containing one material graph and empty diagnostic results.
+    """
     graph = MaterialGraph(
         material_name=material_name,
         material_path=f"/mat/{material_name}",
@@ -243,6 +251,7 @@ def test_inspect_blender_scene_writes_report_before_missing_texture_failure(tmp_
     report_json = tmp_path / "inspect_report.json"
 
     def fake_extract(scene_path, graph_json_path, **kwargs):
+        """Write a fixture material graph containing a missing texture and report one graph."""
         Path(graph_json_path).write_text(
             json.dumps(_texture_graph_payload(r"C:\missing\basecolor.png")), encoding="utf-8"
         )
@@ -583,6 +592,17 @@ def test_blender_cli_bake_without_a_material_selects_all(tmp_path, monkeypatch, 
     monkeypatch.setattr(cli, "resolve_blender_runtime", lambda **kwargs: "runtime")
 
     def fake_export(scene_path, out_dir, **kwargs):
+        """
+        Capture export options and return a minimal export result for testing.
+        
+        Parameters:
+            scene_path: Scene path supplied to the simulated export.
+            out_dir: Directory reported as the export output directory.
+            **kwargs: Export options to capture.
+        
+        Returns:
+            A dictionary containing the output directory and an empty USD file mapping.
+        """
         captured["kwargs"] = kwargs
         return {"output_dir": str(out_dir), "usd_files": {}}
 

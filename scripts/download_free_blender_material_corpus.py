@@ -74,7 +74,15 @@ def _verify(path: Path, entry: dict[str, object]) -> bool:
 
 
 def _download(destination: Path, entry: dict[str, object]) -> None:
-    """Download one known-size source file and reject an unexpected response."""
+    """Download and verify a corpus file against its expected size and SHA-256 digest.
+    
+    Parameters:
+    	destination (Path): Path where the verified file is written.
+    	entry (dict[str, object]): Corpus metadata containing the filename, expected size, and digest.
+    
+    Raises:
+    	ValueError: If the response size, downloaded size, or file digest does not match the corpus metadata.
+    """
     filename = str(entry["filename"])
     request = Request(f"{SOURCE_ROOT}/{filename}", headers={"User-Agent": USER_AGENT})
     with urlopen(request, timeout=120) as response:  # noqa: S310 - fixed GitHub HTTPS source.
@@ -90,7 +98,14 @@ def _download(destination: Path, entry: dict[str, object]) -> None:
 
 
 def main() -> int:
-    """Download the corpus only after validating the aggregate size budget."""
+    """Download or reuse the verified material corpus and write its manifest.
+    
+    Raises:
+        ValueError: If the corpus exceeds the configured size budget.
+    
+    Returns:
+        0 after all materials are verified and the manifest is written.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--budget-mib", type=float, default=DEFAULT_BUDGET_MIB)

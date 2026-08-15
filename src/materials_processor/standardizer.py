@@ -30,6 +30,15 @@ def _is_truthy(value):
 
 
 def _as_scalar(value):
+    """
+    Convert a single-element list or tuple to its contained value.
+    
+    Parameters:
+        value: The value to convert.
+    
+    Returns:
+        The contained element for a single-element list or tuple; otherwise, the original value.
+    """
     if isinstance(value, (list, tuple)) and len(value) == 1:
         return value[0]
     return value
@@ -42,13 +51,16 @@ class NodeStandardizer:
 
     def __init__(self, traversed_nodes_dict, output_nodes_dict, material_type, source_type):
         """
-        Initialize the NodeStandardizer with the traverse tree and output nodes.
-
-        Args:
-            traversed_nodes_dict (Dict): The nested node dictionary from NodeTraverser.
-            output_nodes_dict (Dict): The detected output nodes from NodeTraverser.
-            material_type (str): The type of material (e.g., 'arnold', 'mtlx', 'principledshader').
-            source_type (str): Type of source (e.g., 'hou_vop_nodes', 'usd_prims').
+        Initialize a standardizer for traversed material nodes and detected output nodes.
+        
+        Parameters:
+            traversed_nodes_dict (dict): Nested node data produced by node traversal.
+            output_nodes_dict (dict): Detected output node data produced by node traversal.
+            material_type (str): Material type being standardized.
+            source_type (str): Source type of the traversed nodes.
+        
+        Raises:
+            ValueError: If `source_type` is not supported.
         """
         self.traversed_nodes_dict = traversed_nodes_dict
         self.output_nodes_dict = output_nodes_dict
@@ -67,17 +79,13 @@ class NodeStandardizer:
     @staticmethod
     def standardize_output_dict(output_nodes_dict):
         """
-        Standardize a dictionary of output node connection metadata.
-
-        Args:
-            output_nodes_dict (Dict[str, Dict[str, Any]]): A dictionary where each key is an output identifier and its value is a dictionary containing connection details:
-                - 'node_path': The path to the node.
-                - 'connected_node_name': The name of the connected node.
-                - 'connected_node_path': The path to the connected node.
-                - 'connected_input_index': The input index for the connection.
-
+        Standardize output node connection metadata.
+        
+        Parameters:
+        	output_nodes_dict (dict): Mapping of output identifiers to connection metadata.
+        
         Returns:
-            Dict[str, Dict[str, Any]]: A new dictionary with each output identifier prefixed with "GENERIC::output_", preserving the original connection details.
+        	dict: Mapping of prefixed output identifiers to `OutputConnection` objects.
         """
         output_connections = {}
         for key, value in output_nodes_dict.items():
@@ -88,14 +96,14 @@ class NodeStandardizer:
     @staticmethod
     def standardize_shader_parameters(node_type, parms):
         """
-        Filter and standardize parameters for a given node.
-
-        Args:
-            node_type (str): The type of the Houdini node.
-            parms (Dict(List[Dict[str, Any]])): The Parameter Dictionary to be standardized.
-
+        Standardize a node's input and output parameters using its generic parameter mapping.
+        
+        Parameters:
+            node_type (str): The node type whose parameter mapping should be applied.
+            parms (dict): Mappings containing the node's input and output parameters.
+        
         Returns:
-            List[NodeParameter]: A list of filtered and standardized node parameters.
+            list[NodeParameter]: The supported parameters with generic names and scalar values.
         """
         _unsupported_parms_list = []
         _parms_with_no_generic_name_list = []
@@ -170,26 +178,13 @@ class NodeStandardizer:
 
     def standardize_connection_info(self, connections_dict):
         """
-
-        Example:
-            DEBUG: connections_dict: {
-                        'connection_0': {
-                                'input': {
-                                        'node_name': 'mtlxstandard_surface',
-                                        'node_path': '/mat/mtlxmaterial_basic/mtlxstandard_surface',
-                                        'node_type': 'mtlxstandard_surface',
-                                        'node_index': 0,
-                                        'parm_name': 'out',
-                                        'data_type': 'surface'},
-                                'output': {
-                                        'node_name': 'surface_output',
-                                        'node_path': '/mat/mtlxmaterial_basic/surface_output',
-                                        'node_type': 'subnetconnector',
-                                        'node_index': 0,
-                                        'parm_name': 'suboutput',
-                                        'data_type': 'surface'}
-                                       }
-                                     }
+        Standardize connection endpoints by mapping source parameter names to generic names.
+        
+        Parameters:
+            connections_dict (dict): Connection mappings keyed by connection identifier.
+        
+        Returns:
+            dict: Connection mappings containing standardized endpoint parameter names. Endpoints without a node-type or parameter mapping retain their original names.
         """
         if not connections_dict:
             return {}
@@ -237,25 +232,14 @@ class NodeStandardizer:
 
     def create_nodeinfo_object(self, node_path, child_dict):
         """
-        Create a NodeInfo object from a NodeTraverser dictionary.
-
+        Create a standardized NodeInfo object from traversed node data.
+        
         Args:
-            node_path (str): The Houdini node path.
-            child_dict (dict):
+            node_path (str): Path of the node in the source graph.
+            child_dict (dict): Traversed node data, including its type, name, parameters, connections, and output status.
+        
         Returns:
-            NodeInfo: The created NodeInfo object.
-
-        Example:
-            >>> node_path='/mat/arnold_materialbuilder_basic/OUT_material'
-            >>> child_dict={
-                     'node_name': 'image_roughness',
-                     'node_path': '/mat/arnold_materialbuilder_basic/image_roughness',
-                     'node_type': 'arnold::image',
-                     'node_parms': []
-                                 }
-
-            >>> node_info_obj = self.create_nodeinfo_object(node_path='/mat/arnold_materialbuilder_basic/OUT_material', child_dict=child_dict)
-
+            NodeInfo: Standardized node information.
         """
         is_output_node = child_dict.get("is_output_node", False)
         output_type = child_dict.get("output_type", None)
@@ -332,6 +316,18 @@ class NodeStandardizer:
 
     @staticmethod
     def _image_node(node_path, node_name, filename, signature):
+        """
+        Create a generic image node with filename and signature parameters.
+        
+        Parameters:
+        	node_path (str): Parent path for the image node.
+        	node_name (str): Name of the image node.
+        	filename (str): Image file path or name.
+        	signature (str): Image signature identifying its content or format.
+        
+        Returns:
+        	NodeInfo: A generic image node configured with the supplied parameters.
+        """
         return NodeInfo(
             node_type="GENERIC::image",
             node_name=node_name,
@@ -386,6 +382,7 @@ class NodeStandardizer:
         )
 
     def _add_principled_texture_children(self, surface_nodeinfo, parameters_by_name):
+        """Add image-texture child nodes and connect them to the corresponding surface inputs when configured."""
         for surface_input, texture_info in PRINCIPLED_TEXTURE_INPUTS.items():
             enabled = self._parameter_value(parameters_by_name, texture_info["use_parm"], False)
             filename = self._parameter_value(parameters_by_name, texture_info["texture_parm"], "")
@@ -409,6 +406,9 @@ class NodeStandardizer:
             surface_nodeinfo.children_list.append(image_nodeinfo)
 
     def _add_principled_normal_child(self, surface_nodeinfo, parameters_by_name):
+        """
+        Adds image and normal-map child nodes for an enabled normal texture configured with a normal-map type.
+        """
         enabled = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT["enable_parm"], False)
         normal_type = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT["type_parm"], "")
         filename = self._parameter_value(parameters_by_name, PRINCIPLED_NORMAL_INPUT["texture_parm"], "")
@@ -455,6 +455,16 @@ class NodeStandardizer:
         surface_nodeinfo.children_list.append(normalmap_nodeinfo)
 
     def _principled_displacement_node(self, surface_nodeinfo, parameters_by_name):
+        """
+        Create a displacement node and its connected float image child when displacement is enabled and configured with a texture.
+        
+        Parameters:
+        	surface_nodeinfo (NodeInfo): Surface node to which the displacement node belongs.
+        	parameters_by_name (dict): Principled shader parameters keyed by generic name.
+        
+        Returns:
+        	NodeInfo or None: The generated displacement node, or `None` when displacement is disabled or has no texture filename.
+        """
         enabled = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT["enable_parm"], False)
         filename = self._parameter_value(parameters_by_name, PRINCIPLED_DISPLACEMENT_INPUT["texture_parm"], "")
         if not (_is_truthy(enabled) and filename):
@@ -498,6 +508,16 @@ class NodeStandardizer:
         return displacement_nodeinfo
 
     def _expand_principled_standardization(self, nodeinfo_list, output_connections):
+        """
+        Expand a generic standard-surface node with configured texture, normal, and displacement nodes.
+        
+        Parameters:
+            nodeinfo_list (list): Node information objects to expand.
+            output_connections (dict): Output connections associated with the standardized nodes.
+        
+        Returns:
+            tuple: The expanded node information list and updated output connections.
+        """
         if not nodeinfo_list:
             return nodeinfo_list, output_connections
 
@@ -528,19 +548,13 @@ class NodeStandardizer:
 
     def run(self):
         """
-        Standardizes output nodes and processes node information list based on a tree traversal.
-        This method performs the following:
-            1. Standardizes the given output nodes.
-            2. Processes the node information list by standardizing node data based on traversal
-               logic.
-            3. Returns a tuple containing the standardized output nodes and the standardized
-               node information list.
-
+        Standardize traversed nodes and output connections into generic graph objects.
+        
+        For Principled shaders from Houdini VOP nodes, expands configured textures,
+        normal maps, and displacement nodes.
+        
         Returns:
-            ([NodeInfo], dict): A tuple containing the standardized output nodes and the standardized
-                 node information list.
-
-
+            tuple: A tuple containing the standardized node list and output mapping.
         """
         nodeinfo_list = self.standardize_node_dict(self.traversed_nodes_dict)
         standardized_output_nodes_dict = self.standardize_output_dict(self.output_nodes_dict)

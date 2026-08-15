@@ -35,13 +35,14 @@ class NodeRecreator:
 
     def __init__(self, nodeinfo_list, output_connections, target_context, target_renderer="arnold", material_name=None):
         """
-        Initialize the NodeRecreator with the provided material data and target context.
-
-        Args:
-            nodeinfo_list (list[NodeInfo]): The standardized material data.
-            output_connections (Dict): The output connections mapping.
-            target_context (hou.Node): The target Houdini context node.
-            target_renderer (str, optional): The target renderer (default is 'arnold').
+        Initialize a material graph recreator with source graph data and a target Houdini context.
+        
+        Parameters:
+            nodeinfo_list (list[NodeInfo]): Standardized material node metadata.
+            output_connections (dict): Mapping of standardized material outputs to their source connections.
+            target_context (hou.Node): Houdini node under which the recreated material network is built.
+            target_renderer (str): Renderer used for node and connection conversion.
+            material_name (str | None): Optional name for the recreated material.
         """
         self.nodeinfo_list = nodeinfo_list
         self.orig_output_connections = output_connections
@@ -69,13 +70,14 @@ class NodeRecreator:
     @staticmethod
     def create_mtlx_init_shader(matnet=None, material_name=None):
         """
-        Create an initial MaterialX shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-
+        Create an empty MaterialX shader network with surface and displacement outputs.
+        
+        Parameters:
+        	matnet (hou.Node, optional): Network in which to create the shader. Defaults to `/mat`.
+        	material_name (str, optional): Name for the created MaterialX network. Defaults to `mtlxmaterial`.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created MaterialX shader node and output nodes.
+        	tuple: The created MaterialX network and a mapping of generic output names to output node metadata.
         """
         import voptoolutils
 
@@ -121,15 +123,16 @@ class NodeRecreator:
 
     def create_mtlx_vec3_split_node(self, src_node, dest_node, src_out_parm_name, dest_in_index):
         """
-        Creates a vec3 split node to 3 floats between 2 nodes and connects them.
-        This method is created for arnold images that have their out individual channels:r,g, or b connected to a node.
-        Args:
-            src_node: (hou.Node) e.g., a 'mtlximage' node
-            src_out_parm_name: (str) parm name on output_node e.g., "r"
-            dest_node: (hou.node) the 2nd node which will connect to the first node. e.g., mtlxstandardsurface
-            dest_in_index: (int) input index on node
+        Connect a selected vector channel from a source node to a destination input through a MaterialX split node.
+        
+        Parameters:
+        	src_node (hou.Node): Node providing the vector output.
+        	dest_node (hou.Node): Node receiving the selected channel.
+        	src_out_parm_name (str): Channel to connect: ``"r"``, ``"g"``, or ``"b"``.
+        	dest_in_index (int): Destination input index.
+        
         Returns:
-            bool: True if successful, False otherwise
+        	tuple: ``(True, split_node)`` when the connection succeeds; ``(False, None)`` otherwise.
         """
         if src_out_parm_name not in ["r", "g", "b"]:
             logger.warning(
@@ -178,13 +181,14 @@ class NodeRecreator:
     @staticmethod
     def create_arnold_init_shader(matnet=None, material_name=None):
         """
-        Create an initial Arnold shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-
+        Create an Arnold material builder and its surface and displacement output metadata.
+        
+        Parameters:
+        	matnet (hou.Node, optional): Network in which to create the material builder.
+        	material_name (str, optional): Name for the material builder node.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created Arnold shader node and output nodes.
+        	Tuple[hou.Node, Dict]: The material builder and metadata for its surface and displacement outputs.
         """
         if not matnet:
             matnet = hou.node("/mat")
@@ -209,13 +213,14 @@ class NodeRecreator:
     @staticmethod
     def create_principledshader_init_shader(matnet=None, material_name=None):
         """
-        Create an initial principledshader shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini Material Network.
-
+        Create a Principled Shader node and register it for surface and displacement outputs.
+        
+        Parameters:
+            matnet (hou.Node, optional): Houdini material network in which to create the shader.
+            material_name (str, optional): Name for the created shader node.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created Arnold shader node and output nodes.
+            tuple: The created shader node and output metadata for the surface and displacement outputs.
         """
         if not matnet:
             matnet = hou.node("/mat")
@@ -240,13 +245,14 @@ class NodeRecreator:
     @staticmethod
     def create_rs_usd_material_builder_init_shader(matnet=None, material_name=None):
         """
-        Create an initial rs_usd_material_builder shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-
+        Create a Redshift USD material builder and identify its material output node.
+        
+        Parameters:
+            matnet (hou.Node, optional): Network in which to create the material builder.
+            material_name (str, optional): Name for the created material builder.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created rs_usd_material_builder shader node and output nodes.
+            tuple: The created material builder and metadata for its surface and displacement outputs.
         """
         if not matnet:
             matnet = hou.node("/mat")
@@ -275,14 +281,14 @@ class NodeRecreator:
     @staticmethod
     def create_redshift_vopnet_init_shader(matnet=None, material_name=None):
         """
-        Create an initial legacy redshift_vopnet shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-            material_name (str, optional): The material node name.
-
+        Create a legacy Redshift VOP network and identify its material output for surface and displacement connections.
+        
+        Parameters:
+            matnet (hou.Node, optional): The Houdini network in which to create the shader.
+            material_name (str, optional): Name for the created shader network.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created redshift_vopnet and output nodes.
+            tuple: The created Redshift VOP network and its surface/displacement output metadata.
         """
         if not matnet:
             matnet = hou.node("/mat")
@@ -306,6 +312,15 @@ class NodeRecreator:
         return vopnet_node, output_nodes
 
     def create_init_shader(self, material_name=None):
+        """
+        Create the renderer-specific material network and record its output connections.
+        
+        Parameters:
+        	material_name (str, optional): Name for the material network. Defaults to ``"convertedMaterial"``.
+        
+        Raises:
+        	KeyError: If the target renderer is unsupported.
+        """
         if not material_name:
             material_name = "convertedMaterial"
 
@@ -340,7 +355,7 @@ class NodeRecreator:
 
     def create_output_nodes(self):
         """
-        Create or reuse output nodes in the target context.
+        Prepare target renderer output nodes and record their mappings to the original outputs.
         """
         renderer_output_connections = OUTPUT_CONNECTIONS_INDEX_MAP.get(self.target_renderer, {})
         for generic_output_type in list(self.new_output_connections):
@@ -390,14 +405,14 @@ class NodeRecreator:
     @staticmethod
     def _convert_generic_node_type_to_renderer_node_type(node_type: str, target_renderer: str):
         """
-        Convert a generic node type to a renderer-specific node type.
-
-        Args:
-            node_type (str): The generic node type.
-            target_renderer (str): renderer type: e.g. 'arnold', 'mtlx'
-
+        Convert a generic node type to its renderer-specific Houdini VOP node type.
+        
+        Parameters:
+        	node_type (str): The generic node type, or an empty value to use `GENERIC::null`.
+        	target_renderer (str): The target renderer identifier.
+        
         Returns:
-            str: The renderer-specific node type.
+        	str: The renderer-specific node type.
         """
         if not node_type:
             node_type = "GENERIC::null"
@@ -475,13 +490,13 @@ class NodeRecreator:
 
     def _create_node(self, node_info):
         """
-        Create a Houdini node from NodeInfo.
-
-        Args:
-            node_info (NodeInfo): The NodeInfo object containing node information.
-
+        Create or reuse a renderer-specific Houdini node from node metadata.
+        
+        Parameters:
+            node_info (NodeInfo): Metadata describing the source node, including its type, name, path, and parameters.
+        
         Returns:
-            (hou.Node): The created Houdini node.
+            hou.Node: The created or reused Houdini node.
         """
         new_node_type = self._convert_generic_node_type_to_renderer_node_type(
             node_type=node_info.node_type, target_renderer=self.target_renderer
@@ -512,13 +527,11 @@ class NodeRecreator:
 
     def _create_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_nodes=None):
         """
-        Recursively create nodes from NodeInfo objects.
-
-        Args:
-            nested_nodes_info (List[NodeInfo]): The list of NodeInfo objects.
-            processed_nodes (set, optional): A set of processed node paths.
-        Returns:
-            None
+        Recursively creates non-output nodes from nested node metadata, preserves their source positions, and processes each node once.
+        
+        Parameters:
+            nested_nodes_info (List[NodeInfo]): Node metadata to process.
+            processed_nodes (set, optional): Paths of nodes already processed.
         """
         if processed_nodes is None:
             processed_nodes = set()
@@ -568,18 +581,42 @@ class NodeRecreator:
             return False
 
     def _set_principled_texture(self, texture_info, filename):
+        """Enables a Principled Shader texture parameter and assigns its filename.
+        
+        Parameters:
+        	texture_info (dict): Mapping containing the texture's enable and filename parameter names.
+        	filename (str): Texture file path to assign.
+        """
         if not filename:
             return
         self._set_principled_parm(texture_info["use_parm"], 1)
         self._set_principled_parm(texture_info["texture_parm"], filename)
 
     def _find_nodeinfo(self, node_path):
+        """Find the node metadata associated with a source node path.
+        
+        Parameters:
+            node_path: The path of the node to locate.
+        
+        Returns:
+            The matching node metadata, or `None` if no node has the specified path.
+        """
         for nodeinfo in self._iter_nodeinfos():
             if nodeinfo.node_path == node_path:
                 return nodeinfo
         return None
 
     def _find_upstream_image_nodeinfo(self, node_path, visited=None):
+        """
+        Finds the upstream generic image node associated with a source node.
+        
+        Parameters:
+        	node_path (str): Path of the node from which to search upstream.
+        	visited (set, optional): Node paths already visited during the search.
+        
+        Returns:
+        	NodeInfo or None: The upstream generic image node metadata, or `None` when no image node is found.
+        """
         if visited is None:
             visited = set()
         if not node_path or node_path in visited:
@@ -602,6 +639,7 @@ class NodeRecreator:
         return None
 
     def _apply_principled_texture_connections(self, surface_nodeinfo):
+        """Apply connected generic texture and normal image data to the Principled Shader."""
         for candidate in self._iter_nodeinfos():
             for connection in candidate.connection_info.values():
                 if connection.output.node_path != surface_nodeinfo.node_path:
@@ -623,6 +661,9 @@ class NodeRecreator:
                         self._set_principled_parm(PRINCIPLED_NORMAL_INPUT["texture_parm"], filename)
 
     def _apply_principled_displacement_output(self):
+        """Configure the Principled Shader displacement settings from the upstream displacement texture.
+        
+        Disables displacement when no displacement output or texture filename is available."""
         displacement_output = self.orig_output_connections.get("GENERIC::output_displacement")
         if not displacement_output:
             self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT["enable_parm"], 0)
@@ -635,6 +676,15 @@ class NodeRecreator:
             self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT["texture_parm"], filename)
 
     def _apply_principled_shader_data(self, nodeinfo_list):
+        """
+        Apply generic standard-surface data to the Principled Shader.
+        
+        Parameters:
+            nodeinfo_list: Node metadata to search for the generic standard-surface node.
+        
+        Returns:
+            `True` if standard-surface data was applied, `False` if no standard-surface node was found.
+        """
         surface_nodeinfo = next(
             (
                 nodeinfo
@@ -654,7 +704,13 @@ class NodeRecreator:
 
     def create_shader_nodes(self, nested_nodes_info):
         """
-        Create nodes in the target context.
+        Create shader nodes in the target material network.
+        
+        Parameters:
+            nested_nodes_info: Nested metadata describing the source shader nodes.
+        
+        Returns:
+            bool: `True` if shader node creation succeeds, `False` if the required standard surface data is unavailable.
         """
         if self.target_renderer == "principledshader":
             return self._apply_principled_shader_data(nested_nodes_info)
@@ -710,7 +766,14 @@ class NodeRecreator:
         return None
 
     def _get_recreated_node_by_original_path(self, node_path):
-        """Resolve a recreated Houdini node from an original source path."""
+        """Resolve a recreated Houdini node from its original source path.
+        
+        Parameters:
+            node_path (str): Original source node path.
+        
+        Returns:
+            hou.Node or None: The recreated node, or `None` if no mapping exists or the mapped node cannot be found.
+        """
         new_node_path = self.old_new_node_map.get(node_path, {}).get("node_path")
         if not new_node_path:
             return None
@@ -721,12 +784,13 @@ class NodeRecreator:
 
     def _get_upstream_source_for_generic_displacement(self, displacement_node_path):
         """
-        Resolve the source driving a generic displacement node.
-
-        Arnold material outputs take a direct displacement input, while MaterialX
-        uses an mtlxdisplacement wrapper. When converting MTLX to Arnold, unwrap
-        the generic displacement node and wire its upstream value to Arnold's
-        displacement output slot.
+        Resolve the recreated source connected upstream of a generic displacement node.
+        
+        Parameters:
+            displacement_node_path (str): Original path of the generic displacement node.
+        
+        Returns:
+            tuple: The recreated source node and its input parameter name, or ``(None, "")`` when no source is found.
         """
         displacement_nodeinfo = self._find_nodeinfo_by_path(displacement_node_path)
         if not displacement_nodeinfo or displacement_nodeinfo.node_type != "GENERIC::displacement":
@@ -791,16 +855,16 @@ class NodeRecreator:
 
     def _connect_arnold_displacement_output(self, output_node, output_index, source_node, output_info):
         """
-        Connect Arnold displacement outputs, unwrapping generic displacement nodes.
-
-        Args:
-            output_node (hou.Node): The Arnold material output node.
-            output_index (int): The Arnold displacement input index.
-            source_node (hou.Node | None): Recreated node from the source output metadata.
-            output_info (dict): Output connection metadata copied from the source material.
-
+        Connect an Arnold displacement source to the material output.
+        
+        Parameters:
+        	output_node (hou.Node): Arnold material output node.
+        	output_index (int): Index of the displacement input.
+        	source_node (hou.Node | None): Recreated displacement source node.
+        	output_info (dict): Source output connection metadata.
+        
         Returns:
-            bool: True if the target displacement output was connected successfully.
+        	bool: `True` if the displacement connection succeeds, `False` otherwise.
         """
         source_output_name = output_info.get("connected_output_name") or ""
         if source_node is None or source_node.type().name() == "null":
@@ -820,12 +884,16 @@ class NodeRecreator:
 
     def _connect_redshift_displacement_output(self, output_node, output_index, source_node, source_output_name):
         """
-        Route displacement signals through a Redshift Displacement node.
-
-        Redshift material terminals expect their displacement slot to receive
-        the vector output of redshift::Displacement. Sources like Arnold can
-        expose a raw texture/channel directly on the material output, so wrap
-        those signals before connecting the terminal.
+        Route displacement data through a Redshift Displacement node.
+        
+        Parameters:
+            output_node: Redshift material output node.
+            output_index: Destination input index on the output node.
+            source_node: Node providing the displacement data.
+            source_output_name: Output name on the source node.
+        
+        Returns:
+            `True` if the displacement connection succeeds, `False` otherwise.
         """
         if source_node is None:
             return False
@@ -856,7 +924,13 @@ class NodeRecreator:
 
     def set_output_connections(self):
         """
-        Set connections for the output nodes in the recreated material.
+        Connects recreated shader nodes to the target renderer's material outputs.
+        
+        Returns:
+        	bool or None: `True` after output connections are processed; `None` when the Principled Shader renderer skips explicit output wiring.
+        
+        Raises:
+        	KeyError: If the renderer or output type is unsupported.
         """
         if self.target_renderer == "principledshader":
             logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
@@ -996,7 +1070,11 @@ class NodeRecreator:
 
     def _process_connections_for_node(self, src_nodeinfo, dest_node):
         """
-        Iterate all connections for one node and wire them up (skipping output nodes).
+        Connects a recreated source node to its destination node for each recorded connection.
+        
+        Parameters:
+        	src_nodeinfo (NodeInfo): Source node metadata containing connection records.
+        	dest_node: Recreated destination node receiving the connections.
         """
         for conn in src_nodeinfo.connection_info.values():
             # print(f"DEBUG: ///conn: {pprint.pformat(conn, sort_dicts=False)}")
@@ -1075,14 +1153,18 @@ class NodeRecreator:
 
     def _connect_pair(self, src_node, dest_node, src_parm="", dest_parm="", src_idx=None, dest_idx=None):
         """
-        Wire src_node.output[src_idx] into dest_node.input[<resolved index>].
-
+        Connects an output of one Houdini node to an input of another.
+        
         Args:
-            src_node (hou.node): The source node.
-            dest_node (hou.node): The destination node.
-            src_parm (str, Optional): The source parameter name that connects to the dest_node, if not provided then use src_idx
-            dest_parm (str, Optional): The destination parameter name that will be connected to the src_node, if not provided then use dest_idx
-
+            src_node (hou.node): Source node.
+            dest_node (hou.node): Destination node.
+            src_parm (str, optional): Source output name used to resolve the output index.
+            dest_parm (str, optional): Destination input name used to resolve the input index.
+            src_idx (int, optional): Source output index.
+            dest_idx (int, optional): Destination input index.
+        
+        Returns:
+            bool: `True` if the connection succeeds, `False` otherwise.
         """
         if dest_idx is None:
             dest_idx = 0
@@ -1128,7 +1210,11 @@ class NodeRecreator:
 
     def set_node_connections(self, nodeinfo_list, parent_node=None):
         """
-        Top-level entry: recurse over a list of NodeInfo and wire them up.
+        Connects recreated nodes according to their input connection metadata and recursively processes their child nodes.
+        
+        Parameters:
+            nodeinfo_list: NodeInfo objects describing the nodes and their connections.
+            parent_node: Optional parent node used as the destination context for child connections.
         """
         if not nodeinfo_list:
             logger.warning("Empty node list, nothing to connect.")

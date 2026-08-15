@@ -158,6 +158,15 @@ class MayaNodeRecreator:
             return False
 
     def _connect_nodes_recursive(self, nested_nodes_info, processed_connections=None):
+        """Connects nested node outputs to their corresponding destination attributes while avoiding duplicate connections.
+        
+        Parameters:
+            nested_nodes_info: Node descriptions containing connection metadata and child nodes.
+            processed_connections: Connection identifiers already handled during the traversal.
+        
+        Returns:
+            None
+        """
         if processed_connections is None:
             processed_connections = set()
 

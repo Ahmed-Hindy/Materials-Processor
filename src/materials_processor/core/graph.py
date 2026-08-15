@@ -232,6 +232,12 @@ class NodeInfo:
         )
 
     def print_connections(self):
+        """
+        Format the node's connection information for display.
+        
+        Returns:
+            str: A formatted representation of the connection information.
+        """
         return pprint.pformat(self.connection_info, sort_dicts=False)
 
 

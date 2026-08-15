@@ -56,11 +56,12 @@ class BlenderNodeRecreator:
         return new_node_type
 
     def _apply_parameters(self, node, parameters):
-        """Apply parameters to a Blender shader node.
-
-        Args:
-            node: The Blender node.
-            parameters (List[NodeParameter]): Standard parameters.
+        """
+        Apply standardized input parameters to a Blender shader node, including node-specific values such as images, mapping transforms, and normal-map strength.
+        
+        Parameters:
+            node: The Blender shader node to configure.
+            parameters (List[NodeParameter]): Standardized parameters whose input values should be applied.
         """
         if not parameters:
             return
@@ -137,13 +138,14 @@ class BlenderNodeRecreator:
                     logger.warning("Failed to set parameter '%s' on node '%s': %s", blender_name, node.name, e)
 
     def _create_node(self, node_info):
-        """Create a Blender node from NodeInfo.
-
+        """
+        Create or reuse a Blender node for the specified node description.
+        
         Args:
-            node_info (NodeInfo): Standardized node info.
-
+            node_info (NodeInfo): Standardized node description used to identify and configure the node.
+        
         Returns:
-            The created Blender node.
+            The reused or newly created Blender node, or `None` if the target material has no node tree.
         """
         blender_type = self._convert_generic_node_type_to_blender_type(node_info.node_type)
         if not self.target_material or not getattr(self.target_material, "node_tree", None):
@@ -181,11 +183,12 @@ class BlenderNodeRecreator:
         return node
 
     def _create_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_nodes=None):
-        """Recursively create Blender nodes from NodeInfo objects.
-
-        Args:
-            nested_nodes_info (List[NodeInfo]): The nested node lists.
-            processed_nodes: Set of processed node paths.
+        """
+        Recursively creates Blender nodes from nested node descriptions while skipping already processed paths and generic output nodes.
+        
+        Parameters:
+        	nested_nodes_info (List[NodeInfo]): Node descriptions to process.
+        	processed_nodes (set, optional): Node paths that have already been processed.
         """
         if processed_nodes is None:
             processed_nodes = set()
@@ -235,11 +238,12 @@ class BlenderNodeRecreator:
         return False
 
     def _connect_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_connections=None):
-        """Recursively construct connections between newly recreated Blender nodes.
-
-        Args:
-            nested_nodes_info (List[NodeInfo]): Standard node infos.
-            processed_connections: Set of connected pairs.
+        """
+        Recreate connections between the specified nodes and their nested child nodes.
+        
+        Parameters:
+            nested_nodes_info (List[NodeInfo]): Node descriptions containing connection information.
+            processed_connections (set, optional): Connection identifiers already handled.
         """
         if processed_connections is None:
             processed_connections = set()
@@ -275,10 +279,11 @@ class BlenderNodeRecreator:
             self._connect_nodes_recursive(node_info.children_list, processed_connections)
 
     def run(self):
-        """Recreate the Blender shader nodes and link connections.
-
+        """
+        Recreate shader nodes and establish their connections in the target material.
+        
         Returns:
-            bool: True if successful.
+            bool: `True` if recreation completes, `False` if no target material is provided.
         """
         if not self.target_material:
             logger.warning("No target material provided to BlenderNodeRecreator. Skipping recreation.")

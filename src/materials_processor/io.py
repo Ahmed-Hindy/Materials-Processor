@@ -6,27 +6,17 @@ from typing import Any, Dict
 
 def load_node_tree_json(path):
     """
-    Load a node-tree description dumped to JSON and return it as a dictionary.
-
-    Parameters
-    ----------
-    path : str | pathlib.Path
-        Absolute or relative path to the *.json* file that was produced by
-        `json.dump(node_tree, fp)` or a similar call.
-
-    Returns
-    -------
-    dict
-        The exact same structure that originally went into `json.dump`.
-
-    Raises
-    ------
-    FileNotFoundError
-        If *path* does not exist.
-    json.JSONDecodeError
-        If the file content is not valid JSON.
-    ValueError
-        If the decoded file is not a dictionary (defensive check).
+    Load a node-tree JSON file and return its top-level object.
+    
+    Parameters:
+        path (str | pathlib.Path): Path to the JSON file. User-home references are expanded.
+    
+    Returns:
+        dict: The decoded JSON object.
+    
+    Raises:
+        FileNotFoundError: If the path does not reference a file.
+        ValueError: If the decoded JSON value is not a dictionary.
     """
     path = Path(path).expanduser().resolve()
 
@@ -44,7 +34,13 @@ def load_node_tree_json(path):
 
 def _convert_to_serializable(obj):
     """
-    [TEMP FOR DEBUG ONLY] Convert non-serializable objects to a string for JSON dumping.
+    Convert an object to a JSON-serializable fallback value for debugging.
+    
+    Parameters:
+    	obj: Object requiring conversion.
+    
+    Returns:
+    	str: The object's path, name, string representation, or a fallback marker.
     """
     import hou
 
@@ -64,7 +60,14 @@ def _convert_to_serializable(obj):
 
 def dump_dict_to_json(data: Dict[str, Any], path: str):
     """
-    Dump a dictionary to a JSON file.
+    Write dictionary data as indented JSON to the specified file, creating its parent directory when needed.
+    
+    Parameters:
+        data (Dict[str, Any]): The dictionary to serialize.
+        path (str): The output file path.
+    
+    Returns:
+        bool: True after the JSON file is written.
     """
     folder = os.path.dirname(path)
     file_name_with_ext = os.path.basename(path)

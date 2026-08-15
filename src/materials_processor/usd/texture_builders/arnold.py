@@ -13,10 +13,14 @@ class ArnoldTextureMaterialMixin:
     ###  arnold ###
     def _arnold_create_material(self, parent_path, enable_transmission=False):
         """
-        example prints for variables created by the script:
-            shader: UsdShade.Shader(Usd.Prim(</root/material/mat_hello_world_collect/standard_surface1>))
-            material_prim: Usd.Prim(</root/material/mat_hello_world_collect>)
-            material_usdshade: UsdShade.Material(Usd.Prim(</root/material/mat_hello_world_collect>))
+        Create an Arnold Standard Surface material and populate its texture connections.
+        
+        Parameters:
+            parent_path (str): USD path at which to define the material.
+            enable_transmission (bool): Whether to enable transmission on the shader.
+        
+        Returns:
+            material_usdshade (UsdShade.Material): The created USD material.
         """
         shader_path = f"{parent_path}/arnold_standard_surface1"
         stdsurf_usdshade = UsdShade.Shader.Define(self.stage, shader_path)
@@ -38,7 +42,10 @@ class ArnoldTextureMaterialMixin:
 
     def _arnold_initialize_standard_surface_shader(self, shader_usdshade):
         """
-        initializes Arnold Standard Surface inputs
+        Initializes an Arnold Standard Surface shader with default material, lighting, transmission, and surface-property inputs.
+        
+        Parameters:
+        	shader_usdshade: The Arnold Standard Surface shader to initialize.
         """
         shader_usdshade.CreateInput("aov_id1", Sdf.ValueTypeNames.Float3).Set((0, 0, 0))
         shader_usdshade.CreateInput("aov_id2", Sdf.ValueTypeNames.Float3).Set((0, 0, 0))
@@ -100,6 +107,15 @@ class ArnoldTextureMaterialMixin:
         shader_usdshade.CreateInput("transmit_aovs", Sdf.ValueTypeNames.Bool).Set(False)
 
     def _arnold_initialize_image_shader(self, image_path: str):
+        """
+        Define an Arnold image shader with default texture sampling and coordinate settings.
+        
+        Parameters:
+        	image_path (str): USD path at which to define the image shader.
+        
+        Returns:
+        	image_shader (UsdShade.Shader): The defined Arnold image shader.
+        """
         image_shader = UsdShade.Shader.Define(self.stage, image_path)
         image_shader.CreateIdAttr("arnold:image")
 
@@ -164,6 +180,15 @@ class ArnoldTextureMaterialMixin:
         return color_correct_shader
 
     def _arnold_initialize_range_shader(self, range_path: str):
+        """
+        Create and initialize an Arnold range shader.
+        
+        Parameters:
+        	range_path (str): USD path at which to define the shader.
+        
+        Returns:
+        	range_shader: The initialized Arnold range shader.
+        """
         range_shader = UsdShade.Shader.Define(self.stage, range_path)
         range_shader.CreateIdAttr("arnold:range")
 
@@ -189,6 +214,15 @@ class ArnoldTextureMaterialMixin:
         return range_shader
 
     def _arnold_initialize_normal_map_shader(self, normal_map_path: str):
+        """
+        Create and initialize an Arnold normal-map shader.
+        
+        Parameters:
+        	normal_map_path (str): USD path at which to define the shader.
+        
+        Returns:
+        	UsdShade.Shader: The initialized Arnold normal-map shader.
+        """
         normal_map_shader = UsdShade.Shader.Define(self.stage, normal_map_path)
         normal_map_shader.CreateIdAttr("arnold:normal_map")
 
@@ -216,6 +250,15 @@ class ArnoldTextureMaterialMixin:
         return normal_map_shader
 
     def _arnold_initialize_bump2d_shader(self, bump2d_path: str):
+        """
+        Create and initialize an Arnold bump2d shader.
+        
+        Parameters:
+            bump2d_path (str): USD path where the shader is defined.
+        
+        Returns:
+            The initialized Arnold bump2d shader.
+        """
         bump2d_shader = UsdShade.Shader.Define(self.stage, bump2d_path)
         bump2d_shader.CreateIdAttr("arnold:bump2d")
 
@@ -230,14 +273,21 @@ class ArnoldTextureMaterialMixin:
 
     def _arnold_enable_transmission(self, shader_usdshade):
         """
-        given the mtlx standard surface, will set input primvar 'transmission' to value '0.9'
+        Enable transmission on an Arnold Standard Surface shader.
+        
+        Parameters:
+        	shader_usdshade: The shader whose transmission settings to update.
         """
         shader_usdshade.GetInput("transmission").Set(0.9)
         shader_usdshade.GetInput("thin_walled").Set(True)
 
     def _arnold_fill_texture_file_paths(self, material_prim, std_surf_shader):
         """
-        Fills the texture file paths for the given shader using the material_data.
+        Populate the Standard Surface shader with texture-based material inputs.
+        
+        Parameters:
+            material_prim: Prim under which texture-processing shaders are created.
+            std_surf_shader: Arnold Standard Surface shader to configure.
         """
         # map of tex_type to it's name on an Arnold Standard Surface shader.
         texture_types_to_inputs = {

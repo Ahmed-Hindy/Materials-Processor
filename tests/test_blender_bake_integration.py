@@ -27,7 +27,17 @@ ALBEDO_MAX_ABSOLUTE_ERROR = 0.01
 
 
 def _read_prefixed_json(stdout: str, prefix: str, description: str) -> dict[str, object]:
-    """Return a JSON result emitted by a headless DCC subprocess."""
+    """
+    Extract the JSON object emitted with a specified prefix.
+    
+    Parameters:
+    	stdout (str): Captured subprocess output to search.
+    	prefix (str): Prefix identifying the result line.
+    	description (str): Description used when the result is missing.
+    
+    Returns:
+    	dict[str, object]: The parsed JSON result.
+    """
     for line in stdout.splitlines():
         if line.startswith(prefix):
             return json.loads(line[len(prefix) :])
@@ -35,7 +45,15 @@ def _read_prefixed_json(stdout: str, prefix: str, description: str) -> dict[str,
 
 
 def _load_baked_materials_in_solaris(hython: str | Path, usd_path: Path) -> dict[str, list[str]]:
-    """Load a baked material-only layer through Solaris and report shader ids."""
+    """Load a baked material-only USD layer through Solaris and report its material names and surface shader identifiers.
+    
+    Parameters:
+    	hython (str | Path): Path to the Houdini Python executable.
+    	usd_path (Path): Path to the baked USD layer.
+    
+    Returns:
+    	dict[str, list[str]]: A mapping containing sorted material names and surface shader identifiers.
+    """
     code = f"""
 import json
 import hou
@@ -60,7 +78,17 @@ print({SOLARIS_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
 
 
 def _load_material_in_solaris(hython: str | Path, usd_path: Path, material_name: str) -> dict[str, object]:
-    """Load one exported material through Solaris and return its surface id."""
+    """
+    Load an exported material through Solaris and report the validity of its material and surface prims.
+    
+    Parameters:
+    	hython (str | Path): Path to the Houdini Python executable.
+    	usd_path (Path): Path to the USD file to import.
+    	material_name (str): Name of the material prim to inspect.
+    
+    Returns:
+    	dict[str, object]: Material and surface validity flags and the surface shader identifier.
+    """
     code = f"""
 import json
 import hou
@@ -91,7 +119,16 @@ def _iter_graph_nodes(nodes):
 
 
 def _inspect_raw_normal_texture(runtime, texture_path: Path) -> dict[str, list[float]]:
-    """Read channel extrema in Blender without applying a display transform."""
+    """
+    Read the raw RGB channel extrema of a normal texture in Blender.
+    
+    Parameters:
+        runtime: Blender runtime configuration.
+        texture_path (Path): Path to the normal texture to inspect.
+    
+    Returns:
+        dict[str, list[float]]: A mapping containing minimum and maximum values for the red, green, and blue channels.
+    """
     code = f"""
 import json
 import bpy
@@ -133,7 +170,14 @@ def _run_python_script(arguments: list[str], *, timeout: int = 240) -> None:
 
 
 def _render_karma_xpu(husk: str | Path, stage_path: Path, output_path: Path) -> None:
-    """Render a diagnostic stage to raw EXR through Karma XPU."""
+    """
+    Render a USD stage with Karma XPU and write the result to an EXR file.
+    
+    Parameters:
+    	husk (str | Path): Path to the Houdini Husk executable.
+    	stage_path (Path): Path to the USD stage to render.
+    	output_path (Path): Destination path for the rendered EXR file.
+    """
     completed = subprocess.run(
         [
             husk,
@@ -161,7 +205,17 @@ def _render_karma_xpu(husk: str | Path, stage_path: Path, output_path: Path) -> 
 
 
 def _compare_raw_exr_images(runtime, source_path: Path, target_path: Path) -> dict[str, float | int]:
-    """Compare the covered inner region of two raw EXRs in Blender."""
+    """
+    Compare the covered inner regions of two raw EXR images.
+    
+    Parameters:
+        source_path (Path): Path to the source EXR image.
+        target_path (Path): Path to the target EXR image.
+    
+    Returns:
+        dict[str, float | int]: Comparison metrics containing mean absolute error,
+        maximum absolute error, and the number of channel samples compared.
+    """
     code = f"""
 import json
 import bpy
@@ -260,7 +314,9 @@ def test_auto_bake_uses_pbr_for_principled_and_beauty_for_mixed_closure(tmp_path
 
 @pytest.mark.blender
 def test_group_input_fixture_flattens_to_direct_usd_graphs(tmp_path):
-    """Convert the generated Group Input material without requiring a bake."""
+    """
+    Export Group Input materials directly to USD and verify their flattened graphs and material prims without baking.
+    """
     try:
         runtime = resolve_blender_runtime(version=None)
     except FileNotFoundError as exc:
@@ -294,7 +350,9 @@ def test_group_input_fixture_flattens_to_direct_usd_graphs(tmp_path):
 
 @pytest.mark.blender
 def test_nonflat_normal_bake_is_raw_and_uses_gltf_normalmap(tmp_path):
-    """Preserve a varying tangent-space normal map through the PBR bake route."""
+    """
+    Preserve a varying tangent-space normal map through the PBR bake route.
+    """
     try:
         runtime = resolve_blender_runtime(version=None)
     except FileNotFoundError as exc:
@@ -332,7 +390,12 @@ def test_nonflat_normal_bake_is_raw_and_uses_gltf_normalmap(tmp_path):
 @pytest.mark.blender
 @pytest.mark.hython
 def test_calibrated_albedo_bake_matches_karma_xpu_raw_exr(tmp_path):
-    """Keep the calibrated albedo bake within a raw cross-renderer tolerance."""
+    """
+    Verify that the calibrated albedo bake matches a Karma XPU reference within raw-image error tolerances.
+    
+    Parameters:
+    	tmp_path (Path): Temporary directory for fixture files, exported USD stages, and rendered images.
+    """
     husk = resolve_husk()
     if not husk:
         pytest.skip("Husk is not available")
@@ -395,7 +458,12 @@ def test_calibrated_albedo_bake_matches_karma_xpu_raw_exr(tmp_path):
 @pytest.mark.blender
 @pytest.mark.hython
 def test_group_input_fixture_direct_usd_exports_load_in_solaris(tmp_path):
-    """Ensure direct conversion of Group Input values loads in both targets."""
+    """
+    Verify that direct USD exports of Group Input materials load correctly in Solaris.
+    
+    Parameters:
+    	tmp_path (Path): Temporary directory for the Blender fixture and exported USD files.
+    """
     hython = resolve_hython()
     if not hython:
         pytest.skip("Hython is not available")

@@ -210,6 +210,7 @@ def test_setup_file_logging_falls_back_on_permission_error(tmp_path, monkeypatch
     original_makedirs = os.makedirs
 
     def mock_makedirs(path, *args, **kwargs):
+        """Simulate a permission error when creating the test log directory."""
         if str(test_log_dir) in str(path):
             raise PermissionError("Access denied")
         return original_makedirs(path, *args, **kwargs)

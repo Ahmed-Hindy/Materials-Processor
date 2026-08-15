@@ -15,6 +15,15 @@ logger = logging.getLogger(__name__)
 
 
 def split_trailing_number(s: str):
+    """
+    Split a string into its base text and trailing integer.
+    
+    Parameters:
+    	s (str): The string to split.
+    
+    Returns:
+    	tuple: The base text and trailing integer, or the original string and 1 when no trailing integer exists.
+    """
     try:
         m = re.match(r"^(.*?)(\d+)$", s)
         if m:
@@ -53,19 +62,15 @@ class USDTraverser:
 
     def create_output_dict(self, material_prim, material_type):
         """
-        Detect all outputs on the material and record connected shader info.
-
+        Collect connected shader metadata for each material output.
+        
+        Parameters:
+        	material_prim: Material prim whose outputs are inspected.
+        	material_type: Material type associated with the material.
+        
         Returns:
-            Dict[str, dict]: Mapping each generic output name ('surface', 'displacement')
-            to a dict containing:
-                node_name (str): The material prim name.
-                node_path (str): The material prim path.
-                connected_node_name (str): The downstream shader prim name.
-                connected_node_path (str): The downstream shader prim path.
-                connected_input_index (int): Always -1 for now.
-                connected_input_name (str): The generic output slot ('surface' etc).
-                connected_output_name (str): The shader parameter name driving it.
-                generic_type (str): One of GENERIC::output_surface/displacement.
+        	Dict[str, dict]: Mapping of generic output names to metadata describing the
+        	connected shader and output connection.
         """
         mat_prim = material_prim.GetPrim()
         mat_name = mat_prim.GetName()
@@ -112,12 +117,16 @@ class USDTraverser:
 
     def _detect_node_connections(self, srcInfo, shader, dest_param, count):
         """
-        Args:
-
-
+        Create metadata describing a connection between an upstream source and destination shader parameter.
+        
+        Parameters:
+        	srcInfo: Connection information for the upstream source.
+        	shader: Destination shader containing the connected parameter.
+        	dest_param: Name of the destination shader parameter.
+        	count: Identifier used to key the connection record.
+        
         Returns:
-            dict: Mapping of GENERIC outputs to upstream info.
-
+        	dict: Mapping containing the connection metadata keyed by the connection identifier.
         """
         srcAPI = srcInfo.source  # type: UsdShade.ConnectableAPI
         srcName = srcInfo.sourceName  # type: str                     # e.g. "shader"
@@ -153,10 +162,13 @@ class USDTraverser:
 
     def _get_shader_infoId_attrib(self, shader):
         """
-        Args:
-            shader (UsdShade.Shader): The shader we want to get the info:id of.
+        Get a shader's identifier, using the configured output-prim type when no identifier is set.
+        
+        Parameters:
+        	shader (UsdShade.Shader): Shader whose `info:id` attribute is read.
+        
         Returns:
-            str: attribute 'info:id'
+        	str: The shader's `info:id` value or the configured output-prim type.
         """
         shader_prim = shader.GetPrim()
         shader_infoId = shader_prim.GetAttribute("info:id").Get()
@@ -166,7 +178,15 @@ class USDTraverser:
         return OUT_PRIMS_TYPES[self.material_type]
 
     def _normalize_attribute_names(self, attribute_name, node_type):
-        """ """
+        """Remove known renderer and input prefixes from an attribute name.
+        
+        Parameters:
+        	attribute_name (str): Attribute name to normalize.
+        	node_type: Unused node type parameter.
+        
+        Returns:
+        	str: The attribute name without a leading `arnold:` or `inputs:` prefix.
+        """
         leading_strs = ["arnold:", "inputs:"]
         for leading_str in leading_strs:
             if attribute_name.startswith(leading_str):
@@ -176,7 +196,13 @@ class USDTraverser:
 
     def _normalize_attribute_values(self, attribute_val):
         """
-        Turn Gf vectors, AssetPaths, Vt.Arrays, etc. into plain Python types.
+        Convert USD attribute values into plain Python-compatible values.
+        
+        Parameters:
+        	attribute_val: The USD attribute value to normalize.
+        
+        Returns:
+        	The normalized value, with vectors converted to lists, asset paths to path strings, primitive values preserved, and other values converted to strings.
         """
         if attribute_val is None:
             return None
@@ -191,7 +217,15 @@ class USDTraverser:
         return str(attribute_val)
 
     def _normalize_attribute_types(self, attribute_val):
-        """ """
+        """
+        Determine the normalized type name for a USD attribute value.
+        
+        Parameters:
+        	attribute_val: The attribute value to classify.
+        
+        Returns:
+        	The normalized type name, such as `float2`, `float3`, or `float4`; `None` if the value is `None`.
+        """
         if attribute_val is None:
             return None
         elif isinstance(attribute_val, (Gf.Vec2f, Gf.Vec2d)):
@@ -213,10 +247,14 @@ class USDTraverser:
 
     def _convert_parms_to_dict(self, attribute_list, node_type):
         """
-        Args:
-            attribute_list (List[pxr.Usd.Attribute]): list of Usd Attributes
+        Convert shader attributes into normalized input parameter records.
+        
+        Parameters:
+            attribute_list (List[pxr.Usd.Attribute]): Attributes to convert.
+            node_type: Type of the node whose attributes are being converted.
+        
         Returns:
-            (Dict[str, List[dict]]): A dict with 'input' and 'output' keys,
+            Dict[str, List[dict]]: A dictionary containing input parameter records and an output list.
         """
         parms = {"input": [], "output": []}
 
@@ -252,21 +290,17 @@ class USDTraverser:
 
     def _traverse_recursively_node_tree(self, shader, parent_shader=None, is_root=True):
         """
-        Recursively build a nested dict for a shader and its upstream connections.
-
-        Args:
-            shader (UsdShade.Shader): The shader to traverse.
-            parent_shader (UsdShade.Shader): The parent shader.
-
+        Build a nested node dictionary for a shader and its upstream connections.
+        
+        Parameters:
+            shader (UsdShade.Shader): Shader whose node data and connections are traversed.
+            parent_shader (UsdShade.Shader, optional): Parent shader used to determine the
+                connections to inspect.
+            is_root (bool): Indicates whether the shader is the root of the traversal.
+        
         Returns:
-            dict: {
-                prim_path (str),
-                node_name (str),
-                node_type (str),
-                node_parms (List[dict{'name','value'}]),
-                connections_dict (Dict[str,dict]),
-                children_list (List[dict])  # same structure for upstream shaders
-            }
+            dict: A mapping from the shader prim path to node metadata, parameters,
+                connection data, and recursively collected upstream child nodes.
         """
         shader_prim = shader.GetPrim()
         shader_name = shader_prim.GetName()
@@ -323,16 +357,11 @@ class USDTraverser:
 
     def run(self):
         """
-        Perform a full traversal of the material.
-
-        1. Detect outputs
-        2. For each connected shader, build its nested graph
-
+        Builds the material's nested shader-node tree and output metadata.
+        
         Returns:
-            Tuple[
-              Dict[str, dict], # nested_nodes_dict keyed by material path
-              Dict[str, dict]  # output_nodes_dict
-            ]
+            tuple: A pair containing the nested node dictionary and the output
+                dictionary keyed by output type.
         """
         # 1) find all outputs
         output_tree = self.create_output_dict(self.material_prim, self.material_type)

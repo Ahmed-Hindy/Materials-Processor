@@ -35,6 +35,15 @@ class NODE_OT_MaterialsProcessor_Ingest(Operator):
     bl_options = {"REGISTER", "UNDO"}
 
     def execute(self, context):
+        """
+        Ingests the active object's material and reports the result to Blender.
+        
+        Parameters:
+            context: The Blender context containing the active object.
+        
+        Returns:
+            set[str]: ``{"FINISHED"}`` when ingestion succeeds; ``{"CANCELLED"}`` when Blender is unavailable, no active material exists, or ingestion fails.
+        """
         if not bpy:
             self.report({"ERROR"}, "Blender environment not active.")
             return {"CANCELLED"}
@@ -68,6 +77,7 @@ class NODE_PT_MaterialsProcessor_Panel(Panel):
     bl_category = "Materials Processor"
 
     def draw(self, context):
+        """Draw the Materials Processor controls for the active material."""
         layout = self.layout
         active_obj = getattr(context, "active_object", None)
         material = active_obj.active_material if active_obj else None
