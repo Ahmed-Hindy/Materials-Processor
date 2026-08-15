@@ -48,6 +48,10 @@ def test_blender_profile_maps_generic_nodes_without_becoming_houdini_target():
     assert "blender" not in mappings.FORMAT_CHOICES
 
 
+def test_blender_five_principled_thin_wall_input_is_standardized():
+    assert mappings.REGULAR_PARAM_NAMES_TO_GENERIC["ShaderNodeBsdfPrincipled"]["Thin Wall"] == "thin_walled"
+
+
 def test_blender_addon_requires_blender_five_or_later():
     assert addon.bl_info["blender"] == (5, 0, 0)
 

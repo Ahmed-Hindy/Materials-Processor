@@ -14,6 +14,7 @@ from materials_processor.dcc.blender.runtime import resolve_blender_runtime
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST_PATH = ROOT / "blender_extension" / "blender_manifest.toml"
+EXTENSION_ENTRYPOINT = ROOT / "blender_extension" / "__init__.py"
 
 
 def _load_builder_module():
@@ -36,6 +37,13 @@ def test_blender_extension_manifest_declares_an_installable_addon():
     assert manifest["type"] == "add-on"
     assert manifest["blender_version_min"] == "5.0.0"
     assert manifest["license"] == ["SPDX:LicenseRef-Proprietary"]
+
+
+def test_blender_extension_entrypoint_exposes_the_bundled_runtime_package():
+    entrypoint = EXTENSION_ENTRYPOINT.read_text(encoding="utf-8")
+
+    assert "from . import materials_processor as _materials_processor" in entrypoint
+    assert 'sys.modules["materials_processor"] = _materials_processor' in entrypoint
 
 
 def test_blender_extension_staging_includes_the_runtime_package(tmp_path):

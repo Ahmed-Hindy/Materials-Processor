@@ -1,9 +1,9 @@
-"""Render Blender material-property references through Cycles Shader AOVs.
+"""Render Blender material-property references through temporary Cycles emission materials.
 
 The default captures the evaluated Principled Base Color stream. ``--mode
 normal-vector`` captures the tangent-space normal encoded as ``normal * 0.5 +
-0.5``. The source material's surface output remains untouched, preventing a
-beauty/render-output setting from contaminating the diagnostic stream.
+0.5``. It assigns throwaway material copies to the rendered meshes, preventing
+a beauty/render-output setting from contaminating the source material graph.
 """
 
 from __future__ import annotations
@@ -35,7 +35,6 @@ BAKED_NORMAL_DIR = {str(baked_normal_dir) if baked_normal_dir else None!r}
 MATERIAL_NAME = {material_name!r}
 GEOMETRY_PATH = {str(geometry_path) if geometry_path else None!r}
 scene.render.engine = "CYCLES"
-scene.use_nodes = False
 scene.cycles.samples = {samples!r}
 scene.render.resolution_x = 1000
 scene.render.resolution_y = 420
@@ -66,6 +65,7 @@ if scene.world:
     # Disable it so source and USD preview renders share the same black backdrop.
     scene.world.use_nodes = False
     scene.world.color = (0.0, 0.0, 0.0)
+scene.render.film_transparent = True
 
 objects = sorted(
     (obj for obj in scene.objects if obj.type == "MESH" and obj.data.materials and obj.data.materials[0]),
@@ -81,14 +81,15 @@ if MATERIAL_NAME:
     for obj in scene.objects:
         if obj.type == "MESH":
             obj.hide_render = obj not in objects
-AOV_NAME = "materials_processor_reference"
-view_layer = scene.view_layers[0]
-for aov in list(view_layer.aovs):
-    if aov.name == AOV_NAME:
-        view_layer.aovs.remove(aov)
-reference_aov = view_layer.aovs.add()
-reference_aov.name = AOV_NAME
-reference_aov.type = "COLOR"
+# Render throwaway material copies through Emission instead of relying on a
+# Shader AOV. Blender 5.2 moved the compositor to ``compositing_node_group``;
+# an Emission diagnostic avoids that version split and leaves the source
+# material datablocks unchanged.
+for obj in objects:
+    source_material = obj.data.materials[0]
+    diagnostic_material = source_material.copy()
+    diagnostic_material.name = f"{{source_material.name}}_materials_processor_diagnostic"
+    obj.data.materials[0] = diagnostic_material
 if BAKED_NORMAL_DIR:
     from pathlib import Path
     import re
@@ -125,15 +126,14 @@ for index, obj in enumerate(objects):
     shader = output.inputs["Surface"].links[0].from_node
     if shader.bl_idname != "ShaderNodeBsdfPrincipled":
         raise RuntimeError(f"{{material.name}} does not have a directly connected Principled BSDF")
-    aov = material.node_tree.nodes.new(type="ShaderNodeOutputAOV")
-    aov.name = AOV_NAME
-    aov.aov_name = AOV_NAME
+    emission = material.node_tree.nodes.new(type="ShaderNodeEmission")
+    emission.name = "materials_processor_reference_emission"
     if {mode!r} == "albedo":
         base_color = shader.inputs["Base Color"]
         if base_color.is_linked:
-            material.node_tree.links.new(base_color.links[0].from_socket, aov.inputs["Color"])
+            material.node_tree.links.new(base_color.links[0].from_socket, emission.inputs["Color"])
         else:
-            aov.inputs["Color"].default_value = base_color.default_value
+            emission.inputs["Color"].default_value = base_color.default_value
     else:
         normal = shader.inputs["Normal"]
         normal_map = normal.links[0].from_node if normal.is_linked else None
@@ -144,9 +144,9 @@ for index, obj in enumerate(objects):
         if normal_map and normal_map.bl_idname == "ShaderNodeNormalMap":
             normal_color = normal_map.inputs["Color"]
             if normal_color.is_linked:
-                material.node_tree.links.new(normal_color.links[0].from_socket, aov.inputs["Color"])
+                material.node_tree.links.new(normal_color.links[0].from_socket, emission.inputs["Color"])
             else:
-                aov.inputs["Color"].default_value = normal_color.default_value
+                emission.inputs["Color"].default_value = normal_color.default_value
         else:
             # Procedural/Bump normal networks have no portable encoded texture
             # to inspect. This is only a visual fallback, not an acceptance
@@ -165,7 +165,10 @@ for index, obj in enumerate(objects):
             offset.inputs[1].default_value = (0.5, 0.5, 0.5)
             material.node_tree.links.new(normal_output, scale.inputs[0])
             material.node_tree.links.new(scale.outputs["Vector"], offset.inputs[0])
-            material.node_tree.links.new(offset.outputs["Vector"], aov.inputs["Color"])
+            material.node_tree.links.new(offset.outputs["Vector"], emission.inputs["Color"])
+    for link in list(output.inputs["Surface"].links):
+        material.node_tree.links.remove(link)
+    material.node_tree.links.new(emission.outputs["Emission"], output.inputs["Surface"])
     if len(objects) != 1:
         obj.location = ((index % 5) * 2.25 - 4.5, -(index // 5) * 2.25 + 1.125, 0.0)
 
@@ -184,15 +187,6 @@ else:
 camera.data.lens = 50.0
 scene.camera = camera
 bpy.context.view_layer.update()
-scene.use_nodes = True
-compositor = scene.node_tree
-compositor.nodes.clear()
-render_layers = compositor.nodes.new(type="CompositorNodeRLayers")
-render_layers.layer = view_layer.name
-if AOV_NAME not in render_layers.outputs:
-    raise RuntimeError(f"Cycles compositor has no Shader AOV output {{AOV_NAME!r}}")
-composite = compositor.nodes.new(type="CompositorNodeComposite")
-compositor.links.new(render_layers.outputs[AOV_NAME], composite.inputs["Image"])
 bpy.ops.render.render(write_still=True)
 if GEOMETRY_PATH:
     bpy.ops.object.select_all(action="DESELECT")
