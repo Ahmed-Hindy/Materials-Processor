@@ -160,6 +160,5 @@ bpy.ops.wm.save_as_mainfile(filepath={str(scene_path)!r})
     completed = _run_blender_python(runtime, code, package_src, timeout=120)
     if completed.returncode != 0:
         raise RuntimeError(
-            "Blender bake fixture creation failed."
-            f"\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+            f"Blender bake fixture creation failed.\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
         )

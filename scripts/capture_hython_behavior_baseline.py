@@ -70,7 +70,16 @@ def _git_worktree_dirty(path: Path) -> bool | None:
 
 
 def _configure_probe(module, target_root: Path) -> None:
-    """Point the loaded probe at the target checkout."""
+    """
+    Configure a loaded probe module to use a target checkout.
+    
+    Parameters:
+        module: Loaded probe module to configure.
+        target_root (Path): Root directory of the target checkout.
+    
+    Raises:
+        FileNotFoundError: If the required Houdini example file or source directory is missing.
+    """
     module.ROOT = target_root
     module.HIP_FILE = target_root / "examples" / "hip" / "example_file_v001.hip"
     module.SRC_DIR = target_root / "src"
@@ -82,7 +91,16 @@ def _configure_probe(module, target_root: Path) -> None:
 
 
 def _run_hython_probe(module, hython: str | Path) -> dict:
-    """Run the configured probe through hython and return the JSON payload."""
+    """
+    Run the configured material-conversion probe through Houdini's Python interpreter.
+    
+    Parameters:
+        module: The configured probe module providing the script, source directory, and JSON markers.
+        hython (str | Path): Path to the Houdini Python executable.
+    
+    Returns:
+        dict: The decoded JSON payload produced by the probe.
+    """
     env = os.environ.copy()
     env["PYTHONPATH"] = str(module.SRC_DIR)
     if os.environ.get("PYTHONPATH"):
@@ -144,7 +162,12 @@ def _parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
-    """Capture and write the behavior baseline."""
+    """
+    Capture the material-conversion behavior baseline and write it as formatted JSON.
+    
+    Returns:
+    	int: Zero after the baseline is captured successfully.
+    """
     args = _parse_args()
     target_root = args.target_root.resolve()
     probe_root = args.probe_root.resolve()

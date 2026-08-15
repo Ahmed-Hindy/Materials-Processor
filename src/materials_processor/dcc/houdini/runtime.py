@@ -69,13 +69,25 @@ def _resolve_houdini_executable(
     environment_variable: str,
     executable_names: tuple[str, ...],
 ) -> Path | None:
-    """Resolve a Houdini command-line executable from the standard locations."""
+    """
+    Resolve a Houdini command-line executable from the configured search locations.
+    
+    Parameters:
+        explicit_path (str | Path | None): Optional executable path to check first.
+        environment_variable (str): Environment variable containing a configured executable path.
+        executable_names (tuple[str, ...]): Executable names to search for.
+    
+    Returns:
+        Path | None: The first matching executable, or `None` if no executable is found.
+    """
     if explicit_path is not None:
         return _existing_file(explicit_path)
     if configured_path := os.environ.get(environment_variable):
         if candidate := _existing_file(configured_path):
             return candidate
-    return _find_on_path(executable_names) or _find_in_hfs(executable_names) or _find_in_default_install(executable_names)
+    return (
+        _find_on_path(executable_names) or _find_in_hfs(executable_names) or _find_in_default_install(executable_names)
+    )
 
 
 def resolve_hython(explicit_hython: str | Path | None = None) -> Path | None:
@@ -88,7 +100,15 @@ def resolve_hython(explicit_hython: str | Path | None = None) -> Path | None:
 
 
 def resolve_husk(explicit_husk: str | Path | None = None) -> Path | None:
-    """Resolve Husk from an explicit path, configuration, PATH, HFS, or Houdini 21.0."""
+    """
+    Resolve the Houdini Husk executable.
+    
+    Parameters:
+        explicit_husk (str | Path | None): Optional explicit path to the executable.
+    
+    Returns:
+        Path | None: The resolved executable path, or None if no executable is found.
+    """
     return _resolve_houdini_executable(
         explicit_husk,
         HUSK_ENV_VAR,

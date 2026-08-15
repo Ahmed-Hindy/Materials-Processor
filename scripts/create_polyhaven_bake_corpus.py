@@ -55,14 +55,23 @@ def _map_download(files: dict[str, Any], names: tuple[str, ...]) -> dict[str, An
 
 
 def _download(url: str, destination: Path) -> None:
-    """Download one previously size-budgeted source texture."""
+    """Download a source texture to the specified destination path."""
     request = Request(url, headers={"User-Agent": USER_AGENT})
     with urlopen(request, timeout=120) as response:  # noqa: S310 - fixed HTTPS URLs from API.
         destination.write_bytes(response.read())
 
 
 def _collect_assets(asset_ids: tuple[str, ...], budget_bytes: int) -> list[dict[str, Any]]:
-    """Resolve source maps and reject the corpus before downloads exceed its budget."""
+    """
+    Resolve texture map metadata for the selected assets and enforce the download-size budget.
+    
+    Parameters:
+    	asset_ids (tuple[str, ...]): Poly Haven texture asset identifiers to include.
+    	budget_bytes (int): Maximum combined size of the selected source maps in bytes.
+    
+    Returns:
+    	list[dict[str, Any]]: Asset metadata containing selected maps, expected download sizes, and metallic-channel information.
+    """
     catalog = _read_json(f"{API_ROOT}/assets")
     collected: list[dict[str, Any]] = []
     total_size = 0
@@ -102,9 +111,14 @@ def _collect_assets(asset_ids: tuple[str, ...], budget_bytes: int) -> list[dict[
 
 
 def _write_builder_script(path: Path) -> None:
-    """Write the Blender-only scene builder used by this independent corpus."""
+    """
+    Write a standalone Blender script that builds and saves the textured corpus scene.
+    
+    Parameters:
+    	path (Path): Destination path for the generated Blender script.
+    """
     path.write_text(
-        '''import json
+        """import json
 import sys
 from pathlib import Path
 
@@ -189,13 +203,22 @@ for index, entry in enumerate(manifest["assets"]):
 
 bpy.context.scene.render.engine = "CYCLES"
 bpy.ops.wm.save_as_mainfile(filepath=str(scene_path))
-''',
+""",
         encoding="utf-8",
     )
 
 
 def _build_blender_scene(output_dir: Path, manifest: dict[str, Any]) -> Path:
-    """Create a single-UV-mesh-per-material Blender scene for the corpus."""
+    """
+    Build a Blender scene from the corpus manifest.
+    
+    Parameters:
+        output_dir (Path): Directory in which to write the manifest, builder script, and scene.
+        manifest (dict[str, Any]): Corpus metadata used to generate the scene.
+    
+    Returns:
+        Path: Path to the generated Blender scene.
+    """
     manifest_path = output_dir / "corpus_manifest.json"
     manifest_path.write_text(json.dumps(manifest, indent=2), encoding="utf-8")
     builder_path = output_dir / "build_polyhaven_corpus.py"
@@ -203,14 +226,27 @@ def _build_blender_scene(output_dir: Path, manifest: dict[str, Any]) -> Path:
     scene_path = output_dir / "polyhaven_real_world_materials.blend"
     runtime = resolve_blender_runtime()
     subprocess.run(
-        [str(runtime.blender_exe), "--background", "--python", str(builder_path), "--", str(manifest_path), str(scene_path)],
+        [
+            str(runtime.blender_exe),
+            "--background",
+            "--python",
+            str(builder_path),
+            "--",
+            str(manifest_path),
+            str(scene_path),
+        ],
         check=True,
     )
     return scene_path
 
 
 def main() -> int:
-    """Build the downloadable corpus and print the follow-up bake command."""
+    """
+    Build the selected Poly Haven texture corpus and generate the follow-up baking command.
+    
+    Returns:
+    	int: Zero after the corpus and Blender scene are created.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--budget-mib", type=float, default=64.0)

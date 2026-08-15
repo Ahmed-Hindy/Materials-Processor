@@ -42,7 +42,10 @@ GROUP_BAKE_OUTPUT_NAMES = {
     "opacity": ("Opacity Bake", "Alpha Bake"),
     "emission_color": ("Emission Color Bake", "Emission Bake"),
 }
+
+
 def _default_package_src() -> Path:
+    """Return the default package source directory."""
     return Path(__file__).resolve().parents[3]
 
 
@@ -54,8 +57,7 @@ def _nodeinfo_from_dict(data: dict[str, Any]) -> NodeInfo:
         node_path=data["node_path"],
         parameters=[NodeParameter(**param) for param in data.get("parameters") or []],
         connection_info={
-            key: NodeConnection.from_mapping(value)
-            for key, value in (data.get("connection_info") or {}).items()
+            key: NodeConnection.from_mapping(value) for key, value in (data.get("connection_info") or {}).items()
         },
         children_list=[_nodeinfo_from_dict(child) for child in data.get("children_list") or []],
         is_output_node=data.get("is_output_node", False),
@@ -71,8 +73,7 @@ def _material_graph_from_dict(data: dict[str, Any]) -> MaterialGraph:
         material_path=data.get("material_path"),
         nodeinfo_list=[_nodeinfo_from_dict(node) for node in data.get("nodeinfo_list") or []],
         output_connections={
-            key: OutputConnection.from_mapping(value)
-            for key, value in (data.get("output_connections") or {}).items()
+            key: OutputConnection.from_mapping(value) for key, value in (data.get("output_connections") or {}).items()
         },
     )
 
@@ -102,13 +103,22 @@ def _apply_texture_remaps_to_path(
     texture_root: str | Path | None = None,
     remap_prefixes: tuple[tuple[str, str], ...] = (),
 ) -> str:
-    """Apply prefix and search-root remaps to one texture path."""
+    """Apply configured prefix or texture-root remappings to a texture path.
+    
+    Parameters:
+    	texture_path (str): The original texture path.
+    	texture_root (str | Path | None): Root directory to search for the texture filename when direct remapping does not apply.
+    	remap_prefixes (tuple[tuple[str, str], ...]): Prefix replacement pairs applied to the path.
+    
+    Returns:
+    	str: The remapped texture path, or the original path when no matching remap is found.
+    """
     remapped = texture_path
     for old_prefix, new_prefix in remap_prefixes:
         old_norm = old_prefix.replace("\\", "/").rstrip("/")
         current_norm = remapped.replace("\\", "/")
         if current_norm == old_norm or current_norm.startswith(f"{old_norm}/"):
-            suffix = current_norm[len(old_norm):].lstrip("/")
+            suffix = current_norm[len(old_norm) :].lstrip("/")
             remapped = str(Path(new_prefix) / Path(suffix.replace("/", "\\")))
             break
 
@@ -190,11 +200,22 @@ def _enforce_report_policies(
     fail_on_unsupported: bool = False,
     missing_textures: str = "warn",
 ) -> None:
-    """Raise when report policy flags request hard failures."""
+    """
+    Enforce configured failure policies for unsupported nodes and missing textures.
+    
+    Parameters:
+        report (dict[str, Any]): Report containing unsupported node and missing texture entries.
+        fail_on_unsupported (bool): Whether unsupported nodes should raise an error.
+        missing_textures (str): Policy for missing textures; ``"error"`` raises an error.
+    """
     if fail_on_unsupported and report.get("unsupported_nodes"):
-        raise RuntimeError(f"Unsupported Blender nodes were found: {json.dumps(report['unsupported_nodes'], sort_keys=True)}")
+        raise RuntimeError(
+            f"Unsupported Blender nodes were found: {json.dumps(report['unsupported_nodes'], sort_keys=True)}"
+        )
     if missing_textures == "error" and report.get("missing_texture_paths"):
-        raise RuntimeError(f"Missing texture paths were found: {json.dumps(report['missing_texture_paths'], sort_keys=True)}")
+        raise RuntimeError(
+            f"Missing texture paths were found: {json.dumps(report['missing_texture_paths'], sort_keys=True)}"
+        )
 
 
 def _extract_code(scene_path: Path, graph_json_path: Path) -> str:
@@ -305,7 +326,20 @@ def _bake_materials_code(
     bake_mode: str = "pbr",
     color_space: str = "lin_ap1",
 ) -> str:
-    """Return the Blender script that bakes PBR streams or evaluated beauty."""
+    """Return the Blender script that bakes PBR material streams or evaluated beauty textures.
+    
+    Parameters:
+    	scene_path (Path): Path to the Blender scene to open.
+    	texture_dir (Path): Directory where baked texture files are written.
+    	material_names (tuple[str, ...] | None): Materials to bake, or all eligible materials when omitted.
+    	resolution (int): Width and height of each baked texture in pixels.
+    	auto_unwrap (bool): Whether to generate UVs for meshes without a UV map.
+    	bake_mode (str): Bake strategy, such as PBR, beauty, or automatic fallback.
+    	color_space (str): Color space recorded for baked material streams.
+    
+    Returns:
+    	str: A self-contained Blender Python script.
+    """
     return f"""
 import json
 import re
@@ -833,7 +867,17 @@ def _write_baked_usd_material_file(
     output_path: Path,
     target: str,
 ) -> dict[str, Any]:
-    """Write texture-driven PBR or unlit-beauty USD material files."""
+    """
+    Write a USD material file that connects baked textures to PBR or unlit beauty shaders.
+    
+    Parameters:
+    	baked_materials (list[dict[str, Any]]): Baked material records containing material names, texture maps, and bake metadata.
+    	output_path (Path): Destination path for the USD file.
+    	target (str): Export target that determines the shader and input names.
+    
+    Returns:
+    	dict[str, Any]: Export metadata containing the file path, material prim paths and count, and shader ID counts.
+    """
     from pxr import Sdf, Tf, Usd, UsdShade
 
     stage = Usd.Stage.CreateNew(str(output_path))
@@ -876,14 +920,10 @@ def _write_baked_usd_material_file(
                 "base" if target == "mtlx" else "base_weight",
                 Sdf.ValueTypeNames.Float,
             ).Set(1.0)
-        material.CreateOutput("mtlx:surface", Sdf.ValueTypeNames.Token).ConnectToSource(
-            surface.ConnectableAPI(), "out"
-        )
+        material.CreateOutput("mtlx:surface", Sdf.ValueTypeNames.Token).ConnectToSource(surface.ConnectableAPI(), "out")
         # Karma selects its renderer-context output rather than the generic
         # MaterialX context when rendering a USD stage headlessly.
-        material.CreateOutput("kma:surface", Sdf.ValueTypeNames.Token).ConnectToSource(
-            surface.ConnectableAPI(), "out"
-        )
+        material.CreateOutput("kma:surface", Sdf.ValueTypeNames.Token).ConnectToSource(surface.ConnectableAPI(), "out")
 
         texcoord = UsdShade.Shader.Define(stage, material_path.AppendChild("texcoord"))
         texcoord.CreateIdAttr("ND_texcoord_vector2")
@@ -897,7 +937,9 @@ def _write_baked_usd_material_file(
                 file_input = image.CreateInput("file", Sdf.ValueTypeNames.Asset)
                 file_input.Set(Sdf.AssetPath(texture_path.replace("\\", "/")))
                 file_input.GetAttr().SetColorSpace(baked.get("stream_color_space", "lin_ap1"))
-                image.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(texcoord.ConnectableAPI(), "out")
+                image.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(
+                    texcoord.ConnectableAPI(), "out"
+                )
                 image.CreateOutput("out", Sdf.ValueTypeNames.Color3f)
                 surface.CreateInput("emission_color", Sdf.ValueTypeNames.Color3f).ConnectToSource(
                     image.ConnectableAPI(), "out"
@@ -910,18 +952,21 @@ def _write_baked_usd_material_file(
             is_color = map_name in {"base_color", "emission_color", "sheen_color", "specular_color"}
             image = UsdShade.Shader.Define(stage, material_path.AppendChild(f"{map_name}_image"))
             image.CreateIdAttr(
-                "ND_gltf_normalmap_vector3_1_0"
-                if is_normal
-                else "ND_image_color3"
-                if is_color
-                else "ND_image_float"
+                "ND_gltf_normalmap_vector3_1_0" if is_normal else "ND_image_color3" if is_color else "ND_image_float"
             )
             file_input = image.CreateInput("file", Sdf.ValueTypeNames.Asset)
             # Normalize Windows filenames to the portable USD asset form.
             file_input.Set(Sdf.AssetPath(texture_path.replace("\\", "/")))
             file_input.GetAttr().SetColorSpace(baked.get("stream_color_space", "lin_ap1") if is_color else "raw")
             image.CreateInput("texcoord", Sdf.ValueTypeNames.Float2).ConnectToSource(texcoord.ConnectableAPI(), "out")
-            image.CreateOutput("out", Sdf.ValueTypeNames.Float3 if is_normal else Sdf.ValueTypeNames.Color3f if is_color else Sdf.ValueTypeNames.Float)
+            image.CreateOutput(
+                "out",
+                Sdf.ValueTypeNames.Float3
+                if is_normal
+                else Sdf.ValueTypeNames.Color3f
+                if is_color
+                else Sdf.ValueTypeNames.Float,
+            )
 
             if is_normal:
                 surface.CreateInput(surface_input_names[map_name], Sdf.ValueTypeNames.Float3).ConnectToSource(
@@ -929,7 +974,9 @@ def _write_baked_usd_material_file(
                 )
             else:
                 value_type = Sdf.ValueTypeNames.Color3f if is_color else Sdf.ValueTypeNames.Float
-                surface.CreateInput(surface_input_names[map_name], value_type).ConnectToSource(image.ConnectableAPI(), "out")
+                surface.CreateInput(surface_input_names[map_name], value_type).ConnectToSource(
+                    image.ConnectableAPI(), "out"
+                )
         material_paths.append(material_path.pathString)
 
     stage.GetRootLayer().Save()
@@ -966,7 +1013,20 @@ def export_baked_blender_materials(
     package_src: str | Path | None = None,
     timeout: int = 300,
 ) -> dict[str, Any]:
-    """Bake Blender materials to canonical PBR maps or unlit beauty maps."""
+    """
+    Bake Blender materials into canonical PBR or unlit beauty textures and write target-specific USDA material files.
+    
+    Parameters:
+    	material_names (tuple[str, ...] | None): Material names to bake, or all eligible materials when omitted.
+    	resolution (int): Width and height of each baked texture in pixels.
+    	auto_unwrap (bool): Whether to generate UVs automatically for objects without suitable UVs.
+    	bake_mode (str): Bake mode: `"pbr"`, `"beauty"`, or `"auto"`.
+    	color_space (str): MaterialX color-space name for baked textures.
+    	targets (tuple[str, ...]): Material targets for generated USDA files.
+    
+    Returns:
+    	dict[str, Any]: Bake report containing baked material metadata, the selected bake settings, and generated USD file paths.
+    """
     if resolution < 1:
         raise ValueError("Bake resolution must be a positive integer.")
     if bake_mode not in {"pbr", "beauty", "auto"}:
@@ -988,13 +1048,10 @@ def export_baked_blender_materials(
         timeout=timeout,
     )
     if completed.returncode != 0:
-        raise RuntimeError(
-            "Blender material baking failed."
-            f"\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
-        )
+        raise RuntimeError(f"Blender material baking failed.\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}")
     bake_result = next(
         (
-            json.loads(line[len(BAKED_MATERIAL_EXPORT_PREFIX):])
+            json.loads(line[len(BAKED_MATERIAL_EXPORT_PREFIX) :])
             for line in completed.stdout.splitlines()
             if line.startswith(BAKED_MATERIAL_EXPORT_PREFIX)
         ),
@@ -1008,12 +1065,23 @@ def export_baked_blender_materials(
         usd_path = output_dir / f"blender_baked_materials_{TARGET_FILE_LABELS[target]}.usda"
         usd_files[target] = _write_baked_usd_material_file(bake_result["baked_materials"], usd_path, target)
 
-    bake_result.update({"source": "blender-baked-materials", "bake_mode": bake_mode, "resolution": resolution, "usd_files": usd_files})
+    bake_result.update(
+        {"source": "blender-baked-materials", "bake_mode": bake_mode, "resolution": resolution, "usd_files": usd_files}
+    )
     return bake_result
 
 
 def _copy_native_materials(source_usd_path: Path, destination_usd_path: Path) -> dict[str, Any]:
-    """Extract native Blender material prims into a material-only USD layer."""
+    """
+    Extract native Blender material prims into a material-only USD layer and report suspicious magenta base-color defaults.
+    
+    Parameters:
+    	source_usd_path (Path): Path to the USD file exported by Blender.
+    	destination_usd_path (Path): Path where the material-only USD layer is written.
+    
+    Returns:
+    	dict[str, Any]: Report containing the destination path, copied material count and paths, and materials with suspicious magenta base colors.
+    """
     from pxr import Sdf, Usd, UsdShade
 
     source_stage = Usd.Stage.Open(str(source_usd_path))
@@ -1065,11 +1133,22 @@ def export_native_blender_materialx(
     package_src: str | Path | None = None,
     timeout: int = 300,
 ) -> dict[str, Any]:
-    """Export Blender's native MaterialX graph as a material-only USD file.
-
-    This opt-in path is intended for Blender graphs outside the project's
-    explicit neutral-node mapping. It preserves Blender's own MaterialX
-    conversion rather than silently approximating unsupported group graphs.
+    """
+    Export Blender's native MaterialX conversion as a material-only USD file.
+    
+    Parameters:
+        scene_path (str | Path): Path to the Blender scene.
+        out_dir (str | Path): Directory where the exported USD file is written.
+        runtime (BlenderRuntime | None): Blender runtime configuration.
+        package_src (str | Path | None): Source path used by the Blender runtime.
+        timeout (int): Maximum execution time in seconds.
+    
+    Returns:
+        dict[str, Any]: Report describing the exported native MaterialX materials.
+    
+    Raises:
+        FileNotFoundError: If the Blender scene does not exist.
+        RuntimeError: If Blender fails to produce the native MaterialX export.
     """
     scene = Path(scene_path).expanduser().resolve()
     if not scene.is_file():
@@ -1091,8 +1170,7 @@ def export_native_blender_materialx(
         )
         if completed.returncode != 0 or not native_scene_usd_path.is_file():
             raise RuntimeError(
-                "Blender native MaterialX export failed."
-                f"\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
+                f"Blender native MaterialX export failed.\nstdout:\n{completed.stdout}\nstderr:\n{completed.stderr}"
             )
         report = _copy_native_materials(native_scene_usd_path, material_usd_path)
 
@@ -1108,17 +1186,22 @@ def extract_blender_material_graphs(
     package_src: str | Path | None = None,
     timeout: int = 300,
 ) -> dict[str, Any]:
-    """Extract standardized Blender material graphs into a JSON file.
-
-    Args:
-        scene_path: ``.blend`` scene to open in headless Blender.
-        graph_json_path: JSON file to write graph data to.
-        runtime: Optional resolved Blender runtime.
-        package_src: Source directory to expose to Blender's ``PYTHONPATH``.
-        timeout: Maximum seconds to wait for Blender.
-
+    """
+    Extract standardized material graphs from a Blender scene into a JSON file.
+    
+    Parameters:
+        scene_path (str | Path): Blender scene file to open.
+        graph_json_path (str | Path): JSON file to write.
+        runtime (BlenderRuntime | None): Optional resolved Blender runtime.
+        package_src (str | Path | None): Source directory to expose to Blender.
+        timeout (int): Maximum number of seconds to wait for Blender.
+    
     Returns:
-        A summary of the extracted graphs, excluding the full graph payload.
+        dict[str, Any]: Summary of the extracted graphs, excluding the full graph payload.
+    
+    Raises:
+        FileNotFoundError: If the Blender scene does not exist.
+        RuntimeError: If extraction fails or Blender does not report a summary.
     """
     scene = Path(scene_path).expanduser().resolve()
     if not scene.is_file():
@@ -1143,7 +1226,7 @@ def extract_blender_material_graphs(
 
     for line in completed.stdout.splitlines():
         if line.startswith(BLENDER_GRAPH_EXPORT_PREFIX):
-            return json.loads(line[len(BLENDER_GRAPH_EXPORT_PREFIX):])
+            return json.loads(line[len(BLENDER_GRAPH_EXPORT_PREFIX) :])
 
     raise RuntimeError(
         "Blender material graph extraction did not report a summary."
@@ -1242,7 +1325,27 @@ def export_blender_scene_to_usd(
     report_json: str | Path | None = None,
     graph_json: str | Path | None = None,
 ) -> dict[str, Any]:
-    """Export Blender scene materials to USD MaterialX/OpenPBR files."""
+    """
+    Export Blender scene materials to USD MaterialX/OpenPBR files or baked-material outputs.
+    
+    Parameters:
+        scene_path (str | Path): Path to the Blender scene.
+        out_dir (str | Path): Directory for generated USD files and reports.
+        targets (tuple[str, ...]): USD material targets to export.
+        native_materialx (bool): Whether to include Blender's native MaterialX export.
+        bake_materials (tuple[str, ...] | None): Material names to bake; when provided, uses the baking workflow instead of graph translation.
+        bake_mode (str): Baking mode, such as ``"pbr"``, ``"beauty"``, or ``"auto"``.
+        missing_textures (str): Policy for missing textures.
+        fail_on_unsupported (bool): Whether unsupported material nodes cause the export to fail.
+        report_json (str | Path | None): Optional path for the export report.
+        graph_json (str | Path | None): Optional path for the extracted and remapped material graphs.
+    
+    Returns:
+        dict[str, Any]: Report describing the generated files, materials, and export results.
+    
+    Raises:
+        ValueError: If incompatible export options are selected or a configured report policy fails.
+    """
     output_dir = Path(out_dir).expanduser().resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
     if bake_materials is not None:
@@ -1262,7 +1365,9 @@ def export_blender_scene_to_usd(
             timeout=timeout,
         )
     else:
-        graph_json_path = Path(graph_json).expanduser().resolve() if graph_json else output_dir / "blender_material_graphs.json"
+        graph_json_path = (
+            Path(graph_json).expanduser().resolve() if graph_json else output_dir / "blender_material_graphs.json"
+        )
         graph_json_path.parent.mkdir(parents=True, exist_ok=True)
 
         extract_blender_material_graphs(
@@ -1442,7 +1547,9 @@ def add_blender_export_parser(subparsers) -> argparse.ArgumentParser:
         help="USD material target to export. Can be passed more than once. Default: all.",
     )
     export_parser.add_argument("--report-json", default=None, help="Explicit path for the export report JSON.")
-    export_parser.add_argument("--graph-json", default=None, help="Explicit path for the extracted material graph JSON.")
+    export_parser.add_argument(
+        "--graph-json", default=None, help="Explicit path for the extracted material graph JSON."
+    )
     export_parser.add_argument(
         "--native-materialx",
         action="store_true",
@@ -1491,7 +1598,9 @@ def add_blender_inspect_parser(subparsers) -> argparse.ArgumentParser:
     )
     inspect_parser.add_argument("scene", help="Path to the .blend scene.")
     inspect_parser.add_argument("--report-json", default=None, help="Optional path for the inspection report JSON.")
-    inspect_parser.add_argument("--graph-json", default=None, help="Optional path for the extracted material graph JSON.")
+    inspect_parser.add_argument(
+        "--graph-json", default=None, help="Optional path for the extracted material graph JSON."
+    )
     add_blender_runtime_arguments(inspect_parser)
     add_texture_arguments(inspect_parser)
     return inspect_parser
@@ -1507,7 +1616,15 @@ def _runtime_from_args(args) -> BlenderRuntime:
 
 
 def run_export_from_args(args) -> dict[str, Any]:
-    """Run Blender USD export from parsed CLI arguments."""
+    """
+    Run the Blender scene export using parsed command-line arguments.
+    
+    Parameters:
+        args: Parsed command-line arguments containing scene, export, runtime, texture, baking, and report settings.
+    
+    Returns:
+        dict[str, Any]: Export report.
+    """
     out_dir = Path(args.out_dir) if args.out_dir else Path(tempfile.mkdtemp(prefix="materials_processor_blender_usd_"))
     return export_blender_scene_to_usd(
         args.scene,

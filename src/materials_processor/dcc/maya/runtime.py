@@ -49,13 +49,28 @@ def _resolve_root(version: str, root: str | os.PathLike[str] | None) -> Path:
 
 
 def _require_file(path: Path, label: str) -> Path:
+    """
+    Ensure that a required file exists and return its resolved path.
+    
+    Parameters:
+    	path (Path): Path to the required file.
+    	label (str): Human-readable name used in the error message.
+    
+    Returns:
+    	Path: The resolved path to the file.
+    
+    Raises:
+    	FileNotFoundError: If the resolved path is not a file.
+    """
     resolved = path.resolve()
     if not resolved.is_file():
         raise FileNotFoundError(f"{label} was not found: {resolved}")
     return resolved
 
 
-def resolve_maya_runtime(version: str = DEFAULT_MAYA_VERSION, root: str | os.PathLike[str] | None = None) -> MayaRuntime:
+def resolve_maya_runtime(
+    version: str = DEFAULT_MAYA_VERSION, root: str | os.PathLike[str] | None = None
+) -> MayaRuntime:
     """Resolve the Maya runtime executable paths.
 
     Args:
@@ -188,16 +203,43 @@ def _with_pythonpath(env: dict[str, str], package_src: Path) -> dict[str, str]:
 
 
 def _parse_validation_output(stdout: str) -> dict[str, str]:
+    """
+    Parse the runtime metadata emitted by Maya validation.
+    
+    Parameters:
+    	stdout (str): Validation process output containing a prefixed JSON result.
+    
+    Returns:
+    	dict[str, str]: Parsed Maya runtime metadata.
+    
+    Raises:
+    	RuntimeError: If the validation output does not contain a runtime result.
+    """
     for line in stdout.splitlines():
         if line.startswith(VALIDATION_RESULT_PREFIX):
-            return json.loads(line[len(VALIDATION_RESULT_PREFIX):])
+            return json.loads(line[len(VALIDATION_RESULT_PREFIX) :])
     raise RuntimeError(f"Maya validation did not produce a runtime result. stdout:\n{stdout}")
 
 
 def _parse_prefixed_output(stdout: str, stderr: str, prefix: str, label: str) -> dict:
+    """
+    Parse a JSON runtime result identified by a prefix in standard output.
+    
+    Parameters:
+        stdout (str): Standard output to search for the prefixed result.
+        stderr (str): Standard error included in the error message when no result is found.
+        prefix (str): Prefix identifying the result line.
+        label (str): Runtime result label used in the error message.
+    
+    Returns:
+        dict: The parsed JSON result.
+    
+    Raises:
+        RuntimeError: If standard output contains no line beginning with the prefix.
+    """
     for line in stdout.splitlines():
         if line.startswith(prefix):
-            return json.loads(line[len(prefix):])
+            return json.loads(line[len(prefix) :])
     raise RuntimeError(f"Maya {label} did not produce a runtime result.\nstdout:\n{stdout}\nstderr:\n{stderr}")
 
 
@@ -210,20 +252,19 @@ def validate_maya_runtime(
     package_src: str | os.PathLike[str] | None = None,
     timeout: int = 120,
 ) -> MayaRuntime:
-    """Validate that Materials Processor imports inside Maya's mayapy runtime.
-
-    Args:
-        runtime: Optional pre-resolved Maya runtime.
-        package_src: Source directory to prepend to ``PYTHONPATH`` for the
-            validation process. Defaults to this checkout's ``src`` directory.
-        timeout: Maximum seconds to wait for ``mayapy``.
-
+    """
+    Validate that Materials Processor imports correctly in Maya's mayapy runtime and that the reported Maya metadata matches the resolved runtime.
+    
+    Parameters:
+        runtime (MayaRuntime | None): Optional pre-resolved Maya runtime.
+        package_src (str | os.PathLike[str] | None): Package source directory to add to ``PYTHONPATH``. Defaults to this checkout's ``src`` directory.
+        timeout (int): Maximum number of seconds to wait for validation.
+    
     Returns:
-        Runtime metadata populated from Maya itself.
-
+        MayaRuntime: Runtime metadata populated from Maya's reported version and API version.
+    
     Raises:
-        RuntimeError: If mayapy fails, times out, or reports an unexpected
-            Maya version/API.
+        RuntimeError: If validation times out, mayapy exits unsuccessfully, output is missing or invalid, or Maya reports an unexpected version or API version.
     """
     runtime = runtime or resolve_maya_runtime()
     package_src_path = Path(package_src) if package_src is not None else _default_package_src()
@@ -254,9 +295,7 @@ def validate_maya_runtime(
     if result["version"] != runtime.version:
         raise RuntimeError(f"Expected Maya {runtime.version}, but mayapy reported {result['version']}.")
     if expected_api_version and result["api_version"] != expected_api_version:
-        raise RuntimeError(
-            f"Expected Maya API {expected_api_version}, but mayapy reported {result['api_version']}."
-        )
+        raise RuntimeError(f"Expected Maya API {expected_api_version}, but mayapy reported {result['api_version']}.")
 
     return MayaRuntime(
         root=runtime.root,

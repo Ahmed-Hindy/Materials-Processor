@@ -210,9 +210,24 @@ def _with_pythonpath(env: dict[str, str], package_src: Path) -> dict[str, str]:
 
 
 def _parse_prefixed_output(stdout: str, stderr: str, prefix: str, label: str) -> dict:
+    """
+    Extracts a JSON result from output containing the specified prefix.
+    
+    Parameters:
+        stdout (str): Process standard output to search.
+        stderr (str): Process standard error included in the missing-result error.
+        prefix (str): Prefix identifying the result line.
+        label (str): Runtime label used in the error message.
+    
+    Returns:
+        dict: The decoded JSON result.
+    
+    Raises:
+        RuntimeError: If no line with the specified prefix is found.
+    """
     for line in stdout.splitlines():
         if line.startswith(prefix):
-            return json.loads(line[len(prefix):])
+            return json.loads(line[len(prefix) :])
     raise RuntimeError(f"Blender {label} did not produce a runtime result.\nstdout:\n{stdout}\nstderr:\n{stderr}")
 
 
@@ -221,20 +236,44 @@ def _default_package_src() -> Path:
 
 
 def _matches_requested_version(requested_version: str, reported_version: str) -> bool:
+    """Determine whether a reported Blender version matches the requested version.
+    
+    Parameters:
+    	requested_version (str): Version to match; an empty value accepts any reported version.
+    	reported_version (str): Version reported by Blender.
+    
+    Returns:
+    	bool: `true` if the reported version exactly matches or extends the requested version, `false` otherwise.
+    """
     if not requested_version:
         return True
     return reported_version == requested_version or reported_version.startswith(f"{requested_version}.")
 
 
-def _run_blender_python(runtime: BlenderRuntime, code: str, package_src: Path, timeout: int) -> subprocess.CompletedProcess:
+def _run_blender_python(
+    runtime: BlenderRuntime, code: str, package_src: Path, timeout: int
+) -> subprocess.CompletedProcess:
+    """
+    Run a Python script in Blender's isolated background environment.
+    
+    Parameters:
+    	runtime (BlenderRuntime): Blender installation to execute.
+    	code (str): Python source code to run.
+    	package_src (Path): Package source directory to make available to the script.
+    	timeout (int): Maximum execution time in seconds.
+    
+    Returns:
+    	subprocess.CompletedProcess: The completed Blender process, including captured output.
+    
+    Raises:
+    	RuntimeError: If Blender execution exceeds the timeout.
+    """
     env = _with_pythonpath(os.environ.copy(), package_src)
     with tempfile.TemporaryDirectory(prefix="materials_processor_blender_user_") as blender_user_dir:
         user_dir = Path(blender_user_dir)
         script_path = user_dir / "validate_materials_processor.py"
         script_path.write_text(
-            "import sys\n"
-            f"sys.path.insert(0, {str(package_src.resolve())!r})\n\n"
-            f"{code}\n",
+            f"import sys\nsys.path.insert(0, {str(package_src.resolve())!r})\n\n{code}\n",
             encoding="utf-8",
         )
         env["BLENDER_USER_CONFIG"] = str(user_dir / "config")

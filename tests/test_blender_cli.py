@@ -14,6 +14,14 @@ from materials_processor.dcc.blender import cli
 
 
 def _graph_payload(material_name="Cli Material"):
+    """Build a serialized material graph payload for test fixtures.
+    
+    Parameters:
+    	material_name (str): Name used for the material and its graph paths.
+    
+    Returns:
+    	dict: Serialized scene metadata containing one material graph and empty diagnostic results.
+    """
     graph = MaterialGraph(
         material_name=material_name,
         material_path=f"/mat/{material_name}",
@@ -60,10 +68,7 @@ def _graph_payload(material_name="Cli Material"):
                         "position": None,
                     }
                 ],
-                "output_connections": {
-                    key: value.to_dict()
-                    for key, value in graph.output_connections.items()
-                },
+                "output_connections": {key: value.to_dict() for key, value in graph.output_connections.items()},
             }
         ],
         "read_failures": [],
@@ -246,7 +251,10 @@ def test_inspect_blender_scene_writes_report_before_missing_texture_failure(tmp_
     report_json = tmp_path / "inspect_report.json"
 
     def fake_extract(scene_path, graph_json_path, **kwargs):
-        Path(graph_json_path).write_text(json.dumps(_texture_graph_payload(r"C:\missing\basecolor.png")), encoding="utf-8")
+        """Write a fixture material graph containing a missing texture and report one graph."""
+        Path(graph_json_path).write_text(
+            json.dumps(_texture_graph_payload(r"C:\missing\basecolor.png")), encoding="utf-8"
+        )
         return {"graph_count": 1}
 
     monkeypatch.setattr(cli, "extract_blender_material_graphs", fake_extract)
@@ -332,11 +340,23 @@ def test_write_baked_usd_material_file_creates_texture_driven_material(tmp_path)
     assert surface.GetInput("normal").HasConnectedSource()
     assert surface.GetInput("opacity").HasConnectedSource()
     assert surface.GetInput("emission_color").HasConnectedSource()
-    assert stage.GetPrimAtPath("/materials/Felt_Fabric/normal_image").GetAttribute("info:id").Get() == "ND_gltf_normalmap_vector3_1_0"
+    assert (
+        stage.GetPrimAtPath("/materials/Felt_Fabric/normal_image").GetAttribute("info:id").Get()
+        == "ND_gltf_normalmap_vector3_1_0"
+    )
     assert not stage.GetPrimAtPath("/materials/Felt_Fabric/normalmap").IsValid()
-    assert stage.GetPrimAtPath("/materials/Felt_Fabric/base_color_image").GetAttribute("inputs:file").GetColorSpace() == "lin_ap1"
-    assert stage.GetPrimAtPath("/materials/Felt_Fabric/roughness_image").GetAttribute("inputs:file").GetColorSpace() == "raw"
-    assert "\\" not in stage.GetPrimAtPath("/materials/Felt_Fabric/base_color_image").GetAttribute("inputs:file").Get().path
+    assert (
+        stage.GetPrimAtPath("/materials/Felt_Fabric/base_color_image").GetAttribute("inputs:file").GetColorSpace()
+        == "lin_ap1"
+    )
+    assert (
+        stage.GetPrimAtPath("/materials/Felt_Fabric/roughness_image").GetAttribute("inputs:file").GetColorSpace()
+        == "raw"
+    )
+    assert (
+        "\\"
+        not in stage.GetPrimAtPath("/materials/Felt_Fabric/base_color_image").GetAttribute("inputs:file").Get().path
+    )
 
     openpbr_result = cli._write_baked_usd_material_file(
         [{"material": "Felt Fabric", "maps": maps}],
@@ -346,7 +366,11 @@ def test_write_baked_usd_material_file_creates_texture_driven_material(tmp_path)
     openpbr_stage = Usd.Stage.Open(openpbr_result["path"])
     openpbr_surface = UsdShade.Shader(openpbr_stage.GetPrimAtPath("/materials/Felt_Fabric/surface"))
     assert openpbr_surface.GetInput("base_weight").Get() == 1.0
-    assert UsdShade.Material(openpbr_stage.GetPrimAtPath("/materials/Felt_Fabric")).GetSurfaceOutput("kma").HasConnectedSource()
+    assert (
+        UsdShade.Material(openpbr_stage.GetPrimAtPath("/materials/Felt_Fabric"))
+        .GetSurfaceOutput("kma")
+        .HasConnectedSource()
+    )
 
 
 def test_write_baked_usd_material_file_uses_the_recorded_color_space(tmp_path):
@@ -363,7 +387,10 @@ def test_write_baked_usd_material_file_uses_the_recorded_color_space(tmp_path):
     )
     stage = Usd.Stage.Open(result["path"])
 
-    assert stage.GetPrimAtPath("/materials/Calibrated/base_color_image").GetAttribute("inputs:file").GetColorSpace() == "lin_rec709"
+    assert (
+        stage.GetPrimAtPath("/materials/Calibrated/base_color_image").GetAttribute("inputs:file").GetColorSpace()
+        == "lin_rec709"
+    )
 
 
 def test_bake_script_reports_requested_materials_missing_from_scene(tmp_path):
@@ -371,7 +398,9 @@ def test_bake_script_reports_requested_materials_missing_from_scene(tmp_path):
 
     assert "material name was not found in the Blender scene" in code
     assert "available_material_names" in code
-    assert code.index("bake_source_kind, bake_source, reason = active_bake_source(material)") < code.index("if not obj.data.uv_layers")
+    assert code.index("bake_source_kind, bake_source, reason = active_bake_source(material)") < code.index(
+        "if not obj.data.uv_layers"
+    )
 
 
 def test_bake_script_writes_unlinked_principled_values_as_texture_maps(tmp_path):
@@ -475,7 +504,11 @@ def test_export_baked_blender_materials_writes_target_files(tmp_path, monkeypatc
         "baked_materials": [
             {
                 "material": "felt",
-                "maps": {"base_color": str(baked_texture), "roughness": str(baked_texture), "normal": str(baked_texture)},
+                "maps": {
+                    "base_color": str(baked_texture),
+                    "roughness": str(baked_texture),
+                    "normal": str(baked_texture),
+                },
                 "generated_uv": False,
             }
         ],
@@ -519,23 +552,25 @@ def test_blender_cli_export_usd_dispatches_to_exporter(tmp_path, monkeypatch, ca
 
     monkeypatch.setattr(cli, "export_blender_scene_to_usd", fake_export)
 
-    exit_code = cli.main([
-        "export-usd",
-        str(scene),
-        "--out-dir",
-        str(tmp_path / "out"),
-        "--target",
-        "materialx",
-        "--target",
-        "openpbr",
-        "--timeout",
-        "7",
-        "--native-materialx",
-        "--bake-resolution",
-        "2048",
-        "--bake-color-space",
-        "lin_rec709",
-    ])
+    exit_code = cli.main(
+        [
+            "export-usd",
+            str(scene),
+            "--out-dir",
+            str(tmp_path / "out"),
+            "--target",
+            "materialx",
+            "--target",
+            "openpbr",
+            "--timeout",
+            "7",
+            "--native-materialx",
+            "--bake-resolution",
+            "2048",
+            "--bake-color-space",
+            "lin_rec709",
+        ]
+    )
 
     assert exit_code == 0
     assert captured["scene_path"] == str(scene)
@@ -557,6 +592,17 @@ def test_blender_cli_bake_without_a_material_selects_all(tmp_path, monkeypatch, 
     monkeypatch.setattr(cli, "resolve_blender_runtime", lambda **kwargs: "runtime")
 
     def fake_export(scene_path, out_dir, **kwargs):
+        """
+        Capture export options and return a minimal export result for testing.
+        
+        Parameters:
+            scene_path: Scene path supplied to the simulated export.
+            out_dir: Directory reported as the export output directory.
+            **kwargs: Export options to capture.
+        
+        Returns:
+            A dictionary containing the output directory and an empty USD file mapping.
+        """
         captured["kwargs"] = kwargs
         return {"output_dir": str(out_dir), "usd_files": {}}
 

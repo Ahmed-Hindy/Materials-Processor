@@ -52,19 +52,16 @@ class BlenderNodeRecreator:
         if not node_type:
             return "NodeReroute"
 
-        new_node_type = convert_generic(
-            node_type=node_type,
-            target_renderer="blender",
-            profile="blender_shader_nodes"
-        )
+        new_node_type = convert_generic(node_type=node_type, target_renderer="blender", profile="blender_shader_nodes")
         return new_node_type
 
     def _apply_parameters(self, node, parameters):
-        """Apply parameters to a Blender shader node.
-
-        Args:
-            node: The Blender node.
-            parameters (List[NodeParameter]): Standard parameters.
+        """
+        Apply standardized input parameters to a Blender shader node, including node-specific values such as images, mapping transforms, and normal-map strength.
+        
+        Parameters:
+            node: The Blender shader node to configure.
+            parameters (List[NodeParameter]): Standardized parameters whose input values should be applied.
         """
         if not parameters:
             return
@@ -73,7 +70,7 @@ class BlenderNodeRecreator:
         std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type, {})
 
         for param in parameters:
-            if param.direction != 'input':
+            if param.direction != "input":
                 continue
             if not param.generic_name:
                 continue
@@ -119,7 +116,9 @@ class BlenderNodeRecreator:
                             z_default = 1.0 if blender_name == "Scale" else 0.0
                             socket.default_value = tuple((values + [z_default])[:3])
                     except Exception as exc:
-                        logger.warning("Failed to set mapping parameter '%s' on node '%s': %s", blender_name, node.name, exc)
+                        logger.warning(
+                            "Failed to set mapping parameter '%s' on node '%s': %s", blender_name, node.name, exc
+                        )
                 continue
 
             # Default socket value assignment
@@ -139,29 +138,33 @@ class BlenderNodeRecreator:
                     logger.warning("Failed to set parameter '%s' on node '%s': %s", blender_name, node.name, e)
 
     def _create_node(self, node_info):
-        """Create a Blender node from NodeInfo.
-
+        """
+        Create or reuse a Blender node for the specified node description.
+        
         Args:
-            node_info (NodeInfo): Standardized node info.
-
+            node_info (NodeInfo): Standardized node description used to identify and configure the node.
+        
         Returns:
-            The created Blender node.
+            The reused or newly created Blender node, or `None` if the target material has no node tree.
         """
         blender_type = self._convert_generic_node_type_to_blender_type(node_info.node_type)
         if not self.target_material or not getattr(self.target_material, "node_tree", None):
             return None
 
         node_tree = self.target_material.node_tree
-        existing_nodes = [node for node in node_tree.nodes if
-                          node.bl_idname == blender_type and node not in self.reused_nodes.values()]
+        existing_nodes = [
+            node
+            for node in node_tree.nodes
+            if node.bl_idname == blender_type and node not in self.reused_nodes.values()
+        ]
 
         if existing_nodes:
             node = existing_nodes[0]
             self._apply_parameters(node, node_info.parameters)
             self.reused_nodes[node_info.node_path] = node
             self.old_new_node_map[node_info.node_path] = {
-                'node_name': node.name,
-                'node_path': f"/mat/{self.material_name}/{node.name}"
+                "node_name": node.name,
+                "node_path": f"/mat/{self.material_name}/{node.name}",
             }
             return node
 
@@ -174,17 +177,18 @@ class BlenderNodeRecreator:
         self._apply_parameters(node, node_info.parameters)
         self.reused_nodes[node_info.node_path] = node
         self.old_new_node_map[node_info.node_path] = {
-            'node_name': node.name,
-            'node_path': f"/mat/{self.material_name}/{node.name}"
+            "node_name": node.name,
+            "node_path": f"/mat/{self.material_name}/{node.name}",
         }
         return node
 
     def _create_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_nodes=None):
-        """Recursively create Blender nodes from NodeInfo objects.
-
-        Args:
-            nested_nodes_info (List[NodeInfo]): The nested node lists.
-            processed_nodes: Set of processed node paths.
+        """
+        Recursively creates Blender nodes from nested node descriptions while skipping already processed paths and generic output nodes.
+        
+        Parameters:
+        	nested_nodes_info (List[NodeInfo]): Node descriptions to process.
+        	processed_nodes (set, optional): Node paths that have already been processed.
         """
         if processed_nodes is None:
             processed_nodes = set()
@@ -193,7 +197,7 @@ class BlenderNodeRecreator:
             if node_info.node_path in processed_nodes:
                 continue
 
-            if node_info.node_type != 'GENERIC::output_node':
+            if node_info.node_type != "GENERIC::output_node":
                 self._create_node(node_info)
 
             processed_nodes.add(node_info.node_path)
@@ -234,11 +238,12 @@ class BlenderNodeRecreator:
         return False
 
     def _connect_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_connections=None):
-        """Recursively construct connections between newly recreated Blender nodes.
-
-        Args:
-            nested_nodes_info (List[NodeInfo]): Standard node infos.
-            processed_connections: Set of connected pairs.
+        """
+        Recreate connections between the specified nodes and their nested child nodes.
+        
+        Parameters:
+            nested_nodes_info (List[NodeInfo]): Node descriptions containing connection information.
+            processed_connections (set, optional): Connection identifiers already handled.
         """
         if processed_connections is None:
             processed_connections = set()
@@ -254,8 +259,8 @@ class BlenderNodeRecreator:
 
                 if src_info and dest_info:
                     node_tree = self.target_material.node_tree
-                    src_node = node_tree.nodes.get(src_info['node_name'])
-                    dest_node = node_tree.nodes.get(dest_info['node_name'])
+                    src_node = node_tree.nodes.get(src_info["node_name"])
+                    dest_node = node_tree.nodes.get(dest_info["node_name"])
 
                     if src_node and dest_node:
                         src_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(src_node.bl_idname, {})
@@ -274,10 +279,11 @@ class BlenderNodeRecreator:
             self._connect_nodes_recursive(node_info.children_list, processed_connections)
 
     def run(self):
-        """Recreate the Blender shader nodes and link connections.
-
+        """
+        Recreate shader nodes and establish their connections in the target material.
+        
         Returns:
-            bool: True if successful.
+            bool: `True` if recreation completes, `False` if no target material is provided.
         """
         if not self.target_material:
             logger.warning("No target material provided to BlenderNodeRecreator. Skipping recreation.")
@@ -300,10 +306,10 @@ class BlenderNodeRecreator:
         # Register output nodes in map
         for generic_output_type, output_connection in self.orig_output_connections.items():
             self.old_new_node_map[output_connection.node_path] = {
-                'node_name': output_node.name,
-                'node_path': f"/mat/{self.material_name}/{output_node.name}",
-                'is_output': True,
-                'output_type': generic_output_type,
+                "node_name": output_node.name,
+                "node_path": f"/mat/{self.material_name}/{output_node.name}",
+                "is_output": True,
+                "output_type": generic_output_type,
             }
 
         # Step 1: Recreate all shader nodes recursively
@@ -316,13 +322,15 @@ class BlenderNodeRecreator:
         for generic_output_type, output_connection in self.orig_output_connections.items():
             connected_node_info = self.old_new_node_map.get(output_connection.connected_node_path)
             if connected_node_info:
-                src_node = node_tree.nodes.get(connected_node_info['node_name'])
+                src_node = node_tree.nodes.get(connected_node_info["node_name"])
                 if src_node:
                     dest_socket_name = "Surface" if "surface" in generic_output_type.lower() else "Displacement"
 
                     src_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(src_node.bl_idname, {})
                     src_socket_names = [k for k, v in src_map.items() if v == output_connection.connected_output_name]
-                    src_socket_name = src_socket_names[0] if src_socket_names else output_connection.connected_output_name
+                    src_socket_name = (
+                        src_socket_names[0] if src_socket_names else output_connection.connected_output_name
+                    )
 
                     self._connect_pair(src_node, output_node, src_socket_name, dest_socket_name)
 

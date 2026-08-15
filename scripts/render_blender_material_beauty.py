@@ -17,7 +17,7 @@ from materials_processor.dcc.blender.runtime import resolve_blender_runtime
 
 def _script(scene_path: Path, material_name: str, image_path: Path, geometry_path: Path, samples: int) -> str:
     """Return Blender Python for a controlled single-material beauty render."""
-    return f'''
+    return f"""
 import bpy
 from mathutils import Vector
 
@@ -111,11 +111,23 @@ bpy.ops.wm.usd_export(
 )
 print("Rendered Cycles source beauty: " + {str(image_path)!r})
 print("Exported comparison geometry: " + {str(geometry_path)!r})
-'''.strip()
+""".strip()
 
 
 def main() -> int:
-    """Render the source and export the same comparison geometry."""
+    """
+    Render the selected material and export matching comparison geometry.
+    
+    Parameters:
+        Command-line arguments specify the source scene, material, image output,
+        geometry USD output, and optional Cycles sample count.
+    
+    Raises:
+        RuntimeError: If the Blender render or USD export fails.
+    
+    Returns:
+        int: Zero after successful completion.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_scene", type=Path)
     parser.add_argument("--material", required=True)

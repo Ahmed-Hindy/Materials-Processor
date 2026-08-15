@@ -20,15 +20,22 @@ TARGET_FILE_LABELS = {
 
 
 def nodeinfo_from_dict(data: dict[str, Any]) -> NodeInfo:
-    """Rebuild a ``NodeInfo`` from JSON-compatible data."""
+    """
+    Reconstruct a ``NodeInfo`` instance from serialized mapping data.
+    
+    Parameters:
+    	data (dict[str, Any]): JSON-compatible node data, including nested child nodes.
+    
+    Returns:
+    	NodeInfo: The reconstructed node information.
+    """
     return NodeInfo(
         node_type=data.get("node_type"),
         node_name=data["node_name"],
         node_path=data["node_path"],
         parameters=[NodeParameter(**param) for param in data.get("parameters") or []],
         connection_info={
-            key: NodeConnection.from_mapping(value)
-            for key, value in (data.get("connection_info") or {}).items()
+            key: NodeConnection.from_mapping(value) for key, value in (data.get("connection_info") or {}).items()
         },
         children_list=[nodeinfo_from_dict(child) for child in data.get("children_list") or []],
         is_output_node=data.get("is_output_node", False),
@@ -44,8 +51,7 @@ def material_graph_from_dict(data: dict[str, Any]) -> MaterialGraph:
         material_path=data.get("material_path"),
         nodeinfo_list=[nodeinfo_from_dict(node) for node in data.get("nodeinfo_list") or []],
         output_connections={
-            key: OutputConnection.from_mapping(value)
-            for key, value in (data.get("output_connections") or {}).items()
+            key: OutputConnection.from_mapping(value) for key, value in (data.get("output_connections") or {}).items()
         },
     )
 

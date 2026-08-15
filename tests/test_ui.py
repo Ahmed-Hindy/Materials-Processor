@@ -201,6 +201,15 @@ class _DialogButtonBox(_Widget):
 
 
 def _install_fake_qt_and_hou(monkeypatch):
+    """
+    Install fake Qt and Houdini modules for isolated UI tests.
+    
+    Parameters:
+        monkeypatch: Pytest fixture used to replace module dependencies.
+    
+    Returns:
+        hou: The configured fake Houdini module.
+    """
     qt_core = qt.QtCore
     qt_core.Qt = types.SimpleNamespace(
         Key=types.SimpleNamespace(Key_Delete=1),
@@ -221,9 +230,7 @@ def _install_fake_qt_and_hou(monkeypatch):
     qt_widgets.QCheckBox = _Widget
     qt_widgets.QDialog = _Widget
     qt_widgets.QDialogButtonBox = _DialogButtonBox
-    qt_widgets.QAbstractItemView = types.SimpleNamespace(
-        SelectionMode=types.SimpleNamespace(ExtendedSelection=4)
-    )
+    qt_widgets.QAbstractItemView = types.SimpleNamespace(SelectionMode=types.SimpleNamespace(ExtendedSelection=4))
     qt_widgets.QMessageBox = types.SimpleNamespace(about=lambda *args, **kwargs: None)
 
     hou = types.ModuleType("hou")
@@ -245,9 +252,7 @@ def test_available_format_choices_filters_unavailable_renderer_plugins(monkeypat
     choices = ui.available_format_choices()
 
     assert choices == {
-        key: value
-        for key, value in FORMAT_CHOICES.items()
-        if key not in {"arnold", "rs_usd_material_builder"}
+        key: value for key, value in FORMAT_CHOICES.items() if key not in {"arnold", "rs_usd_material_builder"}
     }
 
 

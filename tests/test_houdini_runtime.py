@@ -34,7 +34,7 @@ def test_resolve_hython_uses_environment_override(monkeypatch, tmp_path):
 
 
 def test_resolve_husk_uses_active_houdini_install(monkeypatch, tmp_path):
-    """HFS provides Husk when it is not explicitly configured or on PATH."""
+    """Resolves Husk from the active Houdini installation configured by HFS."""
     _disable_ambient_discovery(monkeypatch, tmp_path)
     hfs = tmp_path / "houdini"
     executable = hfs / "bin" / "husk.exe"

@@ -13,7 +13,9 @@ from pathlib import Path
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdLux, UsdRender, UsdShade
 
 
-def _create_plane(stage: Usd.Stage, path: Sdf.Path, center_x: float, center_y: float, material: UsdShade.Material) -> None:
+def _create_plane(
+    stage: Usd.Stage, path: Sdf.Path, center_x: float, center_y: float, material: UsdShade.Material
+) -> None:
     """Create one UV-mapped plane and bind a material from the baked USD layer."""
     mesh = UsdGeom.Mesh.Define(stage, path)
     half_size = 1.0
@@ -63,7 +65,19 @@ def _create_albedo_material(
 def _create_normal_vector_material(
     stage: Usd.Stage, material_path: Sdf.Path, source_material: UsdShade.Material
 ) -> UsdShade.Material:
-    """Visualize the raw encoded tangent-space normal texture."""
+    """
+    Create a material that displays a baked tangent-space normal texture as raw color.
+    
+    Parameters:
+        material_path (Sdf.Path): Path at which to define the visualization material.
+        source_material (UsdShade.Material): Source material containing the baked normal-map connection.
+    
+    Returns:
+        UsdShade.Material: Material connected to the raw normal-texture visualization.
+    
+    Raises:
+        ValueError: If the source material lacks a connected surface, baked normal map, or texture coordinates.
+    """
     source_surface = source_material.GetSurfaceOutput("mtlx")
     source = source_surface.GetConnectedSource() if source_surface else None
     if not source:
@@ -107,7 +121,23 @@ def create_preview_stage(
     geometry_usd: Path | None = None,
     material_name: str | None = None,
 ) -> list[str]:
-    """Compose baked MaterialX USD with ten geometry previews and optional lights."""
+    """
+    Create a USD preview stage for baked MaterialX materials.
+    
+    Parameters:
+        materials_usd (Path): USD file containing the baked materials.
+        output_usd (Path): Destination path for the generated USD stage.
+        albedo_only (bool): Use albedo visualization materials instead of the baked materials.
+        normal_vectors (bool): Use raw normal-texture visualization materials.
+        geometry_usd (Path | None): Optional USD file containing comparison geometry and a camera.
+        material_name (str | None): Optional name selecting a single material for preview.
+    
+    Returns:
+        list[str]: Names of the materials included in the preview stage.
+    
+    Raises:
+        ValueError: If no materials are available, the requested material is missing, or comparison geometry does not contain exactly one mesh and one camera.
+    """
     materials_usd = materials_usd.resolve()
     output_usd.parent.mkdir(parents=True, exist_ok=True)
     stage = Usd.Stage.CreateNew(str(output_usd))
@@ -137,7 +167,9 @@ def create_preview_stage(
         if albedo_only:
             material = _create_albedo_material(stage, Sdf.Path(f"/albedo_materials/{material_names[0]}"), material)
         elif normal_vectors:
-            material = _create_normal_vector_material(stage, Sdf.Path(f"/normal_materials/{material_names[0]}"), material)
+            material = _create_normal_vector_material(
+                stage, Sdf.Path(f"/normal_materials/{material_names[0]}"), material
+            )
         UsdShade.MaterialBindingAPI.Apply(stage.GetPrimAtPath(mesh_paths[0])).Bind(material)
     else:
         UsdGeom.Xform.Define(stage, "/preview")
@@ -156,7 +188,11 @@ def create_preview_stage(
         center_y = 0.0 if len(material_names) == 1 else -(index // 5) * 2.25 + 1.125
         _create_plane(stage, Sdf.Path(f"/preview/{name}"), center_x, center_y, material)
 
-    camera = UsdGeom.Camera(stage.GetPrimAtPath(camera_paths[0])) if geometry_usd else UsdGeom.Camera.Define(stage, "/camera")
+    camera = (
+        UsdGeom.Camera(stage.GetPrimAtPath(camera_paths[0]))
+        if geometry_usd
+        else UsdGeom.Camera.Define(stage, "/camera")
+    )
     # Match the Blender reference grid camera: 50 mm focal length on a 36 mm
     # horizontal sensor rendered at 1000x420.  Without these apertures USD's
     # smaller default aperture crops the material grid, invalidating a
@@ -184,19 +220,27 @@ def create_preview_stage(
         fill.CreateHeightAttr(6.0)
         fill.AddTranslateOp().Set((-2.0, 2.0, 4.0))
 
-    stage.SetDefaultPrim(stage.GetPrimAtPath("/preview") if not geometry_usd else stage.GetPrimAtPath(mesh_paths[0]).GetParent())
+    stage.SetDefaultPrim(
+        stage.GetPrimAtPath("/preview") if not geometry_usd else stage.GetPrimAtPath(mesh_paths[0]).GetParent()
+    )
     stage.GetRootLayer().Save()
     return material_names
 
 
 def main() -> int:
-    """Create the stage and print the material count for shell validation."""
+    """Parse command-line arguments, create the USD preview stage, and report its material count.
+    
+    Returns:
+    	int: Zero after the preview stage is created successfully.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("materials_usd", type=Path)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--albedo-only", action="store_true")
     parser.add_argument("--normal-vectors", action="store_true")
-    parser.add_argument("--geometry", type=Path, help="USD geometry, camera, and lights exported from the Cycles comparison scene.")
+    parser.add_argument(
+        "--geometry", type=Path, help="USD geometry, camera, and lights exported from the Cycles comparison scene."
+    )
     parser.add_argument("--material", help="Restrict the preview to one named material in the input USD.")
     args = parser.parse_args()
     if args.albedo_only and args.normal_vectors:

@@ -17,46 +17,32 @@ logger = logging.getLogger(__name__)
 
 ###################################### CONSTANTS ######################################
 OUTPUT_CONNECTIONS_INDEX_MAP = {
-    'arnold': {
-        'GENERIC::output_surface': 0,
-        'GENERIC::output_displacement': 1
-    },
-    'mtlx': {
-        'GENERIC::output_surface': 0,
-        'GENERIC::output_displacement': 0
-    },
-    'openpbr': {
-        'GENERIC::output_surface': 0,
-        'GENERIC::output_displacement': 0
-    },
-    'redshift_vopnet': {
-        'GENERIC::output_surface': 0,
-        'GENERIC::output_displacement': 1
-    },
-    'rs_usd_material_builder': {
-        'GENERIC::output_surface': 0,
-        'GENERIC::output_displacement': 1
-    },
+    "arnold": {"GENERIC::output_surface": 0, "GENERIC::output_displacement": 1},
+    "mtlx": {"GENERIC::output_surface": 0, "GENERIC::output_displacement": 0},
+    "openpbr": {"GENERIC::output_surface": 0, "GENERIC::output_displacement": 0},
+    "redshift_vopnet": {"GENERIC::output_surface": 0, "GENERIC::output_displacement": 1},
+    "rs_usd_material_builder": {"GENERIC::output_surface": 0, "GENERIC::output_displacement": 1},
 }
-REDSHIFT_TARGET_RENDERERS = {'redshift_vopnet', 'rs_usd_material_builder'}
+REDSHIFT_TARGET_RENDERERS = {"redshift_vopnet", "rs_usd_material_builder"}
 
 ##########################################################################################
+
 
 class NodeRecreator:
     """
     Class for recreating Houdini nodes in a target renderer context.
     """
 
-    def __init__(self, nodeinfo_list, output_connections, target_context,
-                 target_renderer='arnold', material_name=None):
+    def __init__(self, nodeinfo_list, output_connections, target_context, target_renderer="arnold", material_name=None):
         """
-        Initialize the NodeRecreator with the provided material data and target context.
-
-        Args:
-            nodeinfo_list (list[NodeInfo]): The standardized material data.
-            output_connections (Dict): The output connections mapping.
-            target_context (hou.Node): The target Houdini context node.
-            target_renderer (str, optional): The target renderer (default is 'arnold').
+        Initialize a material graph recreator with source graph data and a target Houdini context.
+        
+        Parameters:
+            nodeinfo_list (list[NodeInfo]): Standardized material node metadata.
+            output_connections (dict): Mapping of standardized material outputs to their source connections.
+            target_context (hou.Node): Houdini node under which the recreated material network is built.
+            target_renderer (str): Renderer used for node and connection conversion.
+            material_name (str | None): Optional name for the recreated material.
         """
         self.nodeinfo_list = nodeinfo_list
         self.orig_output_connections = output_connections
@@ -69,7 +55,7 @@ class NodeRecreator:
         #                                   }
         self.reused_nodes = {}
         self.material_node = None
-        self.new_output_connections = {}    # e.g., {'GENERIC::output_surface':{
+        self.new_output_connections = {}  # e.g., {'GENERIC::output_surface':{
         #                                                  'node': <hou.VopNode of type arnold_material at /mat/arnold_materialbuilder1/OUT_material>,
         #                                                  'node_name': 'OUT_material',
         #                                                  'node_path': '/mat/arnold_materialbuilder1/OUT_material',
@@ -84,67 +70,83 @@ class NodeRecreator:
     @staticmethod
     def create_mtlx_init_shader(matnet=None, material_name=None):
         """
-        Create an initial MaterialX shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-
+        Create an empty MaterialX shader network with surface and displacement outputs.
+        
+        Parameters:
+        	matnet (hou.Node, optional): Network in which to create the shader. Defaults to `/mat`.
+        	material_name (str, optional): Name for the created MaterialX network. Defaults to `mtlxmaterial`.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created MaterialX shader node and output nodes.
+        	tuple: The created MaterialX network and a mapping of generic output names to output node metadata.
         """
         import voptoolutils
-        UTILITY_NODES = 'parameter constant collect null genericshader'
-        SUBNET_NODES = 'subnet subnetconnector suboutput subinput'
-        MTLX_TAB_MASK = f'MaterialX {UTILITY_NODES} {SUBNET_NODES}'
+
+        UTILITY_NODES = "parameter constant collect null genericshader"
+        SUBNET_NODES = "subnet subnetconnector suboutput subinput"
+        MTLX_TAB_MASK = f"MaterialX {UTILITY_NODES} {SUBNET_NODES}"
         if not material_name:
-            material_name = 'mtlxmaterial'
-        folder_label = 'MaterialX Builder'
-        render_context = 'mtlx'
+            material_name = "mtlxmaterial"
+        folder_label = "MaterialX Builder"
+        render_context = "mtlx"
 
         if not matnet:
-            matnet = hou.node('/mat')
+            matnet = hou.node("/mat")
 
-        subnet_node = matnet.createNode('subnet', material_name)
-        subnet_node = voptoolutils._setupMtlXBuilderSubnet(subnet_node=subnet_node, name=material_name, mask=MTLX_TAB_MASK,
-                                                           folder_label=folder_label, render_context=render_context)
+        subnet_node = matnet.createNode("subnet", material_name)
+        subnet_node = voptoolutils._setupMtlXBuilderSubnet(
+            subnet_node=subnet_node,
+            name=material_name,
+            mask=MTLX_TAB_MASK,
+            folder_label=folder_label,
+            render_context=render_context,
+        )
 
-        subnet_node.node('mtlxstandard_surface').destroy()
-        subnet_node.node('inputs').destroy()
-        default_displacement = subnet_node.node('mtlxdisplacement')
+        subnet_node.node("mtlxstandard_surface").destroy()
+        subnet_node.node("inputs").destroy()
+        default_displacement = subnet_node.node("mtlxdisplacement")
         if default_displacement is not None:
             default_displacement.destroy()
 
         output_nodes = {
-            'GENERIC::output_surface': {'node': subnet_node.node('surface_output'),
-                                        'node_name': subnet_node.node('surface_output').name(),
-                                        'node_path': subnet_node.node('surface_output').path(),
-                                        },
-            'GENERIC::output_displacement': {'node': subnet_node.node('displacement_output'),
-                                             'node_name': subnet_node.node('displacement_output').name(),
-                                             'node_path': subnet_node.node('displacement_output').path(),
-                                             }
+            "GENERIC::output_surface": {
+                "node": subnet_node.node("surface_output"),
+                "node_name": subnet_node.node("surface_output").name(),
+                "node_path": subnet_node.node("surface_output").path(),
+            },
+            "GENERIC::output_displacement": {
+                "node": subnet_node.node("displacement_output"),
+                "node_name": subnet_node.node("displacement_output").name(),
+                "node_path": subnet_node.node("displacement_output").path(),
+            },
         }
         return subnet_node, output_nodes
 
-
     def create_mtlx_vec3_split_node(self, src_node, dest_node, src_out_parm_name, dest_in_index):
         """
-        Creates a vec3 split node to 3 floats between 2 nodes and connects them.
-        This method is created for arnold images that have their out individual channels:r,g, or b connected to a node.
-        Args:
-            src_node: (hou.Node) e.g., a 'mtlximage' node
-            src_out_parm_name: (str) parm name on output_node e.g., "r"
-            dest_node: (hou.node) the 2nd node which will connect to the first node. e.g., mtlxstandardsurface
-            dest_in_index: (int) input index on node
+        Connect a selected vector channel from a source node to a destination input through a MaterialX split node.
+        
+        Parameters:
+        	src_node (hou.Node): Node providing the vector output.
+        	dest_node (hou.Node): Node receiving the selected channel.
+        	src_out_parm_name (str): Channel to connect: ``"r"``, ``"g"``, or ``"b"``.
+        	dest_in_index (int): Destination input index.
+        
         Returns:
-            bool: True if successful, False otherwise
+        	tuple: ``(True, split_node)`` when the connection succeeds; ``(False, None)`` otherwise.
         """
-        if src_out_parm_name not in ['r', 'g', 'b']:
-            logger.warning("mtlx separate3c node currently only supports splitting of 'r','g','b' channels, "
-                           "but instead it got a '%s'", src_out_parm_name)
+        if src_out_parm_name not in ["r", "g", "b"]:
+            logger.warning(
+                "mtlx separate3c node currently only supports splitting of 'r','g','b' channels, "
+                "but instead it got a '%s'",
+                src_out_parm_name,
+            )
             return False, None
         if dest_in_index is None:
-            logger.warning("dest_in_index is None '%s', but it should be an integer, src_node: '%s'", dest_in_index, src_node.name())
+            logger.warning(
+                "dest_in_index is None '%s', but it should be an integer, src_node: '%s'",
+                dest_in_index,
+                src_node.name(),
+            )
             return False, None
 
         try:
@@ -152,7 +154,7 @@ class NodeRecreator:
             vec3_split_node_name = f"{src_node.name()}_split_vec3"
             vec3_split_node = self.material_node.node(vec3_split_node_name)
             if not vec3_split_node:
-                vec3_split_node = self.material_node.createNode('mtlxseparate3c', f"{src_node.name()}_split_vec3")
+                vec3_split_node = self.material_node.createNode("mtlxseparate3c", f"{src_node.name()}_split_vec3")
 
             # get which channel from the split node to connect to the output node
             out_index = vec3_split_node.outputIndex(f"out{src_out_parm_name}")
@@ -161,160 +163,199 @@ class NodeRecreator:
 
             vec3_split_node.setInput(0, src_node)
             dest_node.setInput(dest_in_index, vec3_split_node, out_index)
-            logger.info("created split node for '%s' to '%s' for '%s'", src_node.name(), dest_node.name(), src_out_parm_name)
+            logger.info(
+                "created split node for '%s' to '%s' for '%s'", src_node.name(), dest_node.name(), src_out_parm_name
+            )
             return True, vec3_split_node
 
         except Exception as e:
-            logger.error("create_mtlx_vec3_split_node, dest_in_index=%s, vec3_split_node=%s, out_index=%s, error: %s", dest_in_index, vec3_split_node, out_index, e)
+            logger.error(
+                "create_mtlx_vec3_split_node, dest_in_index=%s, vec3_split_node=%s, out_index=%s, error: %s",
+                dest_in_index,
+                vec3_split_node,
+                out_index,
+                e,
+            )
             return False, None
 
     @staticmethod
     def create_arnold_init_shader(matnet=None, material_name=None):
         """
-        Create an initial Arnold shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-
+        Create an Arnold material builder and its surface and displacement output metadata.
+        
+        Parameters:
+        	matnet (hou.Node, optional): Network in which to create the material builder.
+        	material_name (str, optional): Name for the material builder node.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created Arnold shader node and output nodes.
+        	Tuple[hou.Node, Dict]: The material builder and metadata for its surface and displacement outputs.
         """
         if not matnet:
-            matnet = hou.node('/mat')
+            matnet = hou.node("/mat")
         if not material_name:
-            material_name = 'arnold_materialbuilder'
+            material_name = "arnold_materialbuilder"
 
-        node_material_builder = matnet.createNode('arnold_materialbuilder', material_name)
+        node_material_builder = matnet.createNode("arnold_materialbuilder", material_name)
         output_nodes = {
-            'GENERIC::output_surface': {'node': node_material_builder.node('OUT_material'),
-                                        'node_name': node_material_builder.node('OUT_material').name(),
-                                        'node_path': node_material_builder.node('OUT_material').path(),
-                                        },
-            'GENERIC::output_displacement': {'node': node_material_builder.node('OUT_material'),
-                                             'node_name': node_material_builder.node('OUT_material').name(),
-                                             'node_path': node_material_builder.node('OUT_material').path(),
-                                             }
+            "GENERIC::output_surface": {
+                "node": node_material_builder.node("OUT_material"),
+                "node_name": node_material_builder.node("OUT_material").name(),
+                "node_path": node_material_builder.node("OUT_material").path(),
+            },
+            "GENERIC::output_displacement": {
+                "node": node_material_builder.node("OUT_material"),
+                "node_name": node_material_builder.node("OUT_material").name(),
+                "node_path": node_material_builder.node("OUT_material").path(),
+            },
         }
         return node_material_builder, output_nodes
 
     @staticmethod
     def create_principledshader_init_shader(matnet=None, material_name=None):
         """
-        Create an initial principledshader shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini Material Network.
-
+        Create a Principled Shader node and register it for surface and displacement outputs.
+        
+        Parameters:
+            matnet (hou.Node, optional): Houdini material network in which to create the shader.
+            material_name (str, optional): Name for the created shader node.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created Arnold shader node and output nodes.
+            tuple: The created shader node and output metadata for the surface and displacement outputs.
         """
         if not matnet:
-            matnet = hou.node('/mat')
+            matnet = hou.node("/mat")
         if not material_name:
-            material_name = 'principledshader::2.0'
+            material_name = "principledshader::2.0"
 
-        node_material_builder = matnet.createNode('principledshader::2.0', material_name)
+        node_material_builder = matnet.createNode("principledshader::2.0", material_name)
         output_nodes = {
-            'GENERIC::output_surface': {'node': node_material_builder,
-                                        'node_name': node_material_builder.name(),
-                                        'node_path': node_material_builder.path(),
-                                        },
-            'GENERIC::output_displacement': {'node': node_material_builder,
-                                             'node_name': node_material_builder.name(),
-                                             'node_path': node_material_builder.path(),
-                                             }
+            "GENERIC::output_surface": {
+                "node": node_material_builder,
+                "node_name": node_material_builder.name(),
+                "node_path": node_material_builder.path(),
+            },
+            "GENERIC::output_displacement": {
+                "node": node_material_builder,
+                "node_name": node_material_builder.name(),
+                "node_path": node_material_builder.path(),
+            },
         }
         return node_material_builder, output_nodes
 
     @staticmethod
     def create_rs_usd_material_builder_init_shader(matnet=None, material_name=None):
         """
-        Create an initial rs_usd_material_builder shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-
+        Create a Redshift USD material builder and identify its material output node.
+        
+        Parameters:
+            matnet (hou.Node, optional): Network in which to create the material builder.
+            material_name (str, optional): Name for the created material builder.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created rs_usd_material_builder shader node and output nodes.
+            tuple: The created material builder and metadata for its surface and displacement outputs.
         """
         if not matnet:
-            matnet = hou.node('/mat')
+            matnet = hou.node("/mat")
         if not material_name:
-            material_name = 'rs_usd_material_builder'
+            material_name = "rs_usd_material_builder"
 
-        subnet_node = matnet.createNode('rs_usd_material_builder', material_name)
+        subnet_node = matnet.createNode("rs_usd_material_builder", material_name)
 
-        subnet_node.node('StandardMaterial1').destroy()
-        subnet_node.node('subinput1').destroy()
+        subnet_node.node("StandardMaterial1").destroy()
+        subnet_node.node("subinput1").destroy()
 
         output_nodes = {
-            'GENERIC::output_surface': {'node': subnet_node.node('redshift_usd_material1'),
-                                        'node_name': subnet_node.node('redshift_usd_material1').name(),
-                                        'node_path': subnet_node.node('redshift_usd_material1').path(),
-                                        },
-            'GENERIC::output_displacement': {'node': subnet_node.node('redshift_usd_material1'),
-                                             'node_name': subnet_node.node('redshift_usd_material1').name(),
-                                             'node_path': subnet_node.node('redshift_usd_material1').path(),
-                                             },
+            "GENERIC::output_surface": {
+                "node": subnet_node.node("redshift_usd_material1"),
+                "node_name": subnet_node.node("redshift_usd_material1").name(),
+                "node_path": subnet_node.node("redshift_usd_material1").path(),
+            },
+            "GENERIC::output_displacement": {
+                "node": subnet_node.node("redshift_usd_material1"),
+                "node_name": subnet_node.node("redshift_usd_material1").name(),
+                "node_path": subnet_node.node("redshift_usd_material1").path(),
+            },
         }
         return subnet_node, output_nodes
 
     @staticmethod
     def create_redshift_vopnet_init_shader(matnet=None, material_name=None):
         """
-        Create an initial legacy redshift_vopnet shader in the specified network.
-
-        Args:
-            matnet (hou.Node, optional): The Houdini network node.
-            material_name (str, optional): The material node name.
-
+        Create a legacy Redshift VOP network and identify its material output for surface and displacement connections.
+        
+        Parameters:
+            matnet (hou.Node, optional): The Houdini network in which to create the shader.
+            material_name (str, optional): Name for the created shader network.
+        
         Returns:
-            Tuple[hou.Node, Dict]: The created redshift_vopnet and output nodes.
+            tuple: The created Redshift VOP network and its surface/displacement output metadata.
         """
         if not matnet:
-            matnet = hou.node('/mat')
+            matnet = hou.node("/mat")
         if not material_name:
-            material_name = 'redshift_vopnet'
+            material_name = "redshift_vopnet"
 
-        vopnet_node = matnet.createNode('redshift_vopnet', material_name)
-        output_node = vopnet_node.node('redshift_material1')
+        vopnet_node = matnet.createNode("redshift_vopnet", material_name)
+        output_node = vopnet_node.node("redshift_material1")
         output_nodes = {
-            'GENERIC::output_surface': {'node': output_node,
-                                        'node_name': output_node.name(),
-                                        'node_path': output_node.path(),
-                                        },
-            'GENERIC::output_displacement': {'node': output_node,
-                                             'node_name': output_node.name(),
-                                             'node_path': output_node.path(),
-                                             },
+            "GENERIC::output_surface": {
+                "node": output_node,
+                "node_name": output_node.name(),
+                "node_path": output_node.path(),
+            },
+            "GENERIC::output_displacement": {
+                "node": output_node,
+                "node_name": output_node.name(),
+                "node_path": output_node.path(),
+            },
         }
         return vopnet_node, output_nodes
 
     def create_init_shader(self, material_name=None):
+        """
+        Create the renderer-specific material network and record its output connections.
+        
+        Parameters:
+        	material_name (str, optional): Name for the material network. Defaults to ``"convertedMaterial"``.
+        
+        Raises:
+        	KeyError: If the target renderer is unsupported.
+        """
         if not material_name:
-            material_name = 'convertedMaterial'
+            material_name = "convertedMaterial"
 
-        if self.target_renderer == 'mtlx':
-            self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context, material_name)
-        elif self.target_renderer == 'openpbr':
-            self.material_node, self.new_output_connections = self.create_mtlx_init_shader(self.target_context, material_name)
-        elif self.target_renderer == 'arnold':
-            self.material_node, self.new_output_connections = self.create_arnold_init_shader(self.target_context, material_name)
-        elif self.target_renderer == 'principledshader':
-            self.material_node, self.new_output_connections = self.create_principledshader_init_shader(self.target_context, material_name)
-        elif self.target_renderer == 'redshift_vopnet':
-            self.material_node, self.new_output_connections = self.create_redshift_vopnet_init_shader(self.target_context, material_name)
-        elif self.target_renderer == 'rs_usd_material_builder':
-            self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(self.target_context, material_name)
+        if self.target_renderer == "mtlx":
+            self.material_node, self.new_output_connections = self.create_mtlx_init_shader(
+                self.target_context, material_name
+            )
+        elif self.target_renderer == "openpbr":
+            self.material_node, self.new_output_connections = self.create_mtlx_init_shader(
+                self.target_context, material_name
+            )
+        elif self.target_renderer == "arnold":
+            self.material_node, self.new_output_connections = self.create_arnold_init_shader(
+                self.target_context, material_name
+            )
+        elif self.target_renderer == "principledshader":
+            self.material_node, self.new_output_connections = self.create_principledshader_init_shader(
+                self.target_context, material_name
+            )
+        elif self.target_renderer == "redshift_vopnet":
+            self.material_node, self.new_output_connections = self.create_redshift_vopnet_init_shader(
+                self.target_context, material_name
+            )
+        elif self.target_renderer == "rs_usd_material_builder":
+            self.material_node, self.new_output_connections = self.create_rs_usd_material_builder_init_shader(
+                self.target_context, material_name
+            )
         else:
             raise KeyError(f"Unsupported target renderer: {self.target_renderer}")
 
         self.material_node.moveToGoodPosition()
 
-
     def create_output_nodes(self):
         """
-        Create or reuse output nodes in the target context.
+        Prepare target renderer output nodes and record their mappings to the original outputs.
         """
         renderer_output_connections = OUTPUT_CONNECTIONS_INDEX_MAP.get(self.target_renderer, {})
         for generic_output_type in list(self.new_output_connections):
@@ -322,9 +363,9 @@ class NodeRecreator:
                 continue
 
             output_info = self.new_output_connections[generic_output_type]
-            output_node = output_info.get('node')
+            output_node = output_info.get("node")
             output_index = renderer_output_connections.get(generic_output_type)
-            if self.target_renderer != 'principledshader' and output_node is not None and output_index is not None:
+            if self.target_renderer != "principledshader" and output_node is not None and output_index is not None:
                 output_node.setInput(output_index, None)
             self.new_output_connections.pop(generic_output_type)
 
@@ -335,51 +376,48 @@ class NodeRecreator:
             #                             'connected_node_name': 'surface_output',
             #                             'connected_input_index': 0}
 
-            if self.target_renderer == 'principledshader':
+            if self.target_renderer == "principledshader":
                 created_output_node = self.material_node
             else:
-                new_output_nodename = self.new_output_connections.get(generic_output_type, {}).get('node_name')
+                new_output_nodename = self.new_output_connections.get(generic_output_type, {}).get("node_name")
                 new_output_nodepath = f"{self.material_node.path()}/{new_output_nodename}"
                 created_output_node: hou.VopNode = hou.node(new_output_nodepath)
 
+            self.old_new_node_map[output_connection.node_path] = {
+                "node_name": created_output_node.name(),
+                "node_path": created_output_node.path(),
+                "is_output": True,
+                "output_type": generic_output_type,
+            }
 
-            self.old_new_node_map[output_connection.node_path] = {'node_name': created_output_node.name(),
-                                                                  'node_path': created_output_node.path(),
-                                                                  'is_output': True,
-                                                                  'output_type': generic_output_type,
-                                                                  }
-
-            self.new_output_connections[generic_output_type] = {'node': created_output_node,
-                                                                'node_name': created_output_node.name(),
-                                                                'node_path': created_output_node.path(),
-                                                                'connected_node_name': output_connection.connected_node_name,
-                                                                'connected_node_path': output_connection.connected_node_path,
-                                                                'connected_input_index': output_connection.connected_input_index,
-                                                                'connected_input_name': output_connection.connected_input_name,
-                                                                'connected_output_name': output_connection.connected_output_name,
-                                                                }
+            self.new_output_connections[generic_output_type] = {
+                "node": created_output_node,
+                "node_name": created_output_node.name(),
+                "node_path": created_output_node.path(),
+                "connected_node_name": output_connection.connected_node_name,
+                "connected_node_path": output_connection.connected_node_path,
+                "connected_input_index": output_connection.connected_input_index,
+                "connected_input_name": output_connection.connected_input_name,
+                "connected_output_name": output_connection.connected_output_name,
+            }
         return None
 
     @staticmethod
     def _convert_generic_node_type_to_renderer_node_type(node_type: str, target_renderer: str):
         """
-        Convert a generic node type to a renderer-specific node type.
-
-        Args:
-            node_type (str): The generic node type.
-            target_renderer (str): renderer type: e.g. 'arnold', 'mtlx'
-
+        Convert a generic node type to its renderer-specific Houdini VOP node type.
+        
+        Parameters:
+        	node_type (str): The generic node type, or an empty value to use `GENERIC::null`.
+        	target_renderer (str): The target renderer identifier.
+        
         Returns:
-            str: The renderer-specific node type.
+        	str: The renderer-specific node type.
         """
         if not node_type:
-            node_type = 'GENERIC::null'
+            node_type = "GENERIC::null"
 
-        new_node_type = convert_generic(
-            node_type=node_type,
-            target_renderer=target_renderer,
-            profile='hou_vop_nodes'
-        )
+        new_node_type = convert_generic(node_type=node_type, target_renderer=target_renderer, profile="hou_vop_nodes")
 
         return new_node_type
 
@@ -397,27 +435,37 @@ class NodeRecreator:
             return
 
         node_type = node.type().name()
-        std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace('::', ':'), {})
+        std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(node_type.replace("::", ":"), {})
         if not std_parm_map:
             logger.warning("No generic parameter mappings found for node type: '%s'", node_type)
             return
 
         for param in parameters:
-            if param.direction != 'input':
-                logger.warning("Parameter '%s' is not an input parameter for node type '%s'. Skipping.", param.generic_name, node_type)
+            if param.direction != "input":
+                logger.warning(
+                    "Parameter '%s' is not an input parameter for node type '%s'. Skipping.",
+                    param.generic_name,
+                    node_type,
+                )
                 continue
             if not param.generic_name:
-                logger.warning("Parameter of value:'%s' has no generic_name for node type '%s'. Skipping.", param.value, node_type)
+                logger.warning(
+                    "Parameter of value:'%s' has no generic_name for node type '%s'. Skipping.", param.value, node_type
+                )
                 continue
 
             # Find the renderer-specific parameter name
             parm_new_name = [key for key, val in std_parm_map.items() if val == param.generic_name]
 
             if not parm_new_name:
-                if node_type == 'principledshader::2.0' and node.parmTuple(param.generic_name) is not None:
+                if node_type == "principledshader::2.0" and node.parmTuple(param.generic_name) is not None:
                     parm_new_name = [param.generic_name]
                 else:
-                    logger.warning("No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.", param.generic_name, node_type)
+                    logger.warning(
+                        "No renderer-specific parameter found for generic name '%s' for node type '%s'. Skipping.",
+                        param.generic_name,
+                        node_type,
+                    )
                     continue
 
             parm_new_name = parm_new_name[0]
@@ -440,30 +488,32 @@ class NodeRecreator:
                 continue
             # print(f"Set parameter '{renderer_specific_name}' on node '{node.path()}' to '{param.value}'")
 
-
     def _create_node(self, node_info):
         """
-        Create a Houdini node from NodeInfo.
-
-        Args:
-            node_info (NodeInfo): The NodeInfo object containing node information.
-
+        Create or reuse a renderer-specific Houdini node from node metadata.
+        
+        Parameters:
+            node_info (NodeInfo): Metadata describing the source node, including its type, name, path, and parameters.
+        
         Returns:
-            (hou.Node): The created Houdini node.
+            hou.Node: The created or reused Houdini node.
         """
-        new_node_type = self._convert_generic_node_type_to_renderer_node_type(node_type=node_info.node_type,
-                                                                              target_renderer=self.target_renderer)
+        new_node_type = self._convert_generic_node_type_to_renderer_node_type(
+            node_type=node_info.node_type, target_renderer=self.target_renderer
+        )
 
         # Check for existing nodes of the same type to reuse
-        existing_nodes = [node for node in self.material_node.children() if
-                          node.type().name() == new_node_type and node not in self.reused_nodes.values()]
+        existing_nodes = [
+            node
+            for node in self.material_node.children()
+            if node.type().name() == new_node_type and node not in self.reused_nodes.values()
+        ]
         if existing_nodes:
             node = existing_nodes[0]
             logger.info("Using existing node: %s of type %s", node.path(), node.type().name())
             self._apply_parameters(node, node_info.parameters)
             self.reused_nodes[node_info.node_path] = node
-            self.old_new_node_map[node_info.node_path] = {'node_name': node.name(),
-                                                          'node_path': node.path()}
+            self.old_new_node_map[node_info.node_path] = {"node_name": node.name(), "node_path": node.path()}
 
             return node
 
@@ -472,19 +522,16 @@ class NodeRecreator:
         new_node = self.material_node.createNode(new_node_type, node_info.node_name)
         self._apply_parameters(new_node, node_info.parameters)
         self.reused_nodes[node_info.node_path] = new_node
-        self.old_new_node_map[node_info.node_path] = {'node_name': new_node.name(),
-                                                      'node_path': new_node.path()}
+        self.old_new_node_map[node_info.node_path] = {"node_name": new_node.name(), "node_path": new_node.path()}
         return new_node
 
     def _create_nodes_recursive(self, nested_nodes_info: List[NodeInfo], processed_nodes=None):
         """
-        Recursively create nodes from NodeInfo objects.
-
-        Args:
-            nested_nodes_info (List[NodeInfo]): The list of NodeInfo objects.
-            processed_nodes (set, optional): A set of processed node paths.
-        Returns:
-            None
+        Recursively creates non-output nodes from nested node metadata, preserves their source positions, and processes each node once.
+        
+        Parameters:
+            nested_nodes_info (List[NodeInfo]): Node metadata to process.
+            processed_nodes (set, optional): Paths of nodes already processed.
         """
         if processed_nodes is None:
             processed_nodes = set()
@@ -493,15 +540,17 @@ class NodeRecreator:
                 continue
 
             # Create the node if it's not an output node
-            if node_info.node_type != 'GENERIC::output_node':
+            if node_info.node_type != "GENERIC::output_node":
                 newly_created_node = self._create_node(node_info)
 
                 # move node to original position:
                 if node_info.position:
                     newly_created_node.setPosition(node_info.position)
 
-                self.old_new_node_map[node_info.node_path] = {'node_name': newly_created_node.name(),
-                                                              'node_path': newly_created_node.path()}
+                self.old_new_node_map[node_info.node_path] = {
+                    "node_name": newly_created_node.name(),
+                    "node_path": newly_created_node.path(),
+                }
 
             processed_nodes.add(node_info.node_path)
 
@@ -532,18 +581,42 @@ class NodeRecreator:
             return False
 
     def _set_principled_texture(self, texture_info, filename):
+        """Enables a Principled Shader texture parameter and assigns its filename.
+        
+        Parameters:
+        	texture_info (dict): Mapping containing the texture's enable and filename parameter names.
+        	filename (str): Texture file path to assign.
+        """
         if not filename:
             return
-        self._set_principled_parm(texture_info['use_parm'], 1)
-        self._set_principled_parm(texture_info['texture_parm'], filename)
+        self._set_principled_parm(texture_info["use_parm"], 1)
+        self._set_principled_parm(texture_info["texture_parm"], filename)
 
     def _find_nodeinfo(self, node_path):
+        """Find the node metadata associated with a source node path.
+        
+        Parameters:
+            node_path: The path of the node to locate.
+        
+        Returns:
+            The matching node metadata, or `None` if no node has the specified path.
+        """
         for nodeinfo in self._iter_nodeinfos():
             if nodeinfo.node_path == node_path:
                 return nodeinfo
         return None
 
     def _find_upstream_image_nodeinfo(self, node_path, visited=None):
+        """
+        Finds the upstream generic image node associated with a source node.
+        
+        Parameters:
+        	node_path (str): Path of the node from which to search upstream.
+        	visited (set, optional): Node paths already visited during the search.
+        
+        Returns:
+        	NodeInfo or None: The upstream generic image node metadata, or `None` when no image node is found.
+        """
         if visited is None:
             visited = set()
         if not node_path or node_path in visited:
@@ -553,7 +626,7 @@ class NodeRecreator:
         nodeinfo = self._find_nodeinfo(node_path)
         if nodeinfo is None:
             return None
-        if nodeinfo.node_type == 'GENERIC::image':
+        if nodeinfo.node_type == "GENERIC::image":
             return nodeinfo
 
         for candidate in self._iter_nodeinfos():
@@ -566,6 +639,7 @@ class NodeRecreator:
         return None
 
     def _apply_principled_texture_connections(self, surface_nodeinfo):
+        """Apply connected generic texture and normal image data to the Principled Shader."""
         for candidate in self._iter_nodeinfos():
             for connection in candidate.connection_info.values():
                 if connection.output.node_path != surface_nodeinfo.node_path:
@@ -574,33 +648,49 @@ class NodeRecreator:
                 texture_info = PRINCIPLED_TEXTURE_INPUTS.get(connection.output.parm_name)
                 if texture_info:
                     image_nodeinfo = self._find_upstream_image_nodeinfo(connection.input.node_path)
-                    filename = self._nodeinfo_parameter_value(image_nodeinfo, 'filename') if image_nodeinfo else None
+                    filename = self._nodeinfo_parameter_value(image_nodeinfo, "filename") if image_nodeinfo else None
                     self._set_principled_texture(texture_info, filename)
                     continue
 
-                if connection.output.parm_name == 'normal':
+                if connection.output.parm_name == "normal":
                     image_nodeinfo = self._find_upstream_image_nodeinfo(connection.input.node_path)
-                    filename = self._nodeinfo_parameter_value(image_nodeinfo, 'filename') if image_nodeinfo else None
+                    filename = self._nodeinfo_parameter_value(image_nodeinfo, "filename") if image_nodeinfo else None
                     if filename:
-                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT['enable_parm'], 1)
-                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT['type_parm'], 'normal')
-                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT['texture_parm'], filename)
+                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT["enable_parm"], 1)
+                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT["type_parm"], "normal")
+                        self._set_principled_parm(PRINCIPLED_NORMAL_INPUT["texture_parm"], filename)
 
     def _apply_principled_displacement_output(self):
-        displacement_output = self.orig_output_connections.get('GENERIC::output_displacement')
+        """Configure the Principled Shader displacement settings from the upstream displacement texture.
+        
+        Disables displacement when no displacement output or texture filename is available."""
+        displacement_output = self.orig_output_connections.get("GENERIC::output_displacement")
         if not displacement_output:
-            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT['enable_parm'], 0)
+            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT["enable_parm"], 0)
             return
 
         image_nodeinfo = self._find_upstream_image_nodeinfo(displacement_output.connected_node_path)
-        filename = self._nodeinfo_parameter_value(image_nodeinfo, 'filename') if image_nodeinfo else None
+        filename = self._nodeinfo_parameter_value(image_nodeinfo, "filename") if image_nodeinfo else None
         if filename:
-            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT['enable_parm'], 1)
-            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT['texture_parm'], filename)
+            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT["enable_parm"], 1)
+            self._set_principled_parm(PRINCIPLED_DISPLACEMENT_INPUT["texture_parm"], filename)
 
     def _apply_principled_shader_data(self, nodeinfo_list):
+        """
+        Apply generic standard-surface data to the Principled Shader.
+        
+        Parameters:
+            nodeinfo_list: Node metadata to search for the generic standard-surface node.
+        
+        Returns:
+            `True` if standard-surface data was applied, `False` if no standard-surface node was found.
+        """
         surface_nodeinfo = next(
-            (nodeinfo for nodeinfo in self._iter_nodeinfos(nodeinfo_list) if nodeinfo.node_type == 'GENERIC::standard_surface'),
+            (
+                nodeinfo
+                for nodeinfo in self._iter_nodeinfos(nodeinfo_list)
+                if nodeinfo.node_type == "GENERIC::standard_surface"
+            ),
             None,
         )
         if surface_nodeinfo is None:
@@ -614,9 +704,15 @@ class NodeRecreator:
 
     def create_shader_nodes(self, nested_nodes_info):
         """
-        Create nodes in the target context.
+        Create shader nodes in the target material network.
+        
+        Parameters:
+            nested_nodes_info: Nested metadata describing the source shader nodes.
+        
+        Returns:
+            bool: `True` if shader node creation succeeds, `False` if the required standard surface data is unavailable.
         """
-        if self.target_renderer == 'principledshader':
+        if self.target_renderer == "principledshader":
             return self._apply_principled_shader_data(nested_nodes_info)
 
         self._create_nodes_recursive(nested_nodes_info)
@@ -632,16 +728,16 @@ class NodeRecreator:
         Returns:
             hou.Node | None: The recreated source node when it can be found.
         """
-        connected_node_path = output_info.get('connected_node_path')
+        connected_node_path = output_info.get("connected_node_path")
         if connected_node_path:
-            new_node_path = self.old_new_node_map.get(connected_node_path, {}).get('node_path')
+            new_node_path = self.old_new_node_map.get(connected_node_path, {}).get("node_path")
             if new_node_path:
                 node = hou.node(new_node_path)
                 if node:
                     return node
                 logger.warning("Mapped output source '%s' does not exist.", new_node_path)
 
-        connected_node_name = output_info.get('connected_node_name')
+        connected_node_name = output_info.get("connected_node_name")
         if not connected_node_name:
             return None
 
@@ -670,8 +766,15 @@ class NodeRecreator:
         return None
 
     def _get_recreated_node_by_original_path(self, node_path):
-        """Resolve a recreated Houdini node from an original source path."""
-        new_node_path = self.old_new_node_map.get(node_path, {}).get('node_path')
+        """Resolve a recreated Houdini node from its original source path.
+        
+        Parameters:
+            node_path (str): Original source node path.
+        
+        Returns:
+            hou.Node or None: The recreated node, or `None` if no mapping exists or the mapped node cannot be found.
+        """
+        new_node_path = self.old_new_node_map.get(node_path, {}).get("node_path")
         if not new_node_path:
             return None
         node = hou.node(new_node_path)
@@ -681,16 +784,17 @@ class NodeRecreator:
 
     def _get_upstream_source_for_generic_displacement(self, displacement_node_path):
         """
-        Resolve the source driving a generic displacement node.
-
-        Arnold material outputs take a direct displacement input, while MaterialX
-        uses an mtlxdisplacement wrapper. When converting MTLX to Arnold, unwrap
-        the generic displacement node and wire its upstream value to Arnold's
-        displacement output slot.
+        Resolve the recreated source connected upstream of a generic displacement node.
+        
+        Parameters:
+            displacement_node_path (str): Original path of the generic displacement node.
+        
+        Returns:
+            tuple: The recreated source node and its input parameter name, or ``(None, "")`` when no source is found.
         """
         displacement_nodeinfo = self._find_nodeinfo_by_path(displacement_node_path)
-        if not displacement_nodeinfo or displacement_nodeinfo.node_type != 'GENERIC::displacement':
-            return None, ''
+        if not displacement_nodeinfo or displacement_nodeinfo.node_type != "GENERIC::displacement":
+            return None, ""
 
         fallback = None
         for nodeinfo in self._iter_nodeinfos():
@@ -699,18 +803,18 @@ class NodeRecreator:
                     continue
 
                 source_node = self._get_recreated_node_by_original_path(connection.input.node_path)
-                if source_node is None or source_node.type().name() == 'null':
+                if source_node is None or source_node.type().name() == "null":
                     continue
 
-                source = (source_node, connection.input.parm_name or '')
-                if connection.output.parm_name == 'displacement':
+                source = (source_node, connection.input.parm_name or "")
+                if connection.output.parm_name == "displacement":
                     return source
                 fallback = fallback or source
 
         if fallback:
             return fallback
         logger.warning("No recreated upstream source found for displacement node '%s'.", displacement_node_path)
-        return None, ''
+        return None, ""
 
     def _connect_mtlx_displacement_output(self, output_node, output_index, source_node, source_output_name):
         """
@@ -725,18 +829,18 @@ class NodeRecreator:
         Returns:
             bool: True if the target displacement output was connected successfully.
         """
-        if source_node.type().name() == 'mtlxdisplacement':
+        if source_node.type().name() == "mtlxdisplacement":
             displacement_node = source_node
         else:
-            displacement_node = self.material_node.node('mtlxdisplacement')
+            displacement_node = self.material_node.node("mtlxdisplacement")
             if displacement_node is None:
-                displacement_node = self.material_node.createNode('mtlxdisplacement', 'mtlxdisplacement')
+                displacement_node = self.material_node.createNode("mtlxdisplacement", "mtlxdisplacement")
 
             connected = self._connect_pair(
                 src_node=source_node,
                 dest_node=displacement_node,
                 src_parm=source_output_name,
-                dest_parm='displacement',
+                dest_parm="displacement",
             )
             if not connected:
                 return False
@@ -744,28 +848,28 @@ class NodeRecreator:
         return self._connect_pair(
             src_node=displacement_node,
             dest_node=output_node,
-            src_parm='out',
-            dest_parm='suboutput',
+            src_parm="out",
+            dest_parm="suboutput",
             dest_idx=output_index,
         )
 
     def _connect_arnold_displacement_output(self, output_node, output_index, source_node, output_info):
         """
-        Connect Arnold displacement outputs, unwrapping generic displacement nodes.
-
-        Args:
-            output_node (hou.Node): The Arnold material output node.
-            output_index (int): The Arnold displacement input index.
-            source_node (hou.Node | None): Recreated node from the source output metadata.
-            output_info (dict): Output connection metadata copied from the source material.
-
+        Connect an Arnold displacement source to the material output.
+        
+        Parameters:
+        	output_node (hou.Node): Arnold material output node.
+        	output_index (int): Index of the displacement input.
+        	source_node (hou.Node | None): Recreated displacement source node.
+        	output_info (dict): Source output connection metadata.
+        
         Returns:
-            bool: True if the target displacement output was connected successfully.
+        	bool: `True` if the displacement connection succeeds, `False` otherwise.
         """
-        source_output_name = output_info.get('connected_output_name') or ''
-        if source_node is None or source_node.type().name() == 'null':
+        source_output_name = output_info.get("connected_output_name") or ""
+        if source_node is None or source_node.type().name() == "null":
             source_node, source_output_name = self._get_upstream_source_for_generic_displacement(
-                output_info.get('connected_node_path')
+                output_info.get("connected_node_path")
             )
         if source_node is None:
             return False
@@ -774,34 +878,38 @@ class NodeRecreator:
             src_node=source_node,
             dest_node=output_node,
             src_parm=source_output_name,
-            dest_parm='displacement',
+            dest_parm="displacement",
             dest_idx=output_index,
         )
 
     def _connect_redshift_displacement_output(self, output_node, output_index, source_node, source_output_name):
         """
-        Route displacement signals through a Redshift Displacement node.
-
-        Redshift material terminals expect their displacement slot to receive
-        the vector output of redshift::Displacement. Sources like Arnold can
-        expose a raw texture/channel directly on the material output, so wrap
-        those signals before connecting the terminal.
+        Route displacement data through a Redshift Displacement node.
+        
+        Parameters:
+            output_node: Redshift material output node.
+            output_index: Destination input index on the output node.
+            source_node: Node providing the displacement data.
+            source_output_name: Output name on the source node.
+        
+        Returns:
+            `True` if the displacement connection succeeds, `False` otherwise.
         """
         if source_node is None:
             return False
 
-        if source_node.type().name() == 'redshift::Displacement':
+        if source_node.type().name() == "redshift::Displacement":
             displacement_node = source_node
         else:
-            displacement_node = self.material_node.node('redshift_displacement')
+            displacement_node = self.material_node.node("redshift_displacement")
             if displacement_node is None:
-                displacement_node = self.material_node.createNode('redshift::Displacement', 'redshift_displacement')
+                displacement_node = self.material_node.createNode("redshift::Displacement", "redshift_displacement")
 
             connected = self._connect_pair(
                 src_node=source_node,
                 dest_node=displacement_node,
                 src_parm=source_output_name,
-                dest_parm='texMap',
+                dest_parm="texMap",
             )
             if not connected:
                 return False
@@ -809,16 +917,22 @@ class NodeRecreator:
         return self._connect_pair(
             src_node=displacement_node,
             dest_node=output_node,
-            src_parm='out',
-            dest_parm='Displacement',
+            src_parm="out",
+            dest_parm="Displacement",
             dest_idx=output_index,
         )
 
     def set_output_connections(self):
         """
-        Set connections for the output nodes in the recreated material.
+        Connects recreated shader nodes to the target renderer's material outputs.
+        
+        Returns:
+        	bool or None: `True` after output connections are processed; `None` when the Principled Shader renderer skips explicit output wiring.
+        
+        Raises:
+        	KeyError: If the renderer or output type is unsupported.
         """
-        if self.target_renderer == 'principledshader':
+        if self.target_renderer == "principledshader":
             logger.debug("PrincipledShader does not require explicit output nodes. Skipping creation.")
             return
 
@@ -852,7 +966,7 @@ class NodeRecreator:
                 raise KeyError(f"{generic_output_type=} not found in {renderer_output_connections=}")
 
             output_index = renderer_output_connections[generic_output_type]
-            output_node = output_info['node']
+            output_node = output_info["node"]
             if output_node is None:
                 continue
 
@@ -879,7 +993,7 @@ class NodeRecreator:
             #       }
 
             source_node = self._get_recreated_output_source(output_info)
-            if self.target_renderer == 'arnold' and generic_output_type == 'GENERIC::output_displacement':
+            if self.target_renderer == "arnold" and generic_output_type == "GENERIC::output_displacement":
                 connected = self._connect_arnold_displacement_output(
                     output_node=output_node,
                     output_index=output_index,
@@ -887,18 +1001,18 @@ class NodeRecreator:
                     output_info=output_info,
                 )
                 if not connected:
-                    logger.warning("Connections for node:'%s' not found!", output_info['node_name'])
+                    logger.warning("Connections for node:'%s' not found!", output_info["node_name"])
                 continue
 
             if not source_node:
-                logger.warning("Connections for node:'%s' not found!", output_info['node_name'])
+                logger.warning("Connections for node:'%s' not found!", output_info["node_name"])
                 continue
-            if source_node.type().name() == 'null':
-                logger.warning("Ignoring Output connections from input null node: '%s'", output_info['node_name'])
+            if source_node.type().name() == "null":
+                logger.warning("Ignoring Output connections from input null node: '%s'", output_info["node_name"])
                 continue
 
-            source_output_name = output_info.get('connected_output_name') or ''
-            if self.target_renderer in {'mtlx', 'openpbr'} and generic_output_type == 'GENERIC::output_displacement':
+            source_output_name = output_info.get("connected_output_name") or ""
+            if self.target_renderer in {"mtlx", "openpbr"} and generic_output_type == "GENERIC::output_displacement":
                 self._connect_mtlx_displacement_output(
                     output_node=output_node,
                     output_index=output_index,
@@ -908,7 +1022,7 @@ class NodeRecreator:
                 continue
             if (
                 self.target_renderer in REDSHIFT_TARGET_RENDERERS
-                and generic_output_type == 'GENERIC::output_displacement'
+                and generic_output_type == "GENERIC::output_displacement"
             ):
                 self._connect_redshift_displacement_output(
                     output_node=output_node,
@@ -930,12 +1044,11 @@ class NodeRecreator:
                 src_node=source_node,
                 dest_node=output_node,
                 src_parm=source_output_name,
-                dest_parm=output_info.get('connected_input_name') or '',
+                dest_parm=output_info.get("connected_input_name") or "",
                 dest_idx=output_index,
             )
 
         return True
-
 
     def _get_new_node_from_nodeinfo(self, node_info):
         """
@@ -943,7 +1056,7 @@ class NodeRecreator:
         """
         old_path = node_info.node_path
         mapping = self.old_new_node_map.get(old_path, {})
-        new_path = mapping.get('node_path')
+        new_path = mapping.get("node_path")
         if not new_path:
             logger.warning("Couldn't find new node for '%s'.", old_path)
             return None
@@ -957,11 +1070,23 @@ class NodeRecreator:
 
     def _process_connections_for_node(self, src_nodeinfo, dest_node):
         """
-        Iterate all connections for one node and wire them up (skipping output nodes).
+        Connects a recreated source node to its destination node for each recorded connection.
+        
+        Parameters:
+        	src_nodeinfo (NodeInfo): Source node metadata containing connection records.
+        	dest_node: Recreated destination node receiving the connections.
         """
         for conn in src_nodeinfo.connection_info.values():
             # print(f"DEBUG: ///conn: {pprint.pformat(conn, sort_dicts=False)}")
-            logger.debug("connecting src node: '%s[%s][%s]' to dest node: '%s[%s][%s]'", src_nodeinfo.node_name, conn.input.node_index, conn.input.parm_name, dest_node.name(), conn.output.node_index, conn.output.parm_name)
+            logger.debug(
+                "connecting src node: '%s[%s][%s]' to dest node: '%s[%s][%s]'",
+                src_nodeinfo.node_name,
+                conn.input.node_index,
+                conn.input.parm_name,
+                dest_node.name(),
+                conn.output.node_index,
+                conn.output.parm_name,
+            )
             src_node_name = conn.input.node_name
             src_parm_name = conn.input.parm_name
             dest_node_name = conn.output.node_name
@@ -976,12 +1101,14 @@ class NodeRecreator:
 
             # skip wiring if this is one of our designated outputs
             if self._is_output_node(dest_node.name()):
-                logger.warning("Skipping connection for '%s -> %s' (it's an output node).", dest_node_name, dest_node.name())
+                logger.warning(
+                    "Skipping connection for '%s -> %s' (it's an output node).", dest_node_name, dest_node.name()
+                )
                 continue
 
             # look up the standardized parameter names to use for the connection:
-            src_std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(src_node_type.replace('::', ':'), {})
-            dest_std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(dest_node_type.replace('::', ':'), {})
+            src_std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(src_node_type.replace("::", ":"), {})
+            dest_std_parm_map = REGULAR_PARAM_NAMES_TO_GENERIC.get(dest_node_type.replace("::", ":"), {})
 
             src_parm_new_name = [key for key, val in src_std_parm_map.items() if val == src_parm_name]
             src_parm_new_name: str = src_parm_new_name[0] if src_parm_new_name else src_parm_name
@@ -993,7 +1120,6 @@ class NodeRecreator:
             # print(f"DEBUG: // dest_std_parm_map: {pprint.pformat(dest_std_parm_map, sort_dicts=False)}")
             # print(f"DEBUG: // {src_parm_name=}, {dest_parm_name=}")
             # print(f"DEBUG: // {src_parm_new_name=}, {dest_parm_new_name=}")
-
 
             # perform the actual wire
             self._connect_pair(
@@ -1023,20 +1149,22 @@ class NodeRecreator:
         """
         Return True if `nodename` matches one of our created output nodes.
         """
-        return any(info['node_name'] == nodename
-                   for info in self.new_output_connections.values())
+        return any(info["node_name"] == nodename for info in self.new_output_connections.values())
 
-    def _connect_pair(self, src_node, dest_node, src_parm='', dest_parm='',
-                      src_idx=None, dest_idx=None):
+    def _connect_pair(self, src_node, dest_node, src_parm="", dest_parm="", src_idx=None, dest_idx=None):
         """
-        Wire src_node.output[src_idx] into dest_node.input[<resolved index>].
-
+        Connects an output of one Houdini node to an input of another.
+        
         Args:
-            src_node (hou.node): The source node.
-            dest_node (hou.node): The destination node.
-            src_parm (str, Optional): The source parameter name that connects to the dest_node, if not provided then use src_idx
-            dest_parm (str, Optional): The destination parameter name that will be connected to the src_node, if not provided then use dest_idx
-
+            src_node (hou.node): Source node.
+            dest_node (hou.node): Destination node.
+            src_parm (str, optional): Source output name used to resolve the output index.
+            dest_parm (str, optional): Destination input name used to resolve the input index.
+            src_idx (int, optional): Source output index.
+            dest_idx (int, optional): Destination input index.
+        
+        Returns:
+            bool: `True` if the connection succeeds, `False` otherwise.
         """
         if dest_idx is None:
             dest_idx = 0
@@ -1044,7 +1172,9 @@ class NodeRecreator:
             if dest_idx_by_name not in [-1, -999]:
                 dest_idx = dest_idx_by_name
             else:
-                logger.warning("dest: '%s' has no parm: '%s', using provided index: %s.", dest_node.name(), dest_parm, dest_idx)
+                logger.warning(
+                    "dest: '%s' has no parm: '%s', using provided index: %s.", dest_node.name(), dest_parm, dest_idx
+                )
 
         if src_idx is None:
             src_idx = 0
@@ -1052,27 +1182,39 @@ class NodeRecreator:
             if src_idx_by_name not in [-1, -999]:
                 src_idx = src_idx_by_name
             else:
-                logger.warning("src: '%s' has no parm: '%s', using provided index: %s.", src_node.name(), src_parm, src_idx)
-
+                logger.warning(
+                    "src: '%s' has no parm: '%s', using provided index: %s.", src_node.name(), src_parm, src_idx
+                )
 
         # if it's a node that needs splitting, we split the channels
-        if src_node.type().name() in ['mtlximage', 'mtlxrange', 'mtlxcolorcorrect'] and src_parm not in ['rgb', 'rgba', 'out', 'outColor']:
-            check, _ = self.create_mtlx_vec3_split_node(src_node=src_node, dest_node=dest_node,
-                                                        src_out_parm_name=src_parm, dest_in_index=dest_idx)
+        if src_node.type().name() in ["mtlximage", "mtlxrange", "mtlxcolorcorrect"] and src_parm not in [
+            "rgb",
+            "rgba",
+            "out",
+            "outColor",
+        ]:
+            check, _ = self.create_mtlx_vec3_split_node(
+                src_node=src_node, dest_node=dest_node, src_out_parm_name=src_parm, dest_in_index=dest_idx
+            )
             return check
-
 
         try:
             dest_node.setInput(dest_idx, src_node, src_idx)
             logger.info("Connected '%s'[%s] -> '%s'[%s].", src_node.name(), src_idx, dest_node.name(), dest_idx)
             return True
         except Exception as e:
-            logger.warning("Failed to connect '%s[%s]' -> '%s[%s]': %s", src_node.name(), src_idx, dest_node.name(), dest_idx, e)
+            logger.warning(
+                "Failed to connect '%s[%s]' -> '%s[%s]': %s", src_node.name(), src_idx, dest_node.name(), dest_idx, e
+            )
             return False
 
     def set_node_connections(self, nodeinfo_list, parent_node=None):
         """
-        Top-level entry: recurse over a list of NodeInfo and wire them up.
+        Connects recreated nodes according to their input connection metadata and recursively processes their child nodes.
+        
+        Parameters:
+            nodeinfo_list: NodeInfo objects describing the nodes and their connections.
+            parent_node: Optional parent node used as the destination context for child connections.
         """
         if not nodeinfo_list:
             logger.warning("Empty node list, nothing to connect.")
@@ -1124,12 +1266,4 @@ class NodeRecreator:
         logger.info("DONE _set_output_connections()....")
 
 
-
-
-
-
-
 ##############################################
-
-
-

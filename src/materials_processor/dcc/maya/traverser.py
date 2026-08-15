@@ -153,35 +153,63 @@ class MayaNodeTraverser:
         self.cmds = _require_cmds()
 
     def _attr_exists(self, node: str, attr: str) -> bool:
+        """Check whether a Maya node has the specified attribute.
+        
+        Parameters:
+            node (str): Maya node name.
+            attr (str): Attribute name to check.
+        
+        Returns:
+            bool: `true` if the attribute exists on the node, `false` otherwise.
+        """
         try:
             return bool(self.cmds.attributeQuery(attr, node=node, exists=True))
         except Exception:
             return bool(self.cmds.objExists(_plug(node, attr)))
 
     def _surface_shader_from_shading_engine(self, shading_engine: str) -> tuple[str | None, str | None]:
-        sources = self.cmds.listConnections(
-            _plug(shading_engine, "surfaceShader"),
-            source=True,
-            destination=False,
-            plugs=True,
-        ) or []
+        """Find the shader connected to a shading engine's surface shader input.
+        
+        Parameters:
+        	shading_engine (str): Name of the shading engine node.
+        
+        Returns:
+        	tuple[str | None, str | None]: The connected shader node and output attribute, or `(None, None)` when no shader is connected.
+        """
+        sources = (
+            self.cmds.listConnections(
+                _plug(shading_engine, "surfaceShader"),
+                source=True,
+                destination=False,
+                plugs=True,
+            )
+            or []
+        )
         if not sources:
             return None, None
         source_node, source_attr = _split_plug(sources[0])
         return source_node, source_attr
 
     def _shading_engine_from_shader(self, shader_node: str) -> tuple[str | None, str]:
+        """Find the shading engine connected to a shader's supported output.
+        
+        Returns:
+        	tuple[str | None, str]: The connected shading-engine node and output attribute, or `None` and the first supported output attribute when no shading engine is connected.
+        """
         node_type = self.cmds.nodeType(shader_node)
         output_attrs = MAYA_OUTPUT_ATTRS.get(node_type, ["outColor"])
         for output_attr in output_attrs:
             if not self._attr_exists(shader_node, output_attr):
                 continue
-            destinations = self.cmds.listConnections(
-                _plug(shader_node, output_attr),
-                source=False,
-                destination=True,
-                plugs=True,
-            ) or []
+            destinations = (
+                self.cmds.listConnections(
+                    _plug(shader_node, output_attr),
+                    source=False,
+                    destination=True,
+                    plugs=True,
+                )
+                or []
+            )
             for destination in destinations:
                 dest_node, dest_attr = _split_plug(destination)
                 if dest_attr == "surfaceShader" and self.cmds.nodeType(dest_node) == "shadingEngine":
@@ -216,18 +244,32 @@ class MayaNodeTraverser:
         }
 
     def _connection_to_parent(self, node: str, parent_node: str, material_name: str) -> dict:
+        """
+        Builds metadata for connections from a node's outputs to its parent node.
+        
+        Parameters:
+        	node (str): The source node.
+        	parent_node (str): The destination node whose incoming connections are recorded.
+        	material_name (str): The material name used to construct standardized node paths.
+        
+        Returns:
+        	dict: A mapping of connection identifiers to input and output connection metadata.
+        """
         connections_dict = {}
         node_type = self.cmds.nodeType(node)
         connection_idx = 0
         for output_attr in MAYA_OUTPUT_ATTRS.get(node_type, []):
             if not self._attr_exists(node, output_attr):
                 continue
-            destinations = self.cmds.listConnections(
-                _plug(node, output_attr),
-                source=False,
-                destination=True,
-                plugs=True,
-            ) or []
+            destinations = (
+                self.cmds.listConnections(
+                    _plug(node, output_attr),
+                    source=False,
+                    destination=True,
+                    plugs=True,
+                )
+                or []
+            )
             for destination in destinations:
                 dest_node, dest_attr = _split_plug(destination)
                 if dest_node != parent_node:
@@ -254,15 +296,36 @@ class MayaNodeTraverser:
         return connections_dict
 
     def _input_source_plug(self, node: str, attr: str) -> str | None:
-        sources = self.cmds.listConnections(
-            _plug(node, attr),
-            source=True,
-            destination=False,
-            plugs=True,
-        ) or []
+        """Finds the first incoming connection plug for a node attribute.
+        
+        Parameters:
+        	node (str): The node containing the attribute.
+        	attr (str): The input attribute to inspect.
+        
+        Returns:
+        	str | None: The connected source plug, or `None` when no source is connected.
+        """
+        sources = (
+            self.cmds.listConnections(
+                _plug(node, attr),
+                source=True,
+                destination=False,
+                plugs=True,
+            )
+            or []
+        )
         return sources[0] if sources else None
 
     def _convert_parms_to_dict(self, node: str) -> dict:
+        """
+        Builds standardized input and output parameter metadata for a Maya node.
+        
+        Parameters:
+        	node (str): The Maya node to describe.
+        
+        Returns:
+        	dict: A dictionary containing metadata for the node's available inputs and outputs.
+        """
         parms = {"input": [], "output": []}
         node_type = self.cmds.nodeType(node)
 

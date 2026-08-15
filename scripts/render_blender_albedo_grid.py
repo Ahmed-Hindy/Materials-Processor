@@ -24,8 +24,22 @@ def _script(
     material_name: str | None = None,
     geometry_path: Path | None = None,
 ) -> str:
-    """Return Blender Python that renders sorted material streams as emission."""
-    return f'''
+    """
+    Generate a Blender Python script that renders material albedo or normal-vector references.
+    
+    Parameters:
+        scene_path (Path): Source Blender scene to open.
+        output_path (Path): Path for the rendered reference image.
+        samples (int): Cycles render sample count.
+        mode (str): Reference mode, such as ``"albedo"`` or ``"normal-vector"``.
+        baked_normal_dir (Path | None): Optional directory containing baked normal EXR files.
+        material_name (str | None): Optional material name used to limit the render.
+        geometry_path (Path | None): Optional path for exporting selected geometry as USD.
+    
+    Returns:
+        str: Generated Blender Python source.
+    """
+    return f"""
 import bpy
 from mathutils import Vector
 
@@ -209,11 +223,22 @@ if GEOMETRY_PATH:
         export_materials=False,
         export_cameras=True,
     )
-'''.strip()
+""".strip()
 
 
 def main() -> int:
-    """Render a source albedo reference image without modifying the input scene."""
+    """
+    Render a Cycles material reference image from a source Blender scene.
+    
+    The selected albedo or normal-vector mode can be filtered by material and may
+    optionally export matching geometry and camera data to USD.
+    
+    Returns:
+        int: Zero after the render completes successfully.
+    
+    Raises:
+        RuntimeError: If the Blender render fails or reports a Python traceback.
+    """
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_scene", type=Path)
     parser.add_argument("--output", type=Path, required=True)
@@ -260,7 +285,11 @@ def main() -> int:
         text=True,
         timeout=180,
     )
-    if completed.returncode or "Traceback (most recent call last):" in completed.stdout or "Traceback (most recent call last):" in completed.stderr:
+    if (
+        completed.returncode
+        or "Traceback (most recent call last):" in completed.stdout
+        or "Traceback (most recent call last):" in completed.stderr
+    ):
         raise RuntimeError(f"Cycles albedo render failed:\n{completed.stdout}\n{completed.stderr}")
     print(f"Rendered Cycles source {args.mode} reference: {output_path}")
     return 0

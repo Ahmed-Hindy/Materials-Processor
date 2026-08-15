@@ -12,30 +12,40 @@ from materials_processor.logging_config import setup_file_logging
 logger = logging.getLogger(__name__)
 setup_file_logging()
 
+
 def get_material_type(usd_material):
     """
+    Determine the renderer-specific type of a USD material.
+    
     Args:
-        usd_material (Usd.Material): input material prim, e.g., arnold materialbuilder
+        usd_material (Usd.Material): USD material prim to inspect.
+    
     Returns:
-        (str): material type.
+        str: Detected material type.
+    
+    Raises:
+        NotImplementedError: If no supported material type is found or multiple
+            supported material types are present.
     """
     material_list = []
     infoId_list = []
     for x in usd_material.GetPrim().GetChildren():
-        infoId_list.append(x.GetAttribute('info:id').Get())
+        infoId_list.append(x.GetAttribute("info:id").Get())
 
-    if 'arnold:standard_surface' in infoId_list:
-        material_list.append('arnold')
-    if 'ND_standard_surface_surfaceshader' in infoId_list:
-        material_list.append('mtlx')
-    if 'ND_open_pbr_surface_surfaceshader' in infoId_list:
-        material_list.append('openpbr')
-    if 'redshift::StandardMaterial' in infoId_list:
-        material_list.append('rs_usd_material_builder')
+    if "arnold:standard_surface" in infoId_list:
+        material_list.append("arnold")
+    if "ND_standard_surface_surfaceshader" in infoId_list:
+        material_list.append("mtlx")
+    if "ND_open_pbr_surface_surfaceshader" in infoId_list:
+        material_list.append("openpbr")
+    if "redshift::StandardMaterial" in infoId_list:
+        material_list.append("rs_usd_material_builder")
 
     material_list = tuple(material_list)
     if len(material_list) > 1:
-        raise NotImplementedError(f"ERROR: multiple material types found: '{material_list}', Script only supports one material type at a time.")
+        raise NotImplementedError(
+            f"ERROR: multiple material types found: '{material_list}', Script only supports one material type at a time."
+        )
     if len(material_list) == 0:
         raise NotImplementedError("ERROR: Couldn't determine Input material type.")
 
@@ -44,10 +54,16 @@ def get_material_type(usd_material):
     return material_type
 
 
-
 def test(stage, mat_node, target_renderer="mtlx"):
+    """
+    Recreates a USD material from a Houdini material node.
+    
+    Parameters:
+        stage: USD stage receiving the recreated material.
+        mat_node: Houdini material node to ingest.
+        target_renderer (str): Renderer targeted by the recreation.
+    """
     import hou
-
 
     material_type, nodeinfo_list, output_connections = houdini_commands.ingest_material(mat_node)
     if not (material_type and nodeinfo_list and output_connections):
@@ -78,12 +94,12 @@ def test(stage, mat_node, target_renderer="mtlx"):
 
 def test2(stage, usd_material, target_renderer="arnold"):
     """
+    Convert a USD material to the selected target renderer.
+    
     Args:
-        stage (Usd.Stage): USD stage
-        usd_material (Usd.Material): USD material
-        target_renderer (str): target renderer to convert to ['arnold', 'mtlx']
-    Returns:
-        None
+        stage (Usd.Stage): USD stage containing the material.
+        usd_material (Usd.Material): USD material to convert.
+        target_renderer (str): Renderer to target, such as ``"arnold"`` or ``"mtlx"``.
     """
     import hou
 
@@ -91,11 +107,11 @@ def test2(stage, usd_material, target_renderer="arnold"):
     mat_name = mat_prim.GetName()
 
     material_type = get_material_type(usd_material)
-    if not material_type :
+    if not material_type:
         logger.error("Couldn't determine Input material type.")
         return None
 
-    nested_nodes_dict, output_nodes_dict  = USDTraverser(stage, mat_prim, material_type).run()
+    nested_nodes_dict, output_nodes_dict = USDTraverser(stage, mat_prim, material_type).run()
     # print(f"DEBUG: nested: {pprint.pformat(nested, sort_dicts=False)}")
     # print(f"DEBUG: outputs: {pprint.pformat(outputs, sort_dicts=False)}")
     # DEBUG: nested: {'/materials/arnold_materialbuilder_basic': {
@@ -151,7 +167,7 @@ def test2(stage, usd_material, target_renderer="arnold"):
         traversed_nodes_dict=nested_nodes_dict,
         output_nodes_dict=output_nodes_dict,
         material_type=material_type,
-        source_type='usd_prims',
+        source_type="usd_prims",
     )
     nodeinfo_list, output_connections = standardizer.run()
 
@@ -165,4 +181,3 @@ def test2(stage, usd_material, target_renderer="arnold"):
         ).run()
     except Exception:
         logger.exception("Exception in test2")
-

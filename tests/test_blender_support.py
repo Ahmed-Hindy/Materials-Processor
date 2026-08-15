@@ -18,31 +18,46 @@ from materials_processor.dcc.blender.traverser import BlenderNodeTraverser
 
 def test_blender_profile_maps_generic_nodes_without_becoming_houdini_target():
     assert "blender_shader_nodes" in mappings.STANDARDIZER_SUPPORTED_SOURCE_TYPES
-    assert mappings.convert_generic(
-        "GENERIC::standard_surface",
-        "blender",
-        profile="blender_shader_nodes",
-    ) == "ShaderNodeBsdfPrincipled"
-    assert mappings.convert_generic(
-        "GENERIC::uvmap",
-        "blender",
-        profile="blender_shader_nodes",
-    ) == "ShaderNodeUVMap"
-    assert mappings.convert_generic(
-        "GENERIC::mapping",
-        "blender",
-        profile="blender_shader_nodes",
-    ) == "ShaderNodeMapping"
-    assert mappings.convert_generic(
-        "GENERIC::value",
-        "blender",
-        profile="blender_shader_nodes",
-    ) == "ShaderNodeValue"
-    assert mappings.convert_generic(
-        "GENERIC::separate_color",
-        "blender",
-        profile="blender_shader_nodes",
-    ) == "ShaderNodeSeparateColor"
+    assert (
+        mappings.convert_generic(
+            "GENERIC::standard_surface",
+            "blender",
+            profile="blender_shader_nodes",
+        )
+        == "ShaderNodeBsdfPrincipled"
+    )
+    assert (
+        mappings.convert_generic(
+            "GENERIC::uvmap",
+            "blender",
+            profile="blender_shader_nodes",
+        )
+        == "ShaderNodeUVMap"
+    )
+    assert (
+        mappings.convert_generic(
+            "GENERIC::mapping",
+            "blender",
+            profile="blender_shader_nodes",
+        )
+        == "ShaderNodeMapping"
+    )
+    assert (
+        mappings.convert_generic(
+            "GENERIC::value",
+            "blender",
+            profile="blender_shader_nodes",
+        )
+        == "ShaderNodeValue"
+    )
+    assert (
+        mappings.convert_generic(
+            "GENERIC::separate_color",
+            "blender",
+            profile="blender_shader_nodes",
+        )
+        == "ShaderNodeSeparateColor"
+    )
     assert "blender" not in mappings.FORMAT_CHOICES
 
 
@@ -147,6 +162,15 @@ class FakeMaterial:
 
 
 def _make_simple_fake_blender_material(name="test_mat"):
+    """
+    Create a fake Blender material with an image texture connected to a Principled BSDF shader and material output.
+    
+    Parameters:
+    	name (str): Name assigned to the fake material.
+    
+    Returns:
+    	FakeMaterial: A material containing the connected output, shader, and image-texture nodes.
+    """
     out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
     bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
     tex_node = FakeNode("ShaderNodeTexImage", "Image Texture")
@@ -177,10 +201,7 @@ def _make_simple_fake_blender_material(name="test_mat"):
     bsdf_base_socket.links = [link2]
     tex_color_socket.links = [link2]
 
-    node_tree = FakeNodeTree(
-        nodes=[out_node, bsdf_node, tex_node],
-        links=[link1, link2]
-    )
+    node_tree = FakeNodeTree(nodes=[out_node, bsdf_node, tex_node], links=[link1, link2])
     return FakeMaterial(name, node_tree)
 
 
@@ -247,6 +268,14 @@ def _make_packed_texture_fake_blender_material(name="packed_mat"):
 
 
 def _make_mapped_texture_fake_blender_material(name="mapped_mat"):
+    """Create a fake Blender material with mapped texture coordinates and a value-driven roughness input.
+    
+    Parameters:
+    	name (str): The material name.
+    
+    Returns:
+    	FakeMaterial: A material containing texture-coordinate, mapping, image-texture, value, Principled BSDF, and material-output nodes.
+    """
     out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
     bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
     tex_node = FakeNode("ShaderNodeTexImage", "Image Texture")
@@ -274,7 +303,12 @@ def _make_mapped_texture_fake_blender_material(name="mapped_mat"):
     tex_node.inputs = [tex_vector_socket]
     tex_node.outputs = [tex_color_socket]
     texcoord_node.outputs = [texcoord_uv_socket]
-    mapping_node.inputs = [mapping_vector_in_socket, mapping_location_socket, mapping_rotation_socket, mapping_scale_socket]
+    mapping_node.inputs = [
+        mapping_vector_in_socket,
+        mapping_location_socket,
+        mapping_rotation_socket,
+        mapping_scale_socket,
+    ]
     mapping_node.outputs = [mapping_vector_out_socket]
     value_node.outputs = [value_socket]
 
@@ -382,7 +416,9 @@ def test_blender_traverser_flattens_self_contained_shader_group():
     flattened_path = "/mat/group_mat/Coat Group/Group Principled"
     assert output_dict["surface"]["connected_node_path"] == flattened_path
     assert flattened_path in nodes_dict
-    assert all("Coat Group" not in node["node_path"] or node["node_name"] != "Coat Group" for node in nodes_dict.values())
+    assert all(
+        "Coat Group" not in node["node_path"] or node["node_name"] != "Coat Group" for node in nodes_dict.values()
+    )
 
     nodeinfo_list, output_connections = standardizer.NodeStandardizer(
         traversed_nodes_dict=nodes_dict,
@@ -416,8 +452,9 @@ def test_blender_traverser_flattens_group_connected_to_a_surface_input():
     assert "/mat/group_input_mat/Color Group/Group Texture" in nodeinfos
     assert nodeinfos["/mat/group_input_mat/Color Group/Group Texture"].connection_info
 
+
 def test_blender_traverser_preserves_packed_texture_graph(caplog):
-    """Test that texture coordinates and packed channel splits survive standardization."""
+    """Verify that packed texture channel connections and UV mapping survive standardization."""
     material = _make_packed_texture_fake_blender_material()
 
     nodes_dict, output_dict = BlenderNodeTraverser(material).run()
@@ -446,18 +483,13 @@ def test_blender_traverser_preserves_packed_texture_graph(caplog):
     assert uv_params["uv_map"].value == "UVMap"
     assert uv_params["vector"].generic_type == "vector2"
 
-    connections = [
-        connection
-        for node in all_nodes
-        for connection in node.connection_info.values()
-    ]
+    connections = [connection for node in all_nodes for connection in node.connection_info.values()]
     assert any(
         connection.input.parm_name == "vector" and connection.output.parm_name == "texcoord"
         for connection in connections
     )
     assert any(
-        connection.input.parm_name == "b" and connection.output.parm_name == "metalness"
-        for connection in connections
+        connection.input.parm_name == "b" and connection.output.parm_name == "metalness" for connection in connections
     )
     assert any(
         connection.input.parm_name == "g" and connection.output.parm_name == "specular_roughness"
@@ -498,18 +530,13 @@ def test_blender_traverser_preserves_texcoord_mapping_and_value_nodes(caplog):
     value_params = {param.generic_name: param for param in value_node.parameters}
     assert value_params["value"].value == 0.42
 
-    connections = [
-        connection
-        for node in all_nodes
-        for connection in node.connection_info.values()
-    ]
+    connections = [connection for node in all_nodes for connection in node.connection_info.values()]
     assert any(
         connection.input.parm_name == "vector" and connection.output.parm_name == "texcoord"
         for connection in connections
     )
     assert any(
-        connection.input.parm_name == "out" and connection.output.parm_name == "texcoord"
-        for connection in connections
+        connection.input.parm_name == "out" and connection.output.parm_name == "texcoord" for connection in connections
     )
     assert any(
         connection.input.parm_name == "out" and connection.output.parm_name == "specular_roughness"
@@ -523,10 +550,7 @@ def test_blender_traverser_preserves_texcoord_mapping_and_value_nodes(caplog):
 def test_blender_recreator_simple():
     """Test that BlenderNodeRecreator successfully reconstructs material nodes."""
     surface_param = NodeParameter(
-        generic_name="base_color",
-        generic_type="color3",
-        direction="input",
-        value=[0.8, 0.2, 0.2]
+        generic_name="base_color", generic_type="color3", direction="input", value=[0.8, 0.2, 0.2]
     )
 
     node_info = NodeInfo(
@@ -537,7 +561,7 @@ def test_blender_recreator_simple():
         connection_info={},
         children_list=[],
         is_output_node=False,
-        position=[150.0, 300.0]
+        position=[150.0, 300.0],
     )
 
     output_connection = OutputConnection(
@@ -547,7 +571,7 @@ def test_blender_recreator_simple():
         connected_node_path="/mat/test_mat/Principled_BSDF",
         connected_input_index=0,
         connected_input_name="Surface",
-        connected_output_name="surface"
+        connected_output_name="surface",
     )
 
     out_node = FakeNode("ShaderNodeOutputMaterial", "Material Output")
@@ -557,7 +581,7 @@ def test_blender_recreator_simple():
     recreator = BlenderNodeRecreator(
         nodeinfo_list=[node_info],
         output_connections={"GENERIC::output_surface": output_connection},
-        target_material=material
+        target_material=material,
     )
 
     success = recreator.run()
