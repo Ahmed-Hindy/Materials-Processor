@@ -48,7 +48,7 @@ uv --native-tls run python scripts/build_blender_extension.py `
   --output "C:\temp\materials_processor-1.0.0.zip"
 ```
 
-The extension requires Blender 5.0 or later and targets Blender 5.2. In Blender, open **Preferences → Get Extensions → Install from Disk**, select that archive, then enable **Materials Processor**. The extension contains the Blender integration and the runtime package it needs; no separate Python installation is required.
+Materials Processor requires Blender 5.0 or later for both the extension and command-line workflow, and targets Blender 5.2. In Blender, open **Preferences → Get Extensions → Install from Disk**, select that archive, then enable **Materials Processor**. The extension contains the Blender integration and the runtime package it needs; no separate Python installation is required.
 
 The development manifest declares `SPDX:LicenseRef-Proprietary` because this repository has no release license yet. Replace it with the chosen final SPDX license before publishing or distributing the archive.
 
@@ -62,16 +62,19 @@ Use **Convert Selected Active Materials** in the sidebar or Shader Editor contex
 
 The conversion is strict. If a node, connected socket, input, or group path cannot be reconstructed, it creates no material and leaves the active slot unchanged. Use the existing native MaterialX or bake workflows for procedural or non-portable graphs.
 
-For Blender Python automation:
+For Blender Python automation, use the public command layer. It follows the same ingest-and-run boundary as Houdini while retaining Blender-specific active-slot and selected-object operations:
 
 ```python
-from materials_processor.dcc.blender.adapters import convert_active_material, convert_material
+from materials_processor.dcc.blender import commands
 
 # Create and assign a rebuilt material to an object's active slot.
-rebuilt = convert_active_material(bpy.context.active_object)
+rebuilt = commands.run_for_active_object(bpy.context.active_object)
 
 # Or create an unassigned rebuilt material from a known source material.
-rebuilt = convert_material(bpy.data.materials["Source Material"])
+rebuilt = commands.run(bpy.data.materials["Source Material"])
+
+# Inspect the standardized graph and strict-reconstruction diagnostics.
+analysis = commands.ingest_material(bpy.context.active_object.active_material)
 ```
 
 ## Inspect before exporting

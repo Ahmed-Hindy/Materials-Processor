@@ -2,12 +2,8 @@
 
 import logging
 
-from materials_processor.dcc.blender.adapters import (
-    BlenderMaterialConversionError,
-    BlenderMaterialReader,
-    convert_active_material,
-    convert_selected_active_materials,
-)
+from materials_processor.dcc.blender import commands
+from materials_processor.dcc.blender.adapters import BlenderMaterialConversionError
 
 logger = logging.getLogger(__name__)
 
@@ -50,9 +46,9 @@ class NODE_OT_MaterialsProcessor_Ingest(Operator):
             return {'CANCELLED'}
 
         try:
-            mat_data = BlenderMaterialReader().read(material)
+            analysis = commands.ingest_material(material)
 
-            logger.info("Successfully ingested material: %s", mat_data)
+            logger.info("Successfully ingested material: %s", analysis.graph)
             self.report({'INFO'}, f"Ingested material '{material.name}' successfully.")
             return {'FINISHED'}
 
@@ -81,7 +77,7 @@ class NODE_OT_MaterialsProcessor_ConvertActiveMaterial(Operator):
             return {'CANCELLED'}
 
         try:
-            converted = convert_active_material(active_obj)
+            converted = commands.run_for_active_object(active_obj)
         except BlenderMaterialConversionError as exc:
             logger.warning("Strict conversion rejected '%s': %s", material.name, exc)
             self.report({'ERROR'}, f"Cannot convert '{material.name}': {exc.issues[0].detail}")
@@ -113,7 +109,7 @@ class NODE_OT_MaterialsProcessor_ConvertSelectedMaterials(Operator):
             return {'CANCELLED'}
 
         try:
-            converted = convert_selected_active_materials(objects)
+            converted = commands.run_for_selected_objects(objects)
         except BlenderMaterialConversionError as exc:
             logger.warning("Strict batch conversion rejected selection: %s", exc)
             self.report({'ERROR'}, f"Cannot convert selection: {exc.issues[0].detail}")

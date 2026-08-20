@@ -49,6 +49,19 @@ def _version_sort_key(path: Path) -> tuple[int, ...]:
     return tuple(parts)
 
 
+def _version_tuple(version: str) -> tuple[int, ...]:
+    """Convert a Blender version string into comparable numeric components."""
+    return tuple(int(part) for part in re.findall(r"\d+", version))
+
+
+def _require_minimum_blender_version(version: str) -> None:
+    """Raise when a discovered Blender version is older than the supported minimum."""
+    if version and _version_tuple(version) < _version_tuple(MINIMUM_BLENDER_VERSION):
+        raise RuntimeError(
+            f"Blender {version} is unsupported. Materials Processor requires Blender {MINIMUM_BLENDER_VERSION} or later."
+        )
+
+
 def _candidate_roots(version: str | None) -> list[Path]:
     if version:
         return [_default_blender_root(version)]
@@ -141,6 +154,7 @@ def resolve_blender_runtime(
     resolved_exe = _resolve_blender_exe(version, root, blender_exe)
     resolved_root = resolved_exe.parent.resolve()
     requested_version = version or _version_from_root(resolved_root)
+    _require_minimum_blender_version(requested_version)
 
     return BlenderRuntime(
         root=resolved_root,
@@ -244,6 +258,9 @@ def _run_blender_python(runtime: BlenderRuntime, code: str, package_src: Path, t
         script_path.write_text(
             "import sys\n"
             f"sys.path.insert(0, {str(package_src.resolve())!r})\n\n"
+            "import bpy\n"
+            f"if tuple(bpy.app.version[:2]) < {_version_tuple(MINIMUM_BLENDER_VERSION)!r}:\n"
+            f"    raise RuntimeError({f'Materials Processor requires Blender {MINIMUM_BLENDER_VERSION} or later.'!r})\n\n"
             f"{code}\n",
             encoding="utf-8",
         )
