@@ -27,6 +27,7 @@ except ImportError:
     Panel = object
     Operator = object
 
+
 class NODE_OT_MaterialsProcessor_Ingest(Operator):
     """Ingest active material and print standardized schema."""
 
@@ -52,9 +53,9 @@ class NODE_OT_MaterialsProcessor_Ingest(Operator):
             self.report({'INFO'}, f"Ingested material '{material.name}' successfully.")
             return {'FINISHED'}
 
-        except Exception as e:
-            logger.error("Failed to ingest material: %s", e, exc_info=True)
-            self.report({'ERROR'}, f"Failed to ingest material: {e}")
+        except Exception as exc:
+            logger.error("Failed to ingest material: %s", exc, exc_info=True)
+            self.report({'ERROR'}, f"Failed to ingest material: {exc}")
             return {'CANCELLED'}
 
 

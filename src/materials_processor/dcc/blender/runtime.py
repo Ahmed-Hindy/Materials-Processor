@@ -18,6 +18,12 @@ BLENDER_ROOT_ENV_VAR = "MATERIALS_PROCESSOR_BLENDER_ROOT"
 BLENDER_EXE_ENV_VAR = "MATERIALS_PROCESSOR_BLENDER_EXE"
 VALIDATION_RESULT_PREFIX = "MATERIALS_PROCESSOR_BLENDER_RUNTIME="
 MATERIAL_SMOKE_RESULT_PREFIX = "MATERIALS_PROCESSOR_BLENDER_MATERIAL_SMOKE="
+_BLENDER_USER_DIRECTORIES = {
+    "BLENDER_USER_CONFIG": "config",
+    "BLENDER_USER_SCRIPTS": "scripts",
+    "BLENDER_USER_EXTENSIONS": "extensions",
+    "BLENDER_USER_DATAFILES": "datafiles",
+}
 
 
 @dataclass(frozen=True)
@@ -41,12 +47,7 @@ def _version_from_root(root: Path) -> str:
 
 
 def _version_sort_key(path: Path) -> tuple[int, ...]:
-    version = _version_from_root(path)
-    parts = []
-    for part in re.split(r"[^0-9]+", version):
-        if part:
-            parts.append(int(part))
-    return tuple(parts)
+    return _version_tuple(_version_from_root(path))
 
 
 def _version_tuple(version: str) -> tuple[int, ...]:
@@ -264,10 +265,7 @@ def _run_blender_python(runtime: BlenderRuntime, code: str, package_src: Path, t
             f"{code}\n",
             encoding="utf-8",
         )
-        env["BLENDER_USER_CONFIG"] = str(user_dir / "config")
-        env["BLENDER_USER_SCRIPTS"] = str(user_dir / "scripts")
-        env["BLENDER_USER_EXTENSIONS"] = str(user_dir / "extensions")
-        env["BLENDER_USER_DATAFILES"] = str(user_dir / "datafiles")
+        env.update({name: str(user_dir / directory) for name, directory in _BLENDER_USER_DIRECTORIES.items()})
         try:
             return subprocess.run(
                 [str(runtime.blender_exe), "--background", "--factory-startup", "--python", str(script_path)],

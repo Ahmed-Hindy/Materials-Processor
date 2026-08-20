@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import importlib.util
-import json
 import sys
 import tomllib
 import zipfile
@@ -33,6 +32,46 @@ def _load_builder_module():
     sys.modules[spec.name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def _extension_install_smoke_code(archive: Path) -> str:
+    """Return the Blender script that installs and exercises an extension archive."""
+    return f"""
+import json
+
+import bpy
+
+
+bpy.ops.extensions.package_install_files(
+    filepath={str(archive)!r},
+    # Factory startup has no active repository, so target the isolated user repository explicitly.
+    repo="user_default",
+    enable_on_install=True,
+)
+
+mesh = bpy.data.meshes.new("extension_smoke_mesh")
+object_ = bpy.data.objects.new("extension_smoke_object", mesh)
+bpy.context.collection.objects.link(object_)
+bpy.context.view_layer.objects.active = object_
+object_.select_set(True)
+
+source = bpy.data.materials.new("extension_smoke_source")
+source.use_nodes = True
+source_tree = source.node_tree
+source_tree.nodes.clear()
+output = source_tree.nodes.new(type="ShaderNodeOutputMaterial")
+principled = source_tree.nodes.new(type="ShaderNodeBsdfPrincipled")
+source_tree.links.new(principled.outputs["BSDF"], output.inputs["Surface"])
+object_.data.materials.append(source)
+
+operator_result = bpy.ops.node.matproc_convert_active_material()
+result = {{
+    "converted_name": object_.active_material.name,
+    "operator_result": sorted(operator_result),
+    "source_name": source.name,
+}}
+print({INSTALL_SMOKE_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
+""".strip()
 
 
 def test_blender_extension_manifest_declares_an_installable_addon():
@@ -90,43 +129,8 @@ def test_blender_extension_installs_enables_and_runs_a_conversion_operator(tmp_p
 
     builder = _load_builder_module()
     archive = builder.build_extension(tmp_path / "materials_processor.zip", blender_exe=runtime.blender_exe)
-    code = f"""
-import json
 
-import bpy
-
-
-bpy.ops.extensions.package_install_files(
-    filepath={str(archive)!r},
-    repo="user_default",
-    enable_on_install=True,
-)
-
-mesh = bpy.data.meshes.new("extension_smoke_mesh")
-object_ = bpy.data.objects.new("extension_smoke_object", mesh)
-bpy.context.collection.objects.link(object_)
-bpy.context.view_layer.objects.active = object_
-object_.select_set(True)
-
-source = bpy.data.materials.new("extension_smoke_source")
-source.use_nodes = True
-source_tree = source.node_tree
-source_tree.nodes.clear()
-output = source_tree.nodes.new(type="ShaderNodeOutputMaterial")
-principled = source_tree.nodes.new(type="ShaderNodeBsdfPrincipled")
-source_tree.links.new(principled.outputs["BSDF"], output.inputs["Surface"])
-object_.data.materials.append(source)
-
-operator_result = bpy.ops.node.matproc_convert_active_material()
-result = {{
-    "converted_name": object_.active_material.name,
-    "operator_result": sorted(operator_result),
-    "source_name": source.name,
-}}
-print({INSTALL_SMOKE_RESULT_PREFIX!r} + json.dumps(result, sort_keys=True))
-""".strip()
-
-    completed = _run_blender_python(runtime, code, ROOT / "src", timeout=120)
+    completed = _run_blender_python(runtime, _extension_install_smoke_code(archive), ROOT / "src", timeout=120)
     if completed.returncode:
         raise RuntimeError(
             "Blender extension install smoke test failed with exit code "

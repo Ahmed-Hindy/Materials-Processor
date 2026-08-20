@@ -21,10 +21,15 @@ def test_run_delegates_to_single_material_adapter(monkeypatch):
     material = object()
     expected = object()
     seen = []
+
+    def fake_convert_material(received_material, *, target_name):
+        seen.append((received_material, target_name))
+        return expected
+
     monkeypatch.setattr(
         commands,
         "convert_material",
-        lambda received_material, *, target_name: seen.append((received_material, target_name)) or expected,
+        fake_convert_material,
     )
 
     assert commands.run(material, target_name="rebuilt") is expected
@@ -35,10 +40,15 @@ def test_run_for_active_object_delegates_to_active_material_adapter(monkeypatch)
     active_object = object()
     expected = object()
     seen = []
+
+    def fake_convert_active_material(received_object, *, target_name):
+        seen.append((received_object, target_name))
+        return expected
+
     monkeypatch.setattr(
         commands,
         "convert_active_material",
-        lambda received_object, *, target_name: seen.append((received_object, target_name)) or expected,
+        fake_convert_active_material,
     )
 
     assert commands.run_for_active_object(active_object, target_name="rebuilt") is expected
@@ -49,10 +59,15 @@ def test_run_for_selected_objects_delegates_a_list_to_batch_adapter(monkeypatch)
     objects = (object(), object())
     expected = (object(),)
     seen = []
+
+    def fake_convert_selected_active_materials(received_objects):
+        seen.append(received_objects)
+        return expected
+
     monkeypatch.setattr(
         commands,
         "convert_selected_active_materials",
-        lambda received_objects: seen.append(received_objects) or expected,
+        fake_convert_selected_active_materials,
     )
 
     assert commands.run_for_selected_objects(objects) is expected

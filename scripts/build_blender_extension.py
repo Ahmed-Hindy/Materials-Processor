@@ -17,8 +17,9 @@ PACKAGE_SOURCE = ROOT / "src" / "materials_processor"
 
 def _stage_extension(stage_dir: Path) -> None:
     """Copy the extension entry point and runtime package into a build directory."""
-    shutil.copytree(EXTENSION_SOURCE, stage_dir, dirs_exist_ok=True, ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
-    shutil.copytree(PACKAGE_SOURCE, stage_dir / "materials_processor", ignore=shutil.ignore_patterns("__pycache__", "*.pyc"))
+    ignored_files = shutil.ignore_patterns("__pycache__", "*.pyc")
+    shutil.copytree(EXTENSION_SOURCE, stage_dir, dirs_exist_ok=True, ignore=ignored_files)
+    shutil.copytree(PACKAGE_SOURCE, stage_dir / "materials_processor", ignore=ignored_files)
 
 
 def _run_blender_command(blender_exe: Path, arguments: list[str]) -> None:
