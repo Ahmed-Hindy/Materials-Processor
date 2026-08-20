@@ -266,6 +266,7 @@ def _run_blender_python(runtime: BlenderRuntime, code: str, package_src: Path, t
         )
         env["BLENDER_USER_CONFIG"] = str(user_dir / "config")
         env["BLENDER_USER_SCRIPTS"] = str(user_dir / "scripts")
+        env["BLENDER_USER_EXTENSIONS"] = str(user_dir / "extensions")
         env["BLENDER_USER_DATAFILES"] = str(user_dir / "datafiles")
         try:
             return subprocess.run(

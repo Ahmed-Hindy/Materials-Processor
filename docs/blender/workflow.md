@@ -297,10 +297,10 @@ For externally authored procedural graphs and non-PBR closures, see the separate
 
 ## Automated coverage
 
-The test suite creates its Blender bake fixture at runtime, rather than storing a binary `.blend` in the repository. It exercises direct Principled PBR, a non-flat Normal Map PBR material, internal group Principled materials driven by both a Group Input value and a Group Input connection, and a mixed diffuse/translucent group. The integration test asserts that `auto` produces four PBR materials and one beauty fallback, checks the baked normal EXR and raw MaterialX connection, then verifies that Solaris can load the corresponding MaterialX and OpenPBR USD layers. Run it locally with:
+The test suite creates its Blender bake fixture at runtime, rather than storing a binary `.blend` in the repository. It exercises direct Principled PBR, a non-flat Normal Map PBR material, internal group Principled materials driven by both a Group Input value and a Group Input connection, and a mixed diffuse/translucent group. The integration test asserts that `auto` produces four PBR materials and one beauty fallback, checks the baked normal EXR and raw MaterialX connection, then verifies that Solaris can load the corresponding MaterialX and OpenPBR USD layers. Extension coverage also builds the shipped ZIP, installs and enables it in an isolated Blender user repository, and invokes its registered conversion operator. Run it locally with:
 
 ```powershell
-uv --system-certs run pytest tests/test_blender_bake_integration.py -vv
+uv --system-certs run pytest tests/test_blender_bake_integration.py tests/test_blender_extension.py -vv
 ```
 
 It is marked `blender` and `hython`, and skips cleanly where either DCC runtime is unavailable.

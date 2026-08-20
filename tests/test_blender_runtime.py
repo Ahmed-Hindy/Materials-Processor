@@ -133,6 +133,7 @@ def test_validate_blender_runtime_uses_headless_blender_pythonpath_and_isolated_
     assert captured["env"]["PYTHONPATH"].split(os.pathsep)[0] == str(package_src.resolve())
     assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_CONFIG"]
     assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_SCRIPTS"]
+    assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_EXTENSIONS"]
     assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_DATAFILES"]
 
 
