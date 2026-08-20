@@ -11,7 +11,9 @@ from materials_processor.core.graph import (
     OutputConnection,
 )
 from materials_processor.core.conversion import ConversionService
-from materials_processor.dcc.blender.adapters import BlenderMaterialReader, BlenderMaterialWriter
+from materials_processor.dcc.blender import adapters
+from materials_processor.dcc.blender import addon
+from materials_processor.dcc.blender.adapters import BlenderMaterialReader, BlenderMaterialWriter, convert_material
 from materials_processor.dcc.blender.recreator import BlenderNodeRecreator
 from materials_processor.dcc.blender.traverser import BlenderNodeTraverser
 
@@ -44,6 +46,14 @@ def test_blender_profile_maps_generic_nodes_without_becoming_houdini_target():
         profile="blender_shader_nodes",
     ) == "ShaderNodeSeparateColor"
     assert "blender" not in mappings.FORMAT_CHOICES
+
+
+def test_blender_five_principled_thin_wall_input_is_standardized():
+    assert mappings.REGULAR_PARAM_NAMES_TO_GENERIC["ShaderNodeBsdfPrincipled"]["Thin Wall"] == "thin_walled"
+
+
+def test_blender_addon_requires_blender_five_or_later():
+    assert addon.bl_info["blender"] == (5, 0, 0)
 
 
 class FakeSocket:
@@ -295,6 +305,60 @@ def _make_mapped_texture_fake_blender_material(name="mapped_mat"):
     )
 
 
+def _make_self_contained_group_fake_blender_material(name="group_mat"):
+    """Create a material whose shader group needs no external inputs."""
+    material_output = FakeNode("ShaderNodeOutputMaterial", "Material Output")
+    group_node = FakeNode("ShaderNodeGroup", "Coat Group")
+    group_output = FakeNode("NodeGroupOutput", "Group Output")
+    internal_bsdf = FakeNode("ShaderNodeBsdfPrincipled", "Group Principled")
+
+    material_surface = FakeSocket("Surface", "SHADER")
+    group_shader_output = FakeSocket("Shader", "SHADER")
+    group_output_shader = FakeSocket("Shader", "SHADER")
+    internal_bsdf_output = FakeSocket("BSDF", "SHADER")
+    material_output.inputs = [material_surface]
+    group_node.outputs = [group_shader_output]
+    group_output.inputs = [group_output_shader]
+    internal_bsdf.outputs = [internal_bsdf_output]
+
+    group_node.node_tree = FakeNodeTree(nodes=[group_output, internal_bsdf])
+    links = [
+        _link(group_node, group_shader_output, material_output, material_surface),
+        _link(internal_bsdf, internal_bsdf_output, group_output, group_output_shader),
+    ]
+    return FakeMaterial(name, FakeNodeTree(nodes=[material_output, group_node], links=links))
+
+
+def _make_group_input_to_surface_fake_blender_material(name="group_input_mat"):
+    """Create a texture group connected to a top-level Principled shader."""
+    material_output = FakeNode("ShaderNodeOutputMaterial", "Material Output")
+    bsdf_node = FakeNode("ShaderNodeBsdfPrincipled", "Principled BSDF")
+    group_node = FakeNode("ShaderNodeGroup", "Color Group")
+    group_output = FakeNode("NodeGroupOutput", "Group Output")
+    internal_texture = FakeNode("ShaderNodeTexImage", "Group Texture")
+
+    material_surface = FakeSocket("Surface", "SHADER")
+    bsdf_output = FakeSocket("BSDF", "SHADER")
+    bsdf_base_color = FakeSocket("Base Color", "RGBA")
+    group_color_output = FakeSocket("Color", "RGBA")
+    group_output_color = FakeSocket("Color", "RGBA")
+    internal_texture_color = FakeSocket("Color", "RGBA")
+    material_output.inputs = [material_surface]
+    bsdf_node.inputs = [bsdf_base_color]
+    bsdf_node.outputs = [bsdf_output]
+    group_node.outputs = [group_color_output]
+    group_output.inputs = [group_output_color]
+    internal_texture.outputs = [internal_texture_color]
+    group_node.node_tree = FakeNodeTree(nodes=[group_output, internal_texture])
+
+    links = [
+        _link(bsdf_node, bsdf_output, material_output, material_surface),
+        _link(group_node, group_color_output, bsdf_node, bsdf_base_color),
+        _link(internal_texture, internal_texture_color, group_output, group_output_color),
+    ]
+    return FakeMaterial(name, FakeNodeTree(nodes=[material_output, bsdf_node, group_node], links=links))
+
+
 def test_blender_traverser_simple():
     """Test that BlenderNodeTraverser processes Cycles material trees correctly."""
     material = _make_simple_fake_blender_material()
@@ -319,6 +383,48 @@ def test_blender_traverser_simple():
     assert nodeinfo_list[0].node_type == "GENERIC::standard_surface"
     assert output_connections["GENERIC::output_surface"].connected_node_name == "Principled BSDF"
 
+
+def test_blender_traverser_flattens_self_contained_shader_group():
+    """Groups without a group-input dependency should not block USD export."""
+    material = _make_self_contained_group_fake_blender_material()
+    nodes_dict, output_dict = BlenderNodeTraverser(material).run()
+
+    flattened_path = "/mat/group_mat/Coat Group/Group Principled"
+    assert output_dict["surface"]["connected_node_path"] == flattened_path
+    assert flattened_path in nodes_dict
+    assert all("Coat Group" not in node["node_path"] or node["node_name"] != "Coat Group" for node in nodes_dict.values())
+
+    nodeinfo_list, output_connections = standardizer.NodeStandardizer(
+        traversed_nodes_dict=nodes_dict,
+        output_nodes_dict=output_dict,
+        material_type="blender",
+        source_type="blender_shader_nodes",
+    ).run()
+    assert [node.node_type for node in nodeinfo_list] == ["GENERIC::standard_surface"]
+    assert output_connections["GENERIC::output_surface"].connected_node_path == flattened_path
+
+
+def test_blender_traverser_flattens_group_connected_to_a_surface_input():
+    """Flattened group sources should retain their connection to outer nodes."""
+    material = _make_group_input_to_surface_fake_blender_material()
+    nodes_dict, output_dict = BlenderNodeTraverser(material).run()
+    surface = nodes_dict["/mat/group_input_mat/Principled BSDF"]
+    texture = surface["children_list"][0]
+
+    assert texture["node_path"] == "/mat/group_input_mat/Color Group/Group Texture"
+    connection = texture["connections_dict"]["connection_0"]
+    assert connection["input"]["parm_name"] == "Color"
+    assert connection["output"]["parm_name"] == "Base Color"
+
+    nodeinfo_list, _ = standardizer.NodeStandardizer(
+        traversed_nodes_dict=nodes_dict,
+        output_nodes_dict=output_dict,
+        material_type="blender",
+        source_type="blender_shader_nodes",
+    ).run()
+    nodeinfos = {node.node_path: node for node in _iter_nodeinfos(nodeinfo_list)}
+    assert "/mat/group_input_mat/Color Group/Group Texture" in nodeinfos
+    assert nodeinfos["/mat/group_input_mat/Color Group/Group Texture"].connection_info
 
 def test_blender_traverser_preserves_packed_texture_graph(caplog):
     """Test that texture coordinates and packed channel splits survive standardization."""
@@ -481,6 +587,41 @@ def test_blender_material_reader_returns_material_graph():
     assert graph.material_path == "/mat/adapter_source"
     assert graph.nodeinfo_list[0].node_type == "GENERIC::standard_surface"
     assert graph.output_connections["GENERIC::output_surface"].connected_node_name == "Principled BSDF"
+
+
+def test_blender_material_reader_reports_a_supported_graph_as_strictly_recreatable():
+    material = _make_simple_fake_blender_material("strict_source")
+
+    analysis = BlenderMaterialReader().analyze(material)
+
+    assert analysis.graph.material_name == "strict_source"
+    assert analysis.issues == ()
+
+
+def test_blender_material_reader_reports_unsupported_source_nodes_for_strict_conversion():
+    material = _make_simple_fake_blender_material("unsupported_source")
+    material.node_tree._nodes_list[-1].bl_idname = "ShaderNodeTexNoise"
+
+    analysis = BlenderMaterialReader().analyze(material)
+
+    assert [(issue.node_path, issue.detail) for issue in analysis.issues] == [
+        ("/mat/unsupported_source/Image Texture", "unsupported node type ShaderNodeTexNoise")
+    ]
+
+
+def test_blender_convert_material_requires_a_blender_runtime(monkeypatch):
+    material = _make_simple_fake_blender_material("conversion_source")
+    monkeypatch.setattr(adapters, "bpy", None)
+
+    with pytest.raises(RuntimeError, match="requires bpy"):
+        convert_material(material)
+
+
+def test_blender_addon_exposes_the_active_material_conversion_operator():
+    operator_ids = {operator.bl_idname for operator in addon.classes if hasattr(operator, "bl_idname")}
+
+    assert "node.matproc_convert_active_material" in operator_ids
+    assert "node.matproc_convert_selected_materials" in operator_ids
 
 
 def test_blender_material_writer_recreates_graph_into_target_material():

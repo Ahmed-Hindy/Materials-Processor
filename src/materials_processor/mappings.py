@@ -734,6 +734,7 @@ REGULAR_PARAM_NAMES_TO_GENERIC = {
         'Sheen Tint': 'sheen_color',
         'Thin Film Thickness': 'thin_film_thickness',
         'Thin Film IOR': 'thin_film_IOR',
+        'Thin Wall': 'thin_walled',
         'BSDF': 'surface',
     },
     'ShaderNodeTexImage': {

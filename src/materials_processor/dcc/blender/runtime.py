@@ -11,11 +11,19 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
-DEFAULT_BLENDER_VERSION = "4.0"
+MINIMUM_BLENDER_VERSION = "5.0"
+TARGET_BLENDER_VERSION = "5.2"
+DEFAULT_BLENDER_VERSION = TARGET_BLENDER_VERSION
 BLENDER_ROOT_ENV_VAR = "MATERIALS_PROCESSOR_BLENDER_ROOT"
 BLENDER_EXE_ENV_VAR = "MATERIALS_PROCESSOR_BLENDER_EXE"
 VALIDATION_RESULT_PREFIX = "MATERIALS_PROCESSOR_BLENDER_RUNTIME="
 MATERIAL_SMOKE_RESULT_PREFIX = "MATERIALS_PROCESSOR_BLENDER_MATERIAL_SMOKE="
+_BLENDER_USER_DIRECTORIES = {
+    "BLENDER_USER_CONFIG": "config",
+    "BLENDER_USER_SCRIPTS": "scripts",
+    "BLENDER_USER_EXTENSIONS": "extensions",
+    "BLENDER_USER_DATAFILES": "datafiles",
+}
 
 
 @dataclass(frozen=True)
@@ -39,12 +47,20 @@ def _version_from_root(root: Path) -> str:
 
 
 def _version_sort_key(path: Path) -> tuple[int, ...]:
-    version = _version_from_root(path)
-    parts = []
-    for part in re.split(r"[^0-9]+", version):
-        if part:
-            parts.append(int(part))
-    return tuple(parts)
+    return _version_tuple(_version_from_root(path))
+
+
+def _version_tuple(version: str) -> tuple[int, ...]:
+    """Convert a Blender version string into comparable numeric components."""
+    return tuple(int(part) for part in re.findall(r"\d+", version))
+
+
+def _require_minimum_blender_version(version: str) -> None:
+    """Raise when a discovered Blender version is older than the supported minimum."""
+    if version and _version_tuple(version) < _version_tuple(MINIMUM_BLENDER_VERSION):
+        raise RuntimeError(
+            f"Blender {version} is unsupported. Materials Processor requires Blender {MINIMUM_BLENDER_VERSION} or later."
+        )
 
 
 def _candidate_roots(version: str | None) -> list[Path]:
@@ -57,9 +73,17 @@ def _candidate_roots(version: str | None) -> list[Path]:
 
     candidates = [path for path in blender_foundation.glob("Blender *") if path.is_dir()]
     sorted_candidates = sorted(candidates, key=_version_sort_key, reverse=True)
-    blender_4_candidates = [path for path in sorted_candidates if _version_from_root(path).startswith("4.")]
-    other_candidates = [path for path in sorted_candidates if path not in blender_4_candidates]
-    return blender_4_candidates + other_candidates
+    target_candidate = [
+        path for path in sorted_candidates if _version_from_root(path).startswith(f"{TARGET_BLENDER_VERSION}.")
+        or _version_from_root(path) == TARGET_BLENDER_VERSION
+    ]
+    blender_5_candidates = [
+        path
+        for path in sorted_candidates
+        if path not in target_candidate and _version_from_root(path).startswith("5.")
+    ]
+    other_candidates = [path for path in sorted_candidates if path not in target_candidate and path not in blender_5_candidates]
+    return target_candidate + blender_5_candidates + other_candidates
 
 
 def _require_file(path: Path, label: str) -> Path:
@@ -131,6 +155,7 @@ def resolve_blender_runtime(
     resolved_exe = _resolve_blender_exe(version, root, blender_exe)
     resolved_root = resolved_exe.parent.resolve()
     requested_version = version or _version_from_root(resolved_root)
+    _require_minimum_blender_version(requested_version)
 
     return BlenderRuntime(
         root=resolved_root,
@@ -234,12 +259,13 @@ def _run_blender_python(runtime: BlenderRuntime, code: str, package_src: Path, t
         script_path.write_text(
             "import sys\n"
             f"sys.path.insert(0, {str(package_src.resolve())!r})\n\n"
+            "import bpy\n"
+            f"if tuple(bpy.app.version[:2]) < {_version_tuple(MINIMUM_BLENDER_VERSION)!r}:\n"
+            f"    raise RuntimeError({f'Materials Processor requires Blender {MINIMUM_BLENDER_VERSION} or later.'!r})\n\n"
             f"{code}\n",
             encoding="utf-8",
         )
-        env["BLENDER_USER_CONFIG"] = str(user_dir / "config")
-        env["BLENDER_USER_SCRIPTS"] = str(user_dir / "scripts")
-        env["BLENDER_USER_DATAFILES"] = str(user_dir / "datafiles")
+        env.update({name: str(user_dir / directory) for name, directory in _BLENDER_USER_DIRECTORIES.items()})
         try:
             return subprocess.run(
                 [str(runtime.blender_exe), "--background", "--factory-startup", "--python", str(script_path)],

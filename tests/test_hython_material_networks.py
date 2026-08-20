@@ -1,12 +1,12 @@
 import json
 import os
-import shutil
 import subprocess
 from pathlib import Path
 
 import pytest
 
 from materials_processor import io as material_io
+from materials_processor.dcc.houdini.runtime import resolve_hython
 from materials_processor.mappings import FORMAT_CHOICES
 
 
@@ -16,7 +16,6 @@ REDSHIFT_HIP_FILE = ROOT / "examples" / "hip" / "example_file_redshift_v001.hip"
 SRC_DIR = ROOT / "src"
 REPORT_PATH = ROOT / ".pytest_cache" / "materials_processor" / "hython_conversion_coverage.json"
 REDSHIFT_REPORT_PATH = ROOT / ".pytest_cache" / "materials_processor" / "hython_redshift_conversion_coverage.json"
-DEFAULT_HYTHON = Path(r"C:\Program Files\Side Effects Software\Houdini 21.0.631\bin\hython.exe")
 JSON_START = "===MATERIALS_PROCESSOR_HYTHON_JSON_START==="
 JSON_END = "===MATERIALS_PROCESSOR_HYTHON_JSON_END==="
 TARGET_RENDERERS = list(FORMAT_CHOICES)
@@ -125,30 +124,6 @@ SNAPSHOT_CASES = {
         "ignore_positions": True,
     },
 }
-
-
-def _resolve_hython():
-    env_hython = os.environ.get("MATERIALS_PROCESSOR_HYTHON")
-    if env_hython:
-        path = Path(env_hython)
-        if path.is_file():
-            return str(path)
-
-    path_hython = shutil.which("hython")
-    if path_hython:
-        return path_hython
-
-    hfs = os.environ.get("HFS")
-    if hfs:
-        for name in ("hython.exe", "hython"):
-            path = Path(hfs) / "bin" / name
-            if path.is_file():
-                return str(path)
-
-    if DEFAULT_HYTHON.is_file():
-        return str(DEFAULT_HYTHON)
-
-    return None
 
 
 def _hython_script(
@@ -564,7 +539,7 @@ print({JSON_END!r})
 
 @pytest.fixture(scope="module")
 def hython_material_results():
-    hython = _resolve_hython()
+    hython = resolve_hython()
     if not hython:
         pytest.skip("hython is not available")
 
@@ -638,7 +613,7 @@ def _hython_supports_node_type(hython, node_type):
 
 @pytest.fixture(scope="module")
 def hython_redshift_material_results():
-    hython = _resolve_hython()
+    hython = resolve_hython()
     if not hython:
         pytest.skip("hython is not available")
     if not REDSHIFT_HIP_FILE.is_file():

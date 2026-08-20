@@ -17,6 +17,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from materials_processor.dcc.houdini.runtime import resolve_hython
+
 
 def _repo_root() -> Path:
     """Return the repository root for this script checkout."""
@@ -79,7 +81,7 @@ def _configure_probe(module, target_root: Path) -> None:
         raise FileNotFoundError(f"Target src directory not found: {module.SRC_DIR}")
 
 
-def _run_hython_probe(module, hython: str) -> dict:
+def _run_hython_probe(module, hython: str | Path) -> dict:
     """Run the configured probe through hython and return the JSON payload."""
     env = os.environ.copy()
     env["PYTHONPATH"] = str(module.SRC_DIR)
@@ -136,7 +138,7 @@ def _parse_args() -> argparse.Namespace:
         "--hython",
         type=str,
         default=None,
-        help="Explicit hython executable path. Defaults to the probe resolver.",
+        help="Explicit hython executable path. Defaults to standard Houdini discovery.",
     )
     return parser.parse_args()
 
@@ -151,14 +153,14 @@ def main() -> int:
     module = _load_probe_module(probe_root)
     _configure_probe(module, target_root)
 
-    hython = args.hython or module._resolve_hython()
+    hython = resolve_hython(args.hython)
     if not hython:
         raise RuntimeError("hython is not available. Set MATERIALS_PROCESSOR_HYTHON or pass --hython.")
 
     payload = _run_hython_probe(module, hython)
     payload["capture_metadata"] = {
         "captured_at": datetime.now(timezone.utc).isoformat(),
-        "hython": hython,
+        "hython": str(hython),
         "probe_root": str(probe_root),
         "probe_revision": _git_revision(probe_root),
         "probe_worktree_dirty": _git_worktree_dirty(probe_root),

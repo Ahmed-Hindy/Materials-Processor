@@ -1,0 +1,13 @@
+schema_version = "1.0.0"
+id = "materials_processor"
+version = "1.0.0"
+name = "Materials Processor"
+tagline = "Rebuild supported Blender materials safely"
+maintainer = "Ahmed Hindy"
+type = "add-on"
+tags = ["Material"]
+blender_version_min = "5.0.0"
+license = ["SPDX:LicenseRef-Proprietary"]
+
+[build]
+paths_exclude_pattern = ["__pycache__/", ".*", "*.zip"]

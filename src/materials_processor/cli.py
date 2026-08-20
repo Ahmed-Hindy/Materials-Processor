@@ -4,14 +4,13 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
-import shutil
 import subprocess
 import sys
 from pathlib import Path
 
 from materials_processor import __version__
 from materials_processor.dcc.blender import cli as blender_cli
+from materials_processor.dcc.houdini.runtime import resolve_hython
 from materials_processor.dcc.maya import cli as maya_cli
 
 
@@ -166,35 +165,6 @@ def _validate_maya_runtime(args) -> dict:
     return result
 
 
-def _resolve_hython(explicit_hython: str | None = None) -> Path | None:
-    if explicit_hython:
-        path = Path(explicit_hython).expanduser().resolve()
-        return path if path.is_file() else None
-
-    env_hython = os.environ.get("MATERIALS_PROCESSOR_HYTHON")
-    if env_hython:
-        path = Path(env_hython).expanduser().resolve()
-        if path.is_file():
-            return path
-
-    path_hython = shutil.which("hython") or shutil.which("hython.exe")
-    if path_hython:
-        return Path(path_hython).resolve()
-
-    default_hython = Path("C:/Program Files/Side Effects Software/Houdini 21.0.631/bin/hython.exe")
-    if default_hython.is_file():
-        return default_hython.resolve()
-
-    install_root = Path("C:/Program Files/Side Effects Software")
-    if install_root.is_dir():
-        candidates = sorted(install_root.glob("Houdini 21.0*/bin/hython.exe"), reverse=True)
-        for candidate in candidates:
-            if candidate.is_file():
-                return candidate.resolve()
-
-    return None
-
-
 def _validate_houdini_runtime(hython: Path, timeout: int) -> dict:
     code = (
         "import json\n"
@@ -278,7 +248,7 @@ def _doctor_maya(args) -> dict:
 
 def _doctor_houdini(args) -> dict:
     try:
-        hython = _resolve_hython(args.hython)
+        hython = resolve_hython(args.hython)
         if hython is None:
             return _doctor_entry("houdini", "missing", error="hython was not found.")
         result = _doctor_entry("houdini", "found", hython=str(hython))

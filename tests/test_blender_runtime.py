@@ -9,6 +9,8 @@ from materials_processor.dcc.blender.runtime import (
     BLENDER_EXE_ENV_VAR,
     BLENDER_ROOT_ENV_VAR,
     MATERIAL_SMOKE_RESULT_PREFIX,
+    MINIMUM_BLENDER_VERSION,
+    TARGET_BLENDER_VERSION,
     VALIDATION_RESULT_PREFIX,
     BlenderRuntime,
     _default_package_src,
@@ -35,18 +37,20 @@ def _fake_blender_root(tmp_path):
 
 
 def test_default_blender_root_uses_standard_windows_install_path():
-    assert _default_blender_root("4.0") == Path("C:/Program Files/Blender Foundation/Blender 4.0")
+    assert TARGET_BLENDER_VERSION == "5.2"
+    assert MINIMUM_BLENDER_VERSION == "5.0"
+    assert _default_blender_root() == Path("C:/Program Files/Blender Foundation/Blender 5.2")
 
 
 def test_resolve_blender_runtime_uses_explicit_root(tmp_path):
-    blender_root = _fake_blender_root(tmp_path / "Blender 4.0")
+    blender_root = _fake_blender_root(tmp_path / "Blender 5.2")
 
     runtime = resolve_blender_runtime(root=blender_root)
 
     assert runtime == BlenderRuntime(
         root=blender_root.resolve(),
         blender_exe=(blender_root / "blender.exe").resolve(),
-        version="4.0",
+        version="5.2",
         python_version="",
         api_version="",
     )
@@ -63,7 +67,7 @@ def test_resolve_blender_runtime_uses_env_executable_override(tmp_path, monkeypa
 
 
 def test_resolve_blender_runtime_uses_env_root_override(tmp_path, monkeypatch):
-    blender_root = _fake_blender_root(tmp_path / "Blender 4.2")
+    blender_root = _fake_blender_root(tmp_path / "Blender 5.2")
     monkeypatch.setenv(BLENDER_ROOT_ENV_VAR, str(blender_root))
 
     runtime = resolve_blender_runtime(version=None)
@@ -72,13 +76,20 @@ def test_resolve_blender_runtime_uses_env_root_override(tmp_path, monkeypatch):
     assert runtime.blender_exe == (blender_root / "blender.exe").resolve()
 
 
+def test_resolve_blender_runtime_rejects_older_blender(tmp_path):
+    blender_root = _fake_blender_root(tmp_path / "Blender 4.5")
+
+    with pytest.raises(RuntimeError, match="requires Blender 5.0"):
+        resolve_blender_runtime(root=blender_root)
+
+
 def test_resolve_blender_runtime_reports_missing_executable(tmp_path):
     with pytest.raises(FileNotFoundError, match="Blender executable"):
         resolve_blender_runtime(root=tmp_path)
 
 
 def test_validate_blender_runtime_uses_headless_blender_pythonpath_and_isolated_prefs(tmp_path, monkeypatch):
-    blender_root = _fake_blender_root(tmp_path / "Blender 4.0")
+    blender_root = _fake_blender_root(tmp_path / "Blender 5.2")
     runtime = resolve_blender_runtime(root=blender_root)
     package_src = tmp_path / "src"
     package_src.mkdir()
@@ -91,11 +102,12 @@ def test_validate_blender_runtime_uses_headless_blender_pythonpath_and_isolated_
         captured["env"] = env
         captured["text"] = text
         captured["timeout"] = timeout
+        captured["script"] = Path(command[-1]).read_text(encoding="utf-8")
         result = {
-            "api_version": "4.0.0",
+            "api_version": "5.2.0",
             "package_file": str(package_src / "materials_processor" / "__init__.py"),
             "python_version": "3.11.7",
-            "version": "4.0.2",
+            "version": "5.2.0",
         }
         return SimpleNamespace(
             returncode=0,
@@ -107,12 +119,13 @@ def test_validate_blender_runtime_uses_headless_blender_pythonpath_and_isolated_
 
     validated = validate_blender_runtime(runtime=runtime, package_src=package_src, timeout=3)
 
-    assert validated.version == "4.0.2"
+    assert validated.version == "5.2.0"
     assert validated.python_version == "3.11.7"
-    assert validated.api_version == "4.0.0"
+    assert validated.api_version == "5.2.0"
     assert captured["command"][:3] == [str(runtime.blender_exe), "--background", "--factory-startup"]
     assert "--python" in captured["command"]
     assert captured["command"][-1].endswith("validate_materials_processor.py")
+    assert "Materials Processor requires Blender 5.0 or later." in captured["script"]
     assert captured["check"] is False
     assert captured["capture_output"] is True
     assert captured["text"] is True
@@ -120,11 +133,12 @@ def test_validate_blender_runtime_uses_headless_blender_pythonpath_and_isolated_
     assert captured["env"]["PYTHONPATH"].split(os.pathsep)[0] == str(package_src.resolve())
     assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_CONFIG"]
     assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_SCRIPTS"]
+    assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_EXTENSIONS"]
     assert "materials_processor_blender_user_" in captured["env"]["BLENDER_USER_DATAFILES"]
 
 
 def test_validate_blender_material_smoke_parses_recreation_result(tmp_path, monkeypatch):
-    blender_root = _fake_blender_root(tmp_path / "Blender 4.0")
+    blender_root = _fake_blender_root(tmp_path / "Blender 5.2")
     runtime = resolve_blender_runtime(root=blender_root)
     package_src = tmp_path / "src"
     package_src.mkdir()
