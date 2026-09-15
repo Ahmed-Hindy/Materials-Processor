@@ -3,9 +3,9 @@
 A beta tool for ingestion, standardization, and conversion of material networks across DCCs.
 It supports Houdini, Blender, and Maya material graph traversal, with USD MaterialX and OpenPBR export paths.
 
-Current package version: `2.0.0-beta`.
-
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
+Current package version: `2.0.0-beta`.
 
 <table>
   <tr>
