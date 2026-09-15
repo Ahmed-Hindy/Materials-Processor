@@ -5,6 +5,8 @@ It supports Houdini, Blender, and Maya material graph traversal, with USD Materi
 
 Current package version: `2.0.0-beta`.
 
+[![License: Apache-2.0](https://img.shields.io/badge/License-Apache--2.0-blue.svg)](LICENSE)
+
 <table>
   <tr>
     <td><img src="https://github.com/Ahmed-Hindy/AxeFx_tools/assets/23151881/0a330312-8809-44bf-b6a9-35e233c57eda" alt="PySide UI" width="250" /><br/>PySide UI</td>
@@ -96,3 +98,7 @@ uv --native-tls run materials-processor runtime validate --dcc maya --material-s
 - [ ] Add a user-facing cross-DCC Qt launcher around the CLI workflows.
 - [ ] Add implementation for Vray and Renderman.
 - [ ] Extend support to other apps like Substance Painter.
+
+## License
+
+Apache-2.0. See [LICENSE](LICENSE).
