@@ -2,6 +2,8 @@
 name = "materials-processor"
 description = "Cross-DCC material ingestion, standardization, and conversion tools."
 dynamic = ["version"]
+license = "Apache-2.0"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 dependencies = []
 
@@ -11,7 +13,7 @@ materials-processor-blender = "materials_processor.dcc.blender.cli:main"
 materials-processor-maya = "materials_processor.dcc.maya.cli:main"
 
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling>=1.27"]
 build-backend = "hatchling.build"
 
 [dependency-groups]
